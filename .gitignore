@@ -1,0 +1,15 @@
+build*/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.so
+.cache/
+.conda/
+.conda-bld/
+.ipynb_checkpoints/
+test-results/
+_skbuild/
+
+cpp/.idea/
+cpp/cmake-build-debug/
+
