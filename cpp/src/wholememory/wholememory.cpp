@@ -41,6 +41,11 @@ wholememory_error_code_t wholememory_communicator_get_size(int* size,
   return wholememory::communicator_get_size(size, comm);
 }
 
+wholememory_error_code_t wholememory_communicator_barrier(wholememory_comm_t comm) {
+  wholememory::communicator_barrier(comm);
+  return WHOLEMEMORY_SUCCESS;
+}
+
 wholememory_error_code_t wholememory_malloc(wholememory_handle_t *wholememory_handle_ptr,
                                             size_t total_size,
                                             wholememory_comm_t comm,

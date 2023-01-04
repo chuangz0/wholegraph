@@ -33,6 +33,8 @@ wholememory_error_code_t init(unsigned int flags) noexcept {
 }
 
 wholememory_error_code_t finalize() noexcept {
+  std::unique_lock<std::mutex> lock(mu);
+  is_wm_init = false;
   return destroy_all_communicators();
 }
 

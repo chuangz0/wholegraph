@@ -6,6 +6,10 @@
 #include <wholememory/wholememory.h>
 #include <wholememory/tensor_description.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * Gather Op
  * @param wholememory_handle : WholeMemory handle to embedding table.
@@ -26,3 +30,7 @@ wholememory_error_code_t wholememory_gather(wholememory_handle_t wholememory_han
                                             wholememory_matrix_description_t output_desc,
                                             wholememory_env_func_t* p_env_fns,
                                             cudaStream_t stream);
+
+#ifdef __cplusplus
+}
+#endif

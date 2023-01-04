@@ -88,7 +88,7 @@ __global__ void gather_func_kernel(wholememory_gref_t embedding_gref,
                                    OutputT *output,
                                    wholememory_matrix_description_t output_desc) {
   int64_t output_idx = static_cast<int64_t>(blockIdx.x) * blockDim.y + threadIdx.y;
-  for (; output_idx < indice_count; output_idx += static_cast<int64_t>(blockIdx.x) * blockDim.y) {
+  for (; output_idx < indice_count; output_idx += static_cast<int64_t>(gridDim.x) * blockDim.y) {
     IndexT embedding_table_idx = indices[output_idx];
     wholememory::device_reference<EmbeddingT> embedding_dev_ref(embedding_gref);
     int thread_idx = threadIdx.x;
@@ -188,7 +188,7 @@ __global__ void scatter_func_kernel(const InputT *input,
                                     wholememory_gref_t embedding_gref,
                                     wholememory_matrix_description_t embedding_desc) {
   int64_t input_idx = static_cast<int64_t>(blockIdx.x) * blockDim.y + threadIdx.y;
-  for (; input_idx < indice_count; input_idx += static_cast<int64_t>(blockIdx.x) * blockDim.y) {
+  for (; input_idx < indice_count; input_idx += static_cast<int64_t>(gridDim.x) * blockDim.y) {
     IndexT embedding_table_idx = indices[input_idx];
     wholememory::device_reference<EmbeddingT> embedding_dev_ref(embedding_gref);
     int thread_idx = threadIdx.x;

@@ -64,6 +64,8 @@ wholememory_error_code_t wholememory_communicator_get_rank(int* rank,
 wholememory_error_code_t wholememory_communicator_get_size(int* size,
                                                            wholememory_comm_t comm);
 
+wholememory_error_code_t wholememory_communicator_barrier(wholememory_comm_t comm);
+
 typedef struct wholememory_handle_ *wholememory_handle_t;
 
 wholememory_error_code_t wholememory_malloc(wholememory_handle_t *wholememory_handle_ptr,

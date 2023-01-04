@@ -865,6 +865,7 @@ class chunked_device_wholememory_impl : public wholememory_impl {
     local_partition_memory_pointer_ = cuda_ipc_handle_.local_mem_ptr;
     CUDA_CHECK(cudaMalloc(&gref_.pointer, sizeof(void*) * comm_->world_size));
     CUDA_CHECK(cudaMemcpy(gref_.pointer, cuda_ipc_handle_.mapped_ptrs.data(), sizeof(void*) * comm_->world_size, cudaMemcpyHostToDevice));
+    gref_.stride = alloc_strategy_.local_alloc_size;
   }
   void unmap_and_destroy_runtime_device_memory() noexcept {
     try {

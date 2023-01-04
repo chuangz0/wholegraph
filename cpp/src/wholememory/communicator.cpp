@@ -343,7 +343,19 @@ wholememory_error_code_t communicator_get_size(int* size,
 }
 
 void communicator_barrier(wholememory_comm_t comm) {
-  comm->raft_nccl_comm->barrier();
+  try {
+    comm->raft_nccl_comm->barrier();
+  } catch (const raft::cuda_error& rce) {
+    WHOLEMEMORY_FAIL_NOTHROW("%s", rce.what());
+  } catch (const raft::logic_error& rle) {
+    WHOLEMEMORY_FAIL_NOTHROW("%s", rle.what());
+  } catch (const wholememory::logic_error& wle) {
+    WHOLEMEMORY_FAIL_NOTHROW("%s", wle.what());
+  } catch (const raft::exception& re) {
+    WHOLEMEMORY_FAIL_NOTHROW("%s", re.what());
+  } catch (...) {
+    WHOLEMEMORY_FAIL_NOTHROW("Unknown exception.");
+  }
 }
 
 bool is_intranode_communicator(wholememory_comm_t comm) noexcept {

@@ -54,14 +54,14 @@ void count_for_ranks_temp_fn(void* indices,
                              cudaStream_t stream) {
   static constexpr int BLOCK_SIZE = 128;
   int block_count = raft::div_rounding_up_unsafe(indice_desc.size, BLOCK_SIZE);
-  block_count = std::max(block_count, sm_count * 2);
+  block_count = std::min(block_count, sm_count * 2);
   IndexT* indices_ptr = static_cast<IndexT*>(indices);
   indices_ptr += indice_desc.storage_offset;
-  count_for_ranks_kernel<<<block_count, BLOCK_SIZE, 0, stream>>>(indices_ptr,
-                                                                 indice_desc.size,
-                                                                 dev_rank_id_count_ptr,
-                                                                 embedding_entry_count_per_rank,
-                                                                 world_size);
+  count_for_ranks_kernel<<<block_count, BLOCK_SIZE, sizeof(int) * world_size, stream>>>(indices_ptr,
+                                                                                        indice_desc.size,
+                                                                                        dev_rank_id_count_ptr,
+                                                                                        embedding_entry_count_per_rank,
+                                                                                        world_size);
 }
 
 REGISTER_DISPATCH_ONE_TYPE(CountForRanks, count_for_ranks_temp_fn, SINT3264)
@@ -73,11 +73,11 @@ wholememory_error_code_t count_for_ranks(void* indices,
                                          int world_size,
                                          cudaDeviceProp* prop,
                                          cudaStream_t stream) {
-  cudaMemsetAsync(dev_rank_id_count_ptr, 0, sizeof(int64_t) * world_size, stream);
-  if (indice_desc.size == 0) {
-    return WHOLEMEMORY_SUCCESS;
-  }
   try {
+    CUDA_CHECK(cudaMemsetAsync(dev_rank_id_count_ptr, 0, sizeof(int64_t) * world_size, stream));
+    if (indice_desc.size == 0) {
+      return WHOLEMEMORY_SUCCESS;
+    }
     DISPATCH_ONE_TYPE(indice_desc.dtype,
                       CountForRanks,
                       indices,
@@ -165,7 +165,8 @@ wholememory_error_code_t wholememory_gather_nccl(wholememory_handle_t wholememor
                                                  wholememory_matrix_description_t output_desc,
                                                  wholememory_env_func_t *p_env_fns,
                                                  cudaStream_t stream) {
-  if (wholememory_desc.storage_offset < 0 || wholememory_desc.storage_offset >= wholememory_desc.stride) {
+  if (wholememory_desc.storage_offset < 0
+      || wholememory_desc.storage_offset + wholememory_desc.sizes[0] > wholememory_desc.stride) {
     return WHOLEMEMORY_INVALID_INPUT;
   }
 
@@ -206,6 +207,8 @@ wholememory_error_code_t wholememory_gather_nccl(wholememory_handle_t wholememor
                                              world_size,
                                              &wholememory_handle->device_prop,
                                              stream));
+
+  CUDA_CHECK(cudaGetLastError());
 
   temp_memory_handle host_rank_id_offset(p_env_fns);
   temp_memory_handle dev_sorted_indice(p_env_fns);
@@ -248,7 +251,7 @@ wholememory_error_code_t wholememory_gather_nccl(wholememory_handle_t wholememor
         + wholememory_dtype_get_element_size(indice_desc.dtype) * indice_desc.storage_offset;
     // Exchange ids
     CUDA_CHECK(cudaMemcpyAsync(dev_sorted_indice_ptr, indice_ptr,
-                               wholememory_dtype_get_element_size(indice_desc.dtype) * indice_desc.size,
+                               wholememory_get_memory_size_from_array(&indice_desc),
                                cudaMemcpyDeviceToDevice, stream));
     DISPATCH_ONE_TYPE(indice_desc.dtype,
                       NCCLExchangeIDs,
@@ -273,9 +276,9 @@ wholememory_error_code_t wholememory_gather_nccl(wholememory_handle_t wholememor
                                                             wholememory_handle));
     local_fake_ptr = static_cast<char*>(local_fake_ptr) - local_mem_offset;
     wholememory_gref_t local_fake_gref = wholememory_create_continuous_global_reference(local_fake_ptr);
-    int64_t local_buffer_size[2] = {wholememory_desc.stride, total_recv_count};
+    int64_t local_buffer_size[2] = {wholememory_desc.sizes[0], total_recv_count};
     wholememory_matrix_description_t local_gather_buffer_desc =
-        wholememory_create_matrix_desc(local_buffer_size, wholememory_desc.stride, 0, output_desc.dtype);
+        wholememory_create_matrix_desc(local_buffer_size, wholememory_desc.sizes[0], 0, output_desc.dtype);
     DISPATCH_THREE_TYPES(wholememory_desc.dtype,
                          indice_desc.dtype,
                          output_desc.dtype,
@@ -295,10 +298,12 @@ wholememory_error_code_t wholememory_gather_nccl(wholememory_handle_t wholememor
     for (int i = 0; i < world_size; i++) {
       embedding_send_displs[i] = send_disp;
       embedding_recv_displs[i] = recv_disp;
-      size_t send_count = host_rank_id_count_ptr[i] * embedding_size;
-      size_t recv_count = host_recv_rank_id_count_ptr[i] * embedding_size;
+      size_t send_count = host_recv_rank_id_count_ptr[i] * embedding_size;
+      size_t recv_count = host_rank_id_count_ptr[i] * embedding_size;
       embedding_send_counts[i] = send_count;
       embedding_recv_counts[i] = recv_count;
+      send_disp += send_count;
+      recv_disp += recv_count;
     }
     wm_comm->raft_nccl_comm->alltoallv(dev_local_gather_buffer_ptr,
                                        dev_embedding_recv_buffer_ptr,

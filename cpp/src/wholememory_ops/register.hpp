@@ -129,7 +129,7 @@ inline wholememory_dtype_t get_wholememory_dtype<double>() { return WHOLEMEMORY_
   CASES_FLOAT_DOUBLE(TEMPFUNC_NAME, ##__VA_ARGS__)
 
 #define CASES_ALLFLOAT(TEMPFUNC_NAME, ...)         \
-  case WMT_Bfloat16: {                             \
+  case WHOLEMEMORY_DT_BF16: {                      \
     TEMPFUNC_NAME<__nv_bfloat16, ##__VA_ARGS__>(); \
     break;                                         \
   }                                                \
