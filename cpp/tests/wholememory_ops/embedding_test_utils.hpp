@@ -1,8 +1,8 @@
 #pragma once
 
+#include <wholememory/env_func_ptrs.h>
 #include <wholememory/tensor_description.h>
 #include <wholememory/wholememory.h>
-#include <wholememory/env_func_ptrs.h>
 
 namespace wholememory_ops::testing {
 

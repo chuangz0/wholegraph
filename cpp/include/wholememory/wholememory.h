@@ -9,13 +9,14 @@ extern "C" {
 #endif
 
 typedef enum wholememory_error_code_ {
-  WHOLEMEMORY_SUCCESS = 0,        /* success */
-  WHOLEMEMORY_UNKNOW_ERROR,       /* unknown error */
-  WHOLEMEMORY_NOT_IMPLEMENTED,    /* method is not implemented */
-  WHOLEMEMORY_LOGIC_ERROR,        /* logic error */
-  WHOLEMEMORY_CUDA_ERROR,         /* CUDA error */
-  WHOLEMEMORY_INVALID_INPUT,      /* input is invalid, e.g. nullptr */
-  WHOLEMEMORY_INVALID_VALUE,      /* input value is invalid */
+  WHOLEMEMORY_SUCCESS = 0,          /* success */
+  WHOLEMEMORY_UNKNOW_ERROR,         /* unknown error */
+  WHOLEMEMORY_NOT_IMPLEMENTED,      /* method is not implemented */
+  WHOLEMEMORY_LOGIC_ERROR,          /* logic error */
+  WHOLEMEMORY_CUDA_ERROR,           /* CUDA error */
+  WHOLEMEMORY_COMMUNICATION_ERROR,  /* communication error */
+  WHOLEMEMORY_INVALID_INPUT,        /* input is invalid, e.g. nullptr */
+  WHOLEMEMORY_INVALID_VALUE,        /* input value is invalid */
 } wholememory_error_code_t;
 
 #define WHOLEMEMORY_RETURN_ON_FAIL(X)   \

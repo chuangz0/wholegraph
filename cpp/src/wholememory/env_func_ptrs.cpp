@@ -1,10 +1,9 @@
 #include <wholememory/env_func_ptrs.hpp>
 
-#include <raft/util/cudart_utils.hpp>
-
 #include <mutex>
 
 #include "error.hpp"
+#include "cuda_macros.hpp"
 
 namespace wholememory {
 
@@ -33,18 +32,18 @@ void *default_device_malloc_func(wholememory_tensor_description_t *tensor_descri
 
   void* ptr = nullptr;
   try {
-    CUDA_CHECK(cudaMalloc(&ptr, wholememory_get_memory_size_from_tensor(tensor_description)));
-  } catch (raft::cuda_error& rce) {
-    WHOLEMEMORY_FAIL_NOTHROW("cudaMalloc failed, %s.\n", rce.what());
+    WM_CUDA_CHECK(cudaMalloc(&ptr, wholememory_get_memory_size_from_tensor(tensor_description)));
+  } catch (wholememory::cuda_error& wce) {
+    WHOLEMEMORY_FAIL_NOTHROW("cudaMalloc failed, %s.\n", wce.what());
   }
   return ptr;
 }
 
 void default_device_free_func(void* ptr, void* /*memory_context*/, void* /*global_context*/) {
   try {
-    CUDA_CHECK(cudaFree(ptr));
-  } catch (raft::cuda_error& rce) {
-    WHOLEMEMORY_FAIL_NOTHROW("cudaFree failed, %s.\n", rce.what());
+    WM_CUDA_CHECK(cudaFree(ptr));
+  } catch (wholememory::cuda_error& wce) {
+    WHOLEMEMORY_FAIL_NOTHROW("cudaFree failed, %s.\n", wce.what());
   }
 }
 
@@ -54,18 +53,18 @@ void *default_pinned_malloc_func(wholememory_tensor_description_t *tensor_descri
 
   void* ptr = nullptr;
   try {
-    CUDA_CHECK(cudaMallocHost(&ptr, wholememory_get_memory_size_from_tensor(tensor_description)));
-  } catch (raft::cuda_error& rce) {
-    WHOLEMEMORY_FAIL_NOTHROW("cudaMallocHost failed, %s.\n", rce.what());
+    WM_CUDA_CHECK(cudaMallocHost(&ptr, wholememory_get_memory_size_from_tensor(tensor_description)));
+  } catch (wholememory::cuda_error& wce) {
+    WHOLEMEMORY_FAIL_NOTHROW("cudaMallocHost failed, %s.\n", wce.what());
   }
   return ptr;
 }
 
 void default_pinned_free_func(void* ptr, void* /*memory_context*/, void* /*global_context*/) {
   try {
-    CUDA_CHECK(cudaFreeHost(ptr));
-  } catch (raft::cuda_error& rce) {
-    WHOLEMEMORY_FAIL_NOTHROW("cudaFreeHost failed, %s.\n", rce.what());
+    WM_CUDA_CHECK(cudaFreeHost(ptr));
+  } catch (wholememory::cuda_error& wce) {
+    WHOLEMEMORY_FAIL_NOTHROW("cudaFreeHost failed, %s.\n", wce.what());
   }
 }
 

@@ -32,6 +32,22 @@ typedef enum wholememory_dtype_ {
 size_t wholememory_dtype_get_element_size(wholememory_dtype_t dtype);
 
 /**
+ * Check if dtype is floating number
+ * @param dtype : wholememory_dtype_t
+ * @return : True if dtype is WHOLEMEMORY_DT_FLOAT, WHOLEMEMORY_DT_HALF, WHOLEMEMORY_DT_DOUBLE or WHOLEMEMORY_DT_BF16.
+ *           False otherwise.
+ */
+bool wholememory_dtype_is_floating_number(wholememory_dtype_t dtype);
+
+/**
+ * Check if dtype is integer number
+ * @param dtype : wholememory_dtype_t
+ * @return : True if dtype is WHOLEMEMORY_DT_INT, WHOLEMEMORY_DT_INT64, WHOLEMEMORY_DT_INT16 or WHOLEMEMORY_DT_INT8,
+ *           False otherwise.
+ */
+bool wholememory_dtype_is_integer_number(wholememory_dtype_t dtype);
+
+/**
  * @struct wholememory_array_description_t
  * @brief wrapper for array in WholeMemory
  */

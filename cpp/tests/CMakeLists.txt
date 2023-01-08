@@ -65,35 +65,10 @@ endfunction()
 
 # Wrapper around `ConfigureTestInternal` that builds tests both with and without per thread default
 # stream
-function(ConfigureRMMTest TEST_NAME)
-    # Test with legacy default stream.
-    ConfigureTestInternal(${TEST_NAME} ${ARGN})
-
-    # Test with per-thread default stream.
-    string(REGEX REPLACE "_TEST$" "_PTDS_TEST" PTDS_TEST_NAME "${TEST_NAME}")
-    ConfigureTestInternal("${PTDS_TEST_NAME}" ${ARGN})
-    target_compile_definitions("${PTDS_TEST_NAME}" PUBLIC CUDA_API_PER_THREAD_DEFAULT_STREAM)
-
-    # Test with custom thrust namespace
-    string(REGEX REPLACE "_TEST$" "_NAMESPACE_TEST" NS_TEST_NAME "${TEST_NAME}")
-    ConfigureTestInternal("${NS_TEST_NAME}" ${ARGN})
-    target_compile_definitions("${NS_TEST_NAME}" PUBLIC THRUST_WRAPPED_NAMESPACE=wholegraph_thrust)
-endfunction()
-
-# Wrapper around `ConfigureTestInternal` that builds tests both with and without per thread default
-# stream
 function(ConfigureTest TEST_NAME)
     # Test with legacy default stream.
     ConfigureTestInternal(${TEST_NAME} ${ARGN})
 endfunction()
-
-# pinned buffer tests
-ConfigureRMMTest(PINNED_BUFFER_TEST rmm/pinned_buffer_tests.cu)
-#ConfigureTest(PINNED_BUFFER_TEST rmm/pinned_buffer_tests.cu)
-
-# uvector tests
-ConfigureRMMTest(PINNED_UVECTOR_TEST rmm/pinned_uvector_tests.cpp)
-#ConfigureTest(PINNED_UVECTOR_TEST rmm/pinned_uvector_tests.cpp)
 
 # parallel_utils tests
 ConfigureTest(PARALLEL_UTILS_TEST parallel_utils_tests.cpp)
@@ -106,3 +81,6 @@ ConfigureTest(WHOLEMEMORY_HANDLE_TEST wholememory/wholememory_handle_tests.cpp)
 
 # wholememory gather op tests
 ConfigureTest(WHOLEMEMORY_GATHER_TEST wholememory_ops/wholememory_gather_tests.cu wholememory_ops/embedding_test_utils.cu)
+
+# wholememory scatter op tests
+ConfigureTest(WHOLEMEMORY_SCATTER_TEST wholememory_ops/wholememory_scatter_tests.cu wholememory_ops/embedding_test_utils.cu)

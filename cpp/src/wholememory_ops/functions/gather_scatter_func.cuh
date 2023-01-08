@@ -1,11 +1,14 @@
 #pragma once
 
-#include <raft/util/cudart_utils.hpp>
+#include <cuda_bf16.h>
+#include <cuda_fp16.h>
+
 #include <raft/util/integer_utils.hpp>
 #include <wholememory/device_reference.cuh>
 #include <wholememory/global_reference.h>
 #include <wholememory/tensor_description.h>
 
+#include "cuda_macros.hpp"
 #include "error.hpp"
 
 namespace wholememory_ops {
@@ -41,6 +44,48 @@ __device__ __forceinline__ void mov_data<8>(void *to, const void *from) {
 template<>
 __device__ __forceinline__ void mov_data<16>(void *to, const void *from) {
   mov_typed_data(static_cast<int4 *>(to), static_cast<const int4 *>(from));
+}
+
+template <typename DataTypeT>
+class type_caster {
+ public:
+  using LoadTypeT = DataTypeT;
+  using StoreTypeT = DataTypeT;
+  static __device__ __forceinline__ LoadTypeT convert_load_data(DataTypeT data) {
+    return static_cast<LoadTypeT>(data);
+  }
+  static __device__ __forceinline__ DataTypeT convert_store_data(StoreTypeT data) {
+    return static_cast<DataTypeT>(data);
+  }
+};
+template <>
+class type_caster<__half> {
+ public:
+  using LoadTypeT = float;
+  using StoreTypeT = float;
+  static __device__ __forceinline__ LoadTypeT convert_load_data(__half data) {
+    return static_cast<LoadTypeT>(data);
+  }
+  static __device__ __forceinline__ __half convert_store_data(StoreTypeT data) {
+    return static_cast<__half>(data);
+  }
+};
+template <>
+class type_caster<__nv_bfloat16> {
+ public:
+  using LoadTypeT = float;
+  using StoreTypeT = float;
+  static __device__ LoadTypeT convert_load_data(__nv_bfloat16 data) {
+    return static_cast<LoadTypeT>(data);
+  }
+  static __device__ __nv_bfloat16 convert_store_data(StoreTypeT data) {
+    return static_cast<__nv_bfloat16>(data);
+  }
+};
+
+template <typename FromT, typename ToT>
+__device__ __forceinline__ ToT convert_type(FromT from) {
+  return type_caster<ToT>::convert_store_data(type_caster<FromT>::convert_load_data(from));
 }
 
 /**
@@ -103,7 +148,7 @@ __global__ void gather_func_kernel(wholememory_gref_t embedding_gref,
       mov_data<sizeof(EmbeddingT) * ALIGNMENT>(embeddings, &embedding_dev_ref[embedding_offset + emb_idx]);
 #pragma unroll
       for (int sub_idx = 0; sub_idx < ALIGNMENT; sub_idx++) {
-        outputs[sub_idx] = static_cast<OutputT>(embeddings[sub_idx]);
+        outputs[sub_idx] = convert_type<EmbeddingT, OutputT>(embeddings[sub_idx]);
       }
       mov_data<sizeof(OutputT) * ALIGNMENT>(output_ptr + emb_idx, outputs);
     }
@@ -111,13 +156,13 @@ __global__ void gather_func_kernel(wholememory_gref_t embedding_gref,
 }
 
 template<typename EmbeddingT, typename IndexT, typename OutputT>
-void gather_func(wholememory_gref_t embedding_gref,
-                 wholememory_matrix_description_t embedding_desc,
-                 void *indices,
-                 int64_t indice_count,
-                 void *output,
-                 wholememory_matrix_description_t output_desc,
-                 cudaStream_t stream) {
+void gather_temp_func(wholememory_gref_t embedding_gref,
+                      wholememory_matrix_description_t embedding_desc,
+                      void *indices,
+                      int64_t indice_count,
+                      void *output,
+                      wholememory_matrix_description_t output_desc,
+                      cudaStream_t stream) {
   WHOLEMEMORY_EXPECTS(output_desc.sizes[1] == indice_count,
                       "gather_func, output shape[1]=%ld, but indice_count=%ld",
                       output_desc.sizes[1],
@@ -177,7 +222,7 @@ void gather_func(wholememory_gref_t embedding_gref,
                                                    indice_count,
                                                    static_cast<OutputT*>(output),
                                                    output_desc);
-  CUDA_CHECK(cudaGetLastError());
+  WM_CUDA_CHECK(cudaGetLastError());
 }
 
 template<typename InputT, typename IndexT, typename EmbeddingT, int ALIGNMENT = 1>
@@ -203,7 +248,7 @@ __global__ void scatter_func_kernel(const InputT *input,
       mov_data<sizeof(InputT) * ALIGNMENT>(inputs, input_ptr + emb_idx);
 #pragma unroll
       for (int sub_idx = 0; sub_idx < ALIGNMENT; sub_idx++) {
-        embeddings[sub_idx] = static_cast<EmbeddingT>(inputs[sub_idx]);
+        embeddings[sub_idx] = convert_type<InputT, EmbeddingT>(inputs[sub_idx]);
       }
       mov_data<sizeof(EmbeddingT) * ALIGNMENT>(&embedding_dev_ref[embedding_offset + emb_idx], embeddings);
     }
@@ -211,13 +256,13 @@ __global__ void scatter_func_kernel(const InputT *input,
 }
 
 template<typename InputT, typename IndexT, typename EmbeddingT>
-void scatter_func(const void* input,
-                  wholememory_matrix_description_t input_desc,
-                  void *indices,
-                  int64_t indice_count,
-                  wholememory_gref_t embedding_gref,
-                  wholememory_matrix_description_t embedding_desc,
-                  cudaStream_t stream) {
+void scatter_temp_func(const void *input,
+                       wholememory_matrix_description_t input_desc,
+                       void *indices,
+                       int64_t indice_count,
+                       wholememory_gref_t embedding_gref,
+                       wholememory_matrix_description_t embedding_desc,
+                       cudaStream_t stream) {
   WHOLEMEMORY_EXPECTS(input_desc.sizes[1] == indice_count,
                       "scatter_func, input shape[1]=%ld, but indice_count=%ld",
                       input_desc.sizes[1],
@@ -277,7 +322,7 @@ void scatter_func(const void* input,
                                                    indice_count,
                                                    embedding_gref,
                                                    embedding_desc);
-  CUDA_CHECK(cudaGetLastError());
+  WM_CUDA_CHECK(cudaGetLastError());
 }
 
 }  // namespace wholememory_ops

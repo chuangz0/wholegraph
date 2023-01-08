@@ -18,14 +18,14 @@
 
 namespace wholememory_ops {
 
-wholememory_error_code_t wholememory_gather_nccl(wholememory_handle_t wholememory_handle,
-                                                 wholememory_matrix_description_t wholememory_desc,
-                                                 void *indices,
-                                                 wholememory_array_description_t indice_desc,
-                                                 void *output,
-                                                 wholememory_matrix_description_t output_desc,
-                                                 wholememory_env_func_t *p_env_fns,
-                                                 cudaStream_t stream) {
+wholememory_error_code_t wholememory_scatter_nccl(void *input,
+                                                  wholememory_matrix_description_t input_desc,
+                                                  void *indices,
+                                                  wholememory_array_description_t indices_desc,
+                                                  wholememory_handle_t wholememory_handle,
+                                                  wholememory_matrix_description_t wholememory_desc,
+                                                  wholememory_env_func_t *p_env_fns,
+                                                  cudaStream_t stream) {
   try {
     if (wholememory_desc.storage_offset < 0
         || wholememory_desc.storage_offset + wholememory_desc.sizes[0] > wholememory_desc.stride) {
@@ -54,7 +54,8 @@ wholememory_error_code_t wholememory_gather_nccl(wholememory_handle_t wholememor
     WHOLEMEMORY_RETURN_ON_FAIL(wholememory_communicator_get_rank(&world_rank, wm_comm));
 
     // Exchange node count
-    temp_memory_handle dev_rank_id_count(p_env_fns), host_rank_id_count(p_env_fns), host_recv_rank_id_count(p_env_fns);
+    temp_memory_handle dev_rank_id_count(p_env_fns), host_rank_id_count(p_env_fns), host_recv_rank_id_count(p_env_fns),
+        host_rank_id_offset(p_env_fns);
     int64_t *dev_rank_id_count_ptr =
         static_cast<int64_t *>(dev_rank_id_count.device_malloc(world_size, WHOLEMEMORY_DT_INT64));
     int64_t *host_rank_id_count_ptr =
@@ -63,7 +64,7 @@ wholememory_error_code_t wholememory_gather_nccl(wholememory_handle_t wholememor
         static_cast<int64_t *>(host_recv_rank_id_count.host_malloc(world_size, WHOLEMEMORY_DT_INT64));
 
     WHOLEMEMORY_RETURN_ON_FAIL(bucket_ids_for_ranks(indices,
-                                                    indice_desc,
+                                                    indices_desc,
                                                     dev_rank_id_count_ptr,
                                                     embedding_entry_count_per_rank,
                                                     world_size,
@@ -72,17 +73,13 @@ wholememory_error_code_t wholememory_gather_nccl(wholememory_handle_t wholememor
 
     WM_CUDA_CHECK(cudaGetLastError());
 
-    temp_memory_handle host_rank_id_offset(p_env_fns);
     temp_memory_handle dev_sorted_indice(p_env_fns);
-    temp_memory_handle dev_recv_indice_buffer(p_env_fns);
     temp_memory_handle dev_raw_indice(p_env_fns);
-    temp_memory_handle dev_local_gather_buffer(p_env_fns);
-    temp_memory_handle dev_embedding_recv_buffer(p_env_fns);
     int64_t *host_rank_id_offset_ptr =
         static_cast<int64_t *>(host_rank_id_offset.host_malloc(world_size + 1, WHOLEMEMORY_DT_INT64));
     int64_t *dev_raw_indice_ptr =
-        static_cast<int64_t *>(dev_raw_indice.device_malloc(indice_desc.size, WHOLEMEMORY_DT_INT64));
-    void *dev_sorted_indice_ptr = dev_sorted_indice.device_malloc(indice_desc.size, indice_desc.dtype);
+        static_cast<int64_t *>(dev_raw_indice.device_malloc(indices_desc.size, WHOLEMEMORY_DT_INT64));
+    void *dev_sorted_indice_ptr = dev_sorted_indice.device_malloc(indices_desc.size, indices_desc.dtype);
     WM_CUDA_CHECK(cudaMemcpyAsync(host_rank_id_count_ptr,
                                   dev_rank_id_count_ptr,
                                   sizeof(int64_t) * world_size,
@@ -104,15 +101,13 @@ wholememory_error_code_t wholememory_gather_nccl(wholememory_handle_t wholememor
     for (int i = 0; i < world_size; i++) {
       total_recv_count += host_recv_rank_id_count_ptr[i];
     }
-    void *dev_local_gather_buffer_ptr =
-        dev_local_gather_buffer.device_malloc(wholememory_desc.sizes[0] * total_recv_count, output_desc.dtype);
-    void *dev_embedding_recv_buffer_ptr =
-        dev_embedding_recv_buffer.device_malloc(wholememory_desc.sizes[0] * indice_desc.size, output_desc.dtype);
     void *indice_ptr = static_cast<char *>(indices)
-        + wholememory_dtype_get_element_size(indice_desc.dtype) * indice_desc.storage_offset;
+        + wholememory_dtype_get_element_size(indices_desc.dtype) * indices_desc.storage_offset;
+    indices_desc.storage_offset = 0;
+    temp_memory_handle dev_recv_indice_buffer(p_env_fns);
     // Exchange ids
     WHOLEMEMORY_RETURN_ON_FAIL(exchange_ids_func(indice_ptr,
-                                                 indice_desc,
+                                                 indices_desc,
                                                  host_recv_rank_id_count_ptr,
                                                  host_rank_id_count_ptr,
                                                  host_rank_id_offset_ptr,
@@ -123,7 +118,32 @@ wholememory_error_code_t wholememory_gather_nccl(wholememory_handle_t wholememor
                                                  &thrust_allocator,
                                                  stream));
 
-    // Local Gather
+    // Local Reorder
+    temp_memory_handle dev_local_reorder_buffer(p_env_fns), dev_embedding_recv_buffer(p_env_fns);
+    auto local_reorder_desc = wholememory_create_matrix_desc(input_desc.sizes, input_desc.sizes[0], 0, input_desc.dtype);
+    void *dev_local_reorder_buffer_ptr =
+        dev_local_reorder_buffer.device_malloc(wholememory_get_memory_element_count_from_matrix(&local_reorder_desc), input_desc.dtype);
+    wholememory_gref_t input_gref = wholememory_create_continuous_global_reference(input);
+    auto dev_raw_indice_desc = wholememory_create_array_desc(indices_desc.size, 0, WHOLEMEMORY_DT_INT64);
+    WHOLEMEMORY_RETURN_ON_FAIL(gather_func(input_gref,
+                                           input_desc,
+                                           dev_raw_indice_ptr,
+                                           dev_raw_indice_desc,
+                                           dev_local_reorder_buffer_ptr,
+                                           local_reorder_desc,
+                                           stream));
+    // AllToAllV for embeddings
+    void *dev_embedding_recv_buffer_ptr =
+        dev_embedding_recv_buffer.device_malloc(total_recv_count * input_desc.sizes[0], input_desc.dtype);
+    size_t embedding_size = wholememory_desc.sizes[0] * wholememory_dtype_get_element_size(input_desc.dtype);
+    WHOLEMEMORY_RETURN_ON_FAIL(exchange_embeddings_nccl_func(dev_local_reorder_buffer_ptr,
+                                                             host_rank_id_count_ptr,
+                                                             host_recv_rank_id_count_ptr,
+                                                             dev_embedding_recv_buffer_ptr,
+                                                             embedding_size,
+                                                             wm_comm,
+                                                             stream));
+    // Local scatter
     size_t local_mem_offset, local_mem_size;
     void* local_fake_ptr = nullptr;
     WHOLEMEMORY_RETURN_ON_FAIL(wholememory_get_local_memory(&local_fake_ptr,
@@ -131,38 +151,18 @@ wholememory_error_code_t wholememory_gather_nccl(wholememory_handle_t wholememor
                                                             &local_mem_offset,
                                                             wholememory_handle));
     local_fake_ptr = static_cast<char*>(local_fake_ptr) - local_mem_offset;
-    wholememory_gref_t local_fake_gref = wholememory_create_continuous_global_reference(local_fake_ptr);
-    int64_t local_buffer_size[2] = {wholememory_desc.sizes[0], total_recv_count};
-    wholememory_matrix_description_t local_gather_buffer_desc =
-        wholememory_create_matrix_desc(local_buffer_size, wholememory_desc.sizes[0], 0, output_desc.dtype);
-    auto dev_recv_indice_desc = wholememory_create_array_desc(total_recv_count, 0, indice_desc.dtype);
-    WHOLEMEMORY_RETURN_ON_FAIL(gather_func(local_fake_gref,
-                                           wholememory_desc,
-                                           dev_recv_indice_buffer.pointer(),
-                                           dev_recv_indice_desc,
-                                           dev_local_gather_buffer_ptr,
-                                           local_gather_buffer_desc,
-                                           stream));
-    // AllToAllV for embeddings
-    size_t embedding_size = wholememory_desc.sizes[0] * wholememory_dtype_get_element_size(output_desc.dtype);
-    WHOLEMEMORY_RETURN_ON_FAIL(exchange_embeddings_nccl_func(dev_local_gather_buffer_ptr,
-                                                             host_recv_rank_id_count_ptr,
-                                                             host_rank_id_count_ptr,
-                                                             dev_embedding_recv_buffer_ptr,
-                                                             embedding_size,
-                                                             wm_comm,
-                                                             stream));
-    // Local reorder
-    wholememory_gref_t output_gref = wholememory_create_continuous_global_reference(output);
-    wholememory_matrix_description_t local_recv_buffer_desc =
-        wholememory_create_matrix_desc(output_desc.sizes, output_desc.sizes[0], 0, output_desc.dtype);
-    auto raw_indice_desc = wholememory_create_array_desc(indice_desc.size, 0, WHOLEMEMORY_DT_INT64);
+    wholememory_gref_t local_fake_embedding_gref = wholememory_create_continuous_global_reference(local_fake_ptr);
+
+    std::vector<int64_t> recv_embedding_sizes = {input_desc.sizes[0], total_recv_count};
+    wholememory_matrix_description_t recv_embedding_desc =
+        wholememory_create_matrix_desc(recv_embedding_sizes.data(), input_desc.sizes[0], 0, input_desc.dtype);
+    auto recv_indices_desc = wholememory_create_array_desc(total_recv_count, 0, indices_desc.dtype);
     WHOLEMEMORY_RETURN_ON_FAIL(scatter_func(dev_embedding_recv_buffer_ptr,
-                                            local_recv_buffer_desc,
-                                            dev_raw_indice_ptr,
-                                            raw_indice_desc,
-                                            output_gref,
-                                            output_desc,
+                                            recv_embedding_desc,
+                                            dev_recv_indice_buffer.pointer(),
+                                            recv_indices_desc,
+                                            local_fake_embedding_gref,
+                                            wholememory_desc,
                                             stream));
     WM_CUDA_CHECK(cudaGetLastError());
     WM_CUDA_CHECK(cudaStreamSynchronize(stream));

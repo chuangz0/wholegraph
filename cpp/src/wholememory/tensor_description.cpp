@@ -14,6 +14,20 @@ size_t wholememory_dtype_get_element_size(wholememory_dtype_t dtype) {
   }
 }
 
+bool wholememory_dtype_is_floating_number(wholememory_dtype_t dtype) {
+  if (dtype == WHOLEMEMORY_DT_FLOAT || dtype == WHOLEMEMORY_DT_HALF || dtype == WHOLEMEMORY_DT_DOUBLE
+      || dtype == WHOLEMEMORY_DT_BF16)
+    return true;
+  return false;
+}
+
+bool wholememory_dtype_is_integer_number(wholememory_dtype_t dtype) {
+  if (dtype == WHOLEMEMORY_DT_INT || dtype == WHOLEMEMORY_DT_INT64 || dtype == WHOLEMEMORY_DT_INT16
+      || dtype == WHOLEMEMORY_DT_INT8)
+    return true;
+  return false;
+}
+
 wholememory_array_description_t wholememory_create_array_desc(int64_t size,
                                                               int64_t storage_offset,
                                                               wholememory_dtype_t dtype) {

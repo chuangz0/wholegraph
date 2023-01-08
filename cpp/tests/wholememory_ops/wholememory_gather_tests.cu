@@ -187,6 +187,7 @@ INSTANTIATE_TEST_CASE_P(
     WholeMemoryGatherOpTests,
     WholeMemoryGatherParameterTests,
     ::testing::Values(
+#if 1
         WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS),
         WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED),
         WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED),
@@ -226,7 +227,7 @@ INSTANTIATE_TEST_CASE_P(
         WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS).set_embedding_type(WHOLEMEMORY_DT_HALF).set_embedding_stride(33),
         WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED).set_embedding_type(WHOLEMEMORY_DT_HALF).set_embedding_stride(33),
         WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED).set_embedding_type(WHOLEMEMORY_DT_HALF).set_embedding_stride(33),
-
-        WholeMemoryGatherTestParam()
+#endif
+        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED)
     ));
 

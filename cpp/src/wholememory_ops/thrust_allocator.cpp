@@ -10,7 +10,7 @@ wm_thrust_allocator::~wm_thrust_allocator() {
   deallocate_all();
 }
 
-wm_thrust_allocator::value_type *wm_thrust_allocator::allocate(std::ptrdiff_t mem_size) {
+wm_thrust_allocator::value_type* wm_thrust_allocator::allocate(std::ptrdiff_t mem_size) {
   static const std::ptrdiff_t kThrustAlignSize = 256;
   mem_size = std::max<std::ptrdiff_t>(kThrustAlignSize, mem_size);
   mem_size = raft::div_rounding_up_unsafe(mem_size, kThrustAlignSize) * kThrustAlignSize;

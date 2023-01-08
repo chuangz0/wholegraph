@@ -1,17 +1,280 @@
 #include "communicator.hpp"
 
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include <cuda.h>
 
 #include <memory>
-#include <raft/core/comms.hpp>
-#include <raft/comms/detail/util.hpp>
-#include <raft/comms/nccl_comms.hpp>
+#include <raft/core/error.hpp>
+#include <wholememory/tensor_description.h>
+#include <wholememory/wholememory.h>
 
+#include "cuda_macros.hpp"
 #include "logger.hpp"
 #include "memory_handle.hpp"
-#include "raft/core/cu_macros.hpp"
+#include "wholememory/nccl_comms.hpp"
+
+wholememory_comm_::wholememory_comm_(ncclComm_t nccl_comm,
+                                     int num_ranks,
+                                     int rank,
+                                     cudaStream_t stream) {
+  world_rank = rank;
+  world_size = num_ranks;
+  WM_CUDA_CHECK(cudaGetDevice(&dev_id));
+  comm_stream = stream;
+  raw_nccl_comm = nccl_comm;
+  WM_CUDA_CHECK(cudaEventCreate(&cuda_event));
+  raft_nccl_comm = new wholememory::nccl_comms(nccl_comm, num_ranks, rank, stream);
+}
+
+wholememory_comm_::~wholememory_comm_() {
+  delete raft_nccl_comm;
+  if (cuda_event != nullptr) {
+    cudaEventDestroy(cuda_event);
+    cuda_event = nullptr;
+  }
+}
+
+static ncclDataType_t get_nccl_dtype(const wholememory_dtype_t dtype)
+{
+  switch (dtype) {
+    case WHOLEMEMORY_DT_FLOAT:    return ncclFloat;
+    case WHOLEMEMORY_DT_DOUBLE:   return ncclDouble;
+    case WHOLEMEMORY_DT_HALF:     return ncclHalf;
+    case WHOLEMEMORY_DT_INT8:     return ncclChar;
+    case WHOLEMEMORY_DT_INT:      return ncclInt32;
+    case WHOLEMEMORY_DT_INT64:    return ncclInt64;
+#if defined(__CUDA_BF16_TYPES_EXIST__)
+    case WHOLEMEMORY_DT_BF16:     return ncclBfloat16;
+#endif
+    default: WHOLEMEMORY_FAIL("Not supported dtype.");
+  }
+}
+
+static ncclDataType_t get_nccl_dtype_same_size(const wholememory_dtype_t dtype)
+{
+  switch (dtype) {
+    case WHOLEMEMORY_DT_INT8:   return ncclChar;
+    case WHOLEMEMORY_DT_INT16:  return ncclHalf;
+    case WHOLEMEMORY_DT_BF16:   return ncclHalf;
+    case WHOLEMEMORY_DT_HALF:   return ncclHalf;
+    case WHOLEMEMORY_DT_INT:    return ncclInt32;
+    case WHOLEMEMORY_DT_FLOAT:  return ncclFloat;
+    case WHOLEMEMORY_DT_INT64:  return ncclInt64;
+    case WHOLEMEMORY_DT_DOUBLE: return ncclDouble;
+    default: WHOLEMEMORY_FAIL("Not supported dtype.");
+  }
+}
+
+void wholememory_comm_::barrier() const {
+  raft_nccl_comm->barrier();
+}
+
+void wholememory_comm_::allreduce(const void* sendbuff,
+               void* recvbuff,
+               size_t count,
+               wholememory_dtype_t datatype,
+               ncclRedOp_t op,
+               cudaStream_t stream) const {
+  raft_nccl_comm->allreduce(sendbuff, recvbuff, count, get_nccl_dtype(datatype), op, stream);
+}
+
+void wholememory_comm_::host_allreduce(const void* sendbuff,
+                    void* recvbuff,
+                    size_t count,
+                    wholememory_dtype_t datatype,
+                    ncclRedOp_t op) const {
+  raft_nccl_comm->host_allreduce(sendbuff, recvbuff, count, get_nccl_dtype(datatype), op);
+}
+
+void wholememory_comm_::bcast(void* buff, size_t count, wholememory_dtype_t datatype, int root, cudaStream_t stream) const {
+  raft_nccl_comm->bcast(buff, count, get_nccl_dtype_same_size(datatype), root, stream);
+}
+
+void wholememory_comm_::bcast(const void* sendbuff,
+           void* recvbuff,
+           size_t count,
+           wholememory_dtype_t datatype,
+           int root,
+           cudaStream_t stream) const {
+  raft_nccl_comm->bcast(sendbuff, recvbuff, count, get_nccl_dtype_same_size(datatype), root, stream);
+}
+
+void wholememory_comm_::host_bcast(const void *sendbuff,
+                void *recvbuff,
+                size_t count,
+                wholememory_dtype_t datatype,
+                int root) const {
+  raft_nccl_comm->host_bcast(sendbuff, recvbuff, count, get_nccl_dtype_same_size(datatype), root);
+}
+
+void wholememory_comm_::host_bcast(void* buff, size_t count, wholememory_dtype_t datatype, int root) const {
+  raft_nccl_comm->host_bcast(buff, count, get_nccl_dtype_same_size(datatype), root);
+}
+
+void wholememory_comm_::reduce(const void* sendbuff,
+            void* recvbuff,
+            size_t count,
+            wholememory_dtype_t datatype,
+            ncclRedOp_t op,
+            int root,
+            cudaStream_t stream) const {
+  raft_nccl_comm->reduce(sendbuff, recvbuff, count, get_nccl_dtype(datatype), op, root, stream);
+}
+
+void wholememory_comm_::host_reduce(const void *sendbuff,
+                 void *recvbuff,
+                 size_t count,
+                 wholememory_dtype_t datatype,
+                 ncclRedOp_t op,
+                 int root) const {
+  raft_nccl_comm->host_reduce(sendbuff, recvbuff, count, get_nccl_dtype(datatype), op, root);
+}
+
+void wholememory_comm_::allgather(const void* sendbuff,
+               void* recvbuff,
+               size_t sendcount,
+               wholememory_dtype_t datatype,
+               cudaStream_t stream) const {
+  raft_nccl_comm->allgather(sendbuff, recvbuff, sendcount, get_nccl_dtype_same_size(datatype), stream);
+}
+
+void wholememory_comm_::host_allgather(const void *sendbuff,
+                    void *recvbuff,
+                    size_t sendcount,
+                    wholememory_dtype_t datatype) const {
+  raft_nccl_comm->host_allgather(sendbuff, recvbuff, sendcount, get_nccl_dtype_same_size(datatype));
+}
+
+void wholememory_comm_::allgatherv(const void* sendbuf,
+                void* recvbuf,
+                const size_t* recvcounts,
+                const size_t* displs,
+                wholememory_dtype_t datatype,
+                cudaStream_t stream) const {
+  raft_nccl_comm->allgatherv(sendbuf, recvbuf, recvcounts, displs, get_nccl_dtype_same_size(datatype), stream);
+}
+
+void wholememory_comm_::host_allgatherv(const void *sendbuf,
+                     void *recvbuf,
+                     const size_t *recvcounts,
+                     const size_t *displs,
+                     wholememory_dtype_t datatype) const {
+  raft_nccl_comm->host_allgatherv(sendbuf, recvbuf, recvcounts, displs, get_nccl_dtype_same_size(datatype));
+}
+
+void wholememory_comm_::gather(const void* sendbuff,
+            void* recvbuff,
+            size_t sendcount,
+            wholememory_dtype_t datatype,
+            int root,
+            cudaStream_t stream) const {
+  raft_nccl_comm->gather(sendbuff, recvbuff, sendcount, get_nccl_dtype_same_size(datatype), root, stream);
+}
+
+void wholememory_comm_::host_gather(const void *sendbuff,
+                 void *recvbuff,
+                 size_t sendcount,
+                 wholememory_dtype_t datatype,
+                 int root) const {
+  raft_nccl_comm->host_gather(sendbuff, recvbuff, sendcount, get_nccl_dtype_same_size(datatype), root);
+}
+
+void wholememory_comm_::gatherv(const void* sendbuff,
+             void* recvbuff,
+             size_t sendcount,
+             const size_t* recvcounts,
+             const size_t* displs,
+             wholememory_dtype_t datatype,
+             int root,
+             cudaStream_t stream) const {
+  raft_nccl_comm->gatherv(sendbuff, recvbuff, sendcount, recvcounts, displs, get_nccl_dtype_same_size(datatype), root, stream);
+}
+
+void wholememory_comm_::reducescatter(const void* sendbuff,
+                   void* recvbuff,
+                   size_t recvcount,
+                   wholememory_dtype_t datatype,
+                   ncclRedOp_t op,
+                   cudaStream_t stream) const {
+  raft_nccl_comm->reducescatter(sendbuff, recvbuff, recvcount, get_nccl_dtype(datatype), op, stream);
+}
+
+void wholememory_comm_::alltoall(const void* sendbuff,
+              void* recvbuff,
+              size_t sendcount,
+              wholememory_dtype_t datatype,
+              cudaStream_t stream) const {
+  raft_nccl_comm->alltoall(sendbuff, recvbuff, sendcount, get_nccl_dtype_same_size(datatype), stream);
+}
+
+void wholememory_comm_::host_alltoall(const void *sendbuff,
+                   void *recvbuff,
+                   size_t sendcount,
+                   wholememory_dtype_t datatype) const {
+  raft_nccl_comm->host_alltoall(sendbuff, recvbuff, sendcount, get_nccl_dtype_same_size(datatype));
+}
+
+void wholememory_comm_::alltoallv(const void *sendbuff,
+               void *recvbuff,
+               const size_t *sendcounts,
+               const size_t *senddispls,
+               const size_t *recvcounts,
+               const size_t *recvdispls,
+               wholememory_dtype_t datatype,
+               cudaStream_t stream) const {
+  raft_nccl_comm->alltoallv(sendbuff, recvbuff, sendcounts, senddispls, recvcounts, recvdispls, get_nccl_dtype_same_size(datatype), stream);
+}
+
+
+wholememory_error_code_t wholememory_comm_::sync_stream(cudaStream_t stream) const {
+  return raft_nccl_comm->sync_stream(stream);
+}
+
+wholememory_error_code_t wholememory_comm_::sync_stream() const {
+  return raft_nccl_comm->sync_stream();
+}
+
+// if a thread is sending & receiving at the same time, use device_sendrecv to avoid deadlock
+void wholememory_comm_::device_send(const void* send_buf, size_t send_size, int dest, cudaStream_t stream) const {
+  raft_nccl_comm->device_send(send_buf, send_size, dest, stream);
+}
+
+// if a thread is sending & receiving at the same time, use device_sendrecv to avoid deadlock
+void wholememory_comm_::device_recv(void* recv_buf, size_t recv_size, int source, cudaStream_t stream) const {
+  raft_nccl_comm->device_recv(recv_buf, recv_size, source, stream);
+}
+
+void wholememory_comm_::device_sendrecv(const void* sendbuf,
+                     size_t sendsize,
+                     int dest,
+                     void* recvbuf,
+                     size_t recvsize,
+                     int source,
+                     cudaStream_t stream) const {
+  raft_nccl_comm->device_sendrecv(sendbuf, sendsize, dest, recvbuf, recvsize, source, stream);
+}
+
+void wholememory_comm_::device_multicast_sendrecv(const void* sendbuf,
+                               std::vector<size_t> const& sendsizes,
+                               std::vector<size_t> const& sendoffsets,
+                               std::vector<int> const& dests,
+                               void* recvbuf,
+                               std::vector<size_t> const& recvsizes,
+                               std::vector<size_t> const& recvoffsets,
+                               std::vector<int> const& sources,
+                               cudaStream_t stream) const {
+  raft_nccl_comm->device_multicast_sendrecv(sendbuf, sendsizes, sendoffsets, dests, recvbuf, recvsizes, recvoffsets, sources, stream);
+}
+
+void wholememory_comm_::group_start() const {
+  raft_nccl_comm->group_start();
+}
+
+void wholememory_comm_::group_end() const {
+  raft_nccl_comm->group_end();
+}
 
 namespace wholememory {
 
@@ -27,7 +290,9 @@ enum wm_comm_op : int32_t {
 };
 
 wholememory_error_code_t create_unique_id(wholememory_unique_id_t *unique_id) noexcept {
-  raft::comms::get_unique_id(unique_id->internal, sizeof(unique_id->internal));
+  ncclUniqueId id;
+  WHOLEMEMORY_CHECK_NOTHROW(ncclGetUniqueId(&id) == ncclSuccess);
+  memcpy(unique_id->internal, id.internal, sizeof(unique_id->internal));
   return WHOLEMEMORY_SUCCESS;
 }
 
@@ -120,7 +385,7 @@ void exchange_rank_info(wholememory_comm_t wm_comm) {
   ri.pid = getpid();
 
   std::unique_ptr<rank_info[]> p_rank_info(new rank_info[ri.size]);
-  wm_comm->raft_nccl_comm->host_allgather(&ri, p_rank_info.get(), sizeof(rank_info), raft::comms::datatype_t::CHAR);
+  wm_comm->host_allgather(&ri, p_rank_info.get(), sizeof(rank_info), WHOLEMEMORY_DT_INT8);
   wm_comm->intra_node_first_rank = -1;
   wm_comm->intra_node_rank_num = 0;
   wm_comm->intra_node_rank = -1;
@@ -146,7 +411,7 @@ void negotiate_communicator_id_locked(wholememory_comm_t wm_comm) {
   std::vector<int> rank_ids(wm_comm->world_size);
   while (!all_same) {
     while (communicator_map.find(id) != communicator_map.end()) id++;
-    wm_comm->raft_nccl_comm->host_allgather(&id, rank_ids.data(), 1, raft::comms::datatype_t::INT32);
+    wm_comm->host_allgather(&id, rank_ids.data(), 1, WHOLEMEMORY_DT_INT);
     int max_id = -1;
     all_same = true;
     for (int i = 0; i < wm_comm->world_size; i++) {
@@ -207,14 +472,14 @@ static size_t get_alloc_granularity(int dev_id) {
   prop.allocFlags.compressionType = CU_MEM_ALLOCATION_COMP_NONE;
   CUmemAllocationGranularity_flags flags = CU_MEM_ALLOC_GRANULARITY_RECOMMENDED;
   prop.location.id = dev_id;
-  CU_CHECK(cuMemGetAllocationGranularity(&granularity, &prop, flags));
+  WM_CU_CHECK(cuMemGetAllocationGranularity(&granularity, &prop, flags));
   return granularity;
 }
 
 void determine_alloc_granularity(wholememory_comm_t comm) {
   size_t granularity = get_alloc_granularity(comm->dev_id);
   std::vector<size_t> all_granularitys(comm->world_size);
-  comm->raft_nccl_comm->host_allgather(&granularity, all_granularitys.data(), 1, raft::comms::datatype_t::UINT64);
+  comm->host_allgather(&granularity, all_granularitys.data(), 1, WHOLEMEMORY_DT_INT64);
   size_t max_granularity = granularity;
   for (auto g: all_granularitys) {
     if (g > max_granularity) {
@@ -231,11 +496,10 @@ wholememory_error_code_t create_communicator(wholememory_comm_t *comm,
   try {
     std::unique_lock<std::mutex> mlock(comm_mu);
     ncclComm_t nccl_comm;
-    RAFT_NCCL_TRY(ncclCommInitRank(&nccl_comm, world_size, (ncclUniqueId &) unique_id, world_rank));
+    WHOLEMEMORY_CHECK(ncclCommInitRank(&nccl_comm, world_size, (ncclUniqueId &) unique_id, world_rank) == ncclSuccess);
     cudaStream_t cuda_stream;
-    CUDA_CHECK(cudaStreamCreate(&cuda_stream));
-    rmm::cuda_stream_view rmm_stream(cuda_stream);
-    auto *wm_comm = new wholememory_comm_(nccl_comm, world_size, world_rank, rmm_stream);
+    WM_CUDA_CHECK(cudaStreamCreate(&cuda_stream));
+    auto *wm_comm = new wholememory_comm_(nccl_comm, world_size, world_rank, cuda_stream);
     *comm = wm_comm;
     WM_COMM_CHECK_ALL_SAME(wm_comm, WM_COMM_OP_STARTING);
 
@@ -248,10 +512,10 @@ wholememory_error_code_t create_communicator(wholememory_comm_t *comm,
     determine_alloc_granularity(wm_comm);
 
     return WHOLEMEMORY_SUCCESS;
-  } catch (const raft::cuda_error& rce) {
-    WHOLEMEMORY_FAIL_NOTHROW("%s", rce.what());
-  } catch (const raft::logic_error& rle) {
-    WHOLEMEMORY_FAIL_NOTHROW("%s", rle.what());
+  } catch (const wholememory::cu_error& wce) {
+    WHOLEMEMORY_FAIL_NOTHROW("%s", wce.what());
+  } catch (const wholememory::cuda_error& wce) {
+    WHOLEMEMORY_FAIL_NOTHROW("%s", wce.what());
   } catch (const wholememory::logic_error& wle) {
     WHOLEMEMORY_FAIL_NOTHROW("%s", wle.what());
   } catch (const raft::exception& re) {
@@ -274,10 +538,8 @@ void destroy_all_wholememory(wholememory_comm_t comm) noexcept {
     }
   } catch (const wholememory::logic_error& wle) {
     WHOLEMEMORY_FAIL_NOTHROW("%s", wle.what());
-  } catch (const raft::cuda_error& rce) {
-    WHOLEMEMORY_FAIL_NOTHROW("%s", rce.what());
-  } catch (const raft::logic_error& rle) {
-    WHOLEMEMORY_FAIL_NOTHROW("%s", rle.what());
+  } catch (const wholememory::cuda_error& wce) {
+    WHOLEMEMORY_FAIL_NOTHROW("%s", wce.what());
   } catch (const raft::exception& re) {
     WHOLEMEMORY_FAIL_NOTHROW("%s", re.what());
   } catch (...) {
@@ -299,14 +561,12 @@ wholememory_error_code_t destroy_communicator_locked(wholememory_comm_t comm) no
     maybe_remove_temp_dir(comm);
 
     delete comm;
-    RAFT_NCCL_TRY(ncclCommDestroy(raw_nccl_comm));
-    CUDA_CHECK(cudaStreamDestroy(cuda_stream));
+    WHOLEMEMORY_CHECK(ncclCommDestroy(raw_nccl_comm) == ncclSuccess);
+    WM_CUDA_CHECK(cudaStreamDestroy(cuda_stream));
 
     return WHOLEMEMORY_SUCCESS;
-  } catch (const raft::cuda_error& rce) {
-    WHOLEMEMORY_FAIL_NOTHROW("%s", rce.what());
-  } catch (const raft::logic_error& rle) {
-    WHOLEMEMORY_FAIL_NOTHROW("%s", rle.what());
+  } catch (const wholememory::cuda_error& wce) {
+    WHOLEMEMORY_FAIL_NOTHROW("%s", wce.what());
   } catch (const wholememory::logic_error& wle) {
     WHOLEMEMORY_FAIL_NOTHROW("%s", wle.what());
   } catch (const raft::exception& re) {
@@ -344,11 +604,9 @@ wholememory_error_code_t communicator_get_size(int* size,
 
 void communicator_barrier(wholememory_comm_t comm) {
   try {
-    comm->raft_nccl_comm->barrier();
-  } catch (const raft::cuda_error& rce) {
-    WHOLEMEMORY_FAIL_NOTHROW("%s", rce.what());
-  } catch (const raft::logic_error& rle) {
-    WHOLEMEMORY_FAIL_NOTHROW("%s", rle.what());
+    comm->barrier();
+  } catch (const wholememory::cuda_error& wce) {
+    WHOLEMEMORY_FAIL_NOTHROW("%s", wce.what());
   } catch (const wholememory::logic_error& wle) {
     WHOLEMEMORY_FAIL_NOTHROW("%s", wle.what());
   } catch (const raft::exception& re) {
@@ -362,4 +620,4 @@ bool is_intranode_communicator(wholememory_comm_t comm) noexcept {
   return comm->intra_node_rank_num == comm->world_size;
 }
 
-}
+}  // namespace wholememory

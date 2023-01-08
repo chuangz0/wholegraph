@@ -14,16 +14,18 @@
  * limitations under the License.
  */
 #include "parallel_utils.hpp"
-#include "raft/util/cudart_utils.hpp"
 
 #include <cuda_runtime_api.h>
 #include <unistd.h>
 #include <wait.h>
 
+#include <atomic>
 #include <iostream>
 #include <memory>
 #include <thread>
 #include <vector>
+
+#include "cuda_macros.hpp"
 
 void MultiThreadRun(int size, std::function<void(int, int)> f) {
   std::vector<std::unique_ptr<std::thread>> threads(size);
@@ -98,7 +100,7 @@ int ForkGetDeviceCount() {
   }
   if (pid == 0) {
     int dev_count = -1;
-    CUDA_CHECK(cudaGetDeviceCount(&dev_count));
+    WM_CUDA_CHECK(cudaGetDeviceCount(&dev_count));
     WHOLEMEMORY_CHECK(close(pipes[0]) == 0);
     auto wret = write(pipes[1], &dev_count, sizeof(int));
     if (wret != sizeof(int)) {

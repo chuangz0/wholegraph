@@ -13,9 +13,9 @@
 
 #include <raft/util/integer_utils.hpp>
 
+#include "cuda_macros.hpp"
 #include "error.hpp"
 #include "logger.hpp"
-#include "raft/core/cu_macros.hpp"
 
 namespace wholememory {
 
@@ -31,7 +31,7 @@ class wholememory_impl {
                    size_t total_size,
                    wholememory_comm_t comm,
                    wholememory_memory_type_t memory_type,
-                   wholememory_memory_location_t  memory_location,
+                   wholememory_memory_location_t memory_location,
                    size_t data_granularity)
       : handle_(wholememory_handle),
         comm_(comm),
@@ -41,8 +41,8 @@ class wholememory_impl {
         data_granularity_(data_granularity) {
   }
   wholememory_impl() = delete;
-  wholememory_impl(const wholememory_impl&) = delete;
-  wholememory_impl(const wholememory_impl&&) = delete;
+  wholememory_impl(const wholememory_impl &) = delete;
+  wholememory_impl(const wholememory_impl &&) = delete;
 
   virtual ~wholememory_impl() = default;
 
@@ -60,7 +60,7 @@ class wholememory_impl {
   }
   virtual void create_memory() = 0;
   virtual void destroy_memory() noexcept = 0;
-  [[nodiscard]] virtual void* get_continuous_mapping_pointer() const noexcept {
+  [[nodiscard]] virtual void *get_continuous_mapping_pointer() const noexcept {
     return nullptr;
   }
   [[nodiscard]] virtual wholememory_gref_t get_global_reference() const noexcept {
@@ -69,7 +69,7 @@ class wholememory_impl {
     gref.stride = 0;
     return gref;
   }
-  virtual bool contains_pointer(const void* ptr) const = 0;
+  virtual bool contains_pointer(const void *ptr) const = 0;
   void get_local_memory(void **local_ptr,
                         size_t *local_size,
                         size_t *local_offset) const {
@@ -142,7 +142,7 @@ class wholememory_impl {
     size_t local_mem_offset = 0;
     size_t partition_mem_stride = 0;
   } rank_partition_strategy_;
-  void* local_partition_memory_pointer_ = nullptr;
+  void *local_partition_memory_pointer_ = nullptr;
 
   static constexpr size_t HUGE_PAGE_THRESHOLD = 16UL * 1024UL * 1024UL * 1024UL;
   static constexpr size_t HUGE_PAGE_SIZE = 512UL * 1024UL * 1024UL;
@@ -150,7 +150,7 @@ class wholememory_impl {
 
 struct wholememory_vma_data {
   wholememory_handle_t wholememory_handle;
-  const void* start_ptr;
+  const void *start_ptr;
   size_t mem_block_size;
 };
 // mutex to protect wholememory_vma_map
@@ -160,7 +160,7 @@ static std::mutex wholememory_vma_mu;
 // The reason to use tail is that we can check if a pointer is in wholememory by upper_bound.
 static std::map<uint64_t, wholememory_vma_data> wholememory_vma_map;
 
-wholememory_handle_t wholememory_get_handle(const void * ptr) {
+wholememory_handle_t wholememory_get_handle(const void *ptr) {
   std::unique_lock<std::mutex> vma_lock(wholememory_vma_mu);
   uint64_t int_ptr = reinterpret_cast<uint64_t>(ptr);
   auto it = wholememory_vma_map.upper_bound(int_ptr);
@@ -172,13 +172,13 @@ wholememory_handle_t wholememory_get_handle(const void * ptr) {
   return nullptr;
 }
 
-static void register_wholememory_vma_range_locked(const void* ptr, size_t mem_block_size, wholememory_handle_t wm_h) {
+static void register_wholememory_vma_range_locked(const void *ptr, size_t mem_block_size, wholememory_handle_t wm_h) {
   WHOLEMEMORY_CHECK(ptr != nullptr);
   WHOLEMEMORY_CHECK(wm_h != nullptr);
   WHOLEMEMORY_CHECK(wm_h->impl->contains_pointer(ptr));
   uint64_t int_start_ptr = reinterpret_cast<uint64_t>(ptr);
   uint64_t int_tail_ptr = int_start_ptr + mem_block_size;
-  WHOLEMEMORY_CHECK(wm_h->impl->contains_pointer(reinterpret_cast<void*>(int_tail_ptr - 1)));
+  WHOLEMEMORY_CHECK(wm_h->impl->contains_pointer(reinterpret_cast<void *>(int_tail_ptr - 1)));
   WHOLEMEMORY_CHECK(wholememory_vma_map.find(int_tail_ptr) == wholememory_vma_map.end());
   wholememory_vma_data vma_data;
   vma_data.wholememory_handle = wm_h;
@@ -199,7 +199,9 @@ static void register_wholememory_vma_range_locked(const void* ptr, size_t mem_bl
   }
 }
 
-static void unregister_wholememory_vma_range_locked(const void* ptr, size_t mem_block_size, wholememory_handle_t wm_h) noexcept {
+static void unregister_wholememory_vma_range_locked(const void *ptr,
+                                                    size_t mem_block_size,
+                                                    wholememory_handle_t wm_h) noexcept {
   try {
     WHOLEMEMORY_CHECK(wm_h != nullptr);
     WHOLEMEMORY_CHECK(wm_h->impl->contains_pointer(ptr));
@@ -212,7 +214,7 @@ static void unregister_wholememory_vma_range_locked(const void* ptr, size_t mem_
     WHOLEMEMORY_CHECK(it->second.start_ptr == ptr);
     WHOLEMEMORY_CHECK(it->second.mem_block_size == mem_block_size);
     wholememory_vma_map.erase(int_tail_ptr);
-  } catch(const wholememory::logic_error& le) {
+  } catch (const wholememory::logic_error &le) {
     WHOLEMEMORY_FAIL_NOTHROW("%s", le.what());
   }
 }
@@ -245,7 +247,7 @@ class distributed_wholememory_impl : public wholememory_impl {
     unregister_private_memory();
     destroy_local_cuda_runtime_memory();
   }
-  bool contains_pointer(const void* ptr) const override {
+  bool contains_pointer(const void *ptr) const override {
     uint64_t int_ptr = reinterpret_cast<uint64_t>(ptr);
     uint64_t int_start_ptr = reinterpret_cast<uint64_t>(no_ipc_handle_.local_alloc_mem_ptr);
     return int_ptr >= int_start_ptr && int_ptr < int_start_ptr + alloc_strategy_.local_alloc_size;
@@ -269,7 +271,7 @@ class distributed_wholememory_impl : public wholememory_impl {
   }
   void create_local_cuda_runtime_memory() {
     bool on_device = location_ == WHOLEMEMORY_ML_DEVICE;
-    void* dev_ptr = nullptr;
+    void *dev_ptr = nullptr;
     size_t alloc_size = alloc_strategy_.local_alloc_size;
     if (alloc_size == 0) {
       no_ipc_handle_.local_alloc_mem_ptr = nullptr;
@@ -277,9 +279,9 @@ class distributed_wholememory_impl : public wholememory_impl {
     }
 
     if (on_device) {
-      CUDA_CHECK(cudaMalloc(&dev_ptr, alloc_size));
+      WM_CUDA_CHECK(cudaMalloc(&dev_ptr, alloc_size));
     } else {
-      CUDA_CHECK(cudaMallocHost(&dev_ptr, alloc_size));
+      WM_CUDA_CHECK(cudaMallocHost(&dev_ptr, alloc_size));
     }
     no_ipc_handle_.local_alloc_mem_ptr = dev_ptr;
     local_partition_memory_pointer_ = dev_ptr;
@@ -290,14 +292,14 @@ class distributed_wholememory_impl : public wholememory_impl {
       if (no_ipc_handle_.local_alloc_mem_ptr == nullptr) return;
       bool on_device = location_ == WHOLEMEMORY_ML_DEVICE;
       if (on_device) {
-        CUDA_CHECK(cudaFree(ptr));
+        WM_CUDA_CHECK(cudaFree(ptr));
       } else {
-        CUDA_CHECK(cudaFreeHost(ptr));
+        WM_CUDA_CHECK(cudaFreeHost(ptr));
       }
       no_ipc_handle_.local_alloc_mem_ptr = nullptr;
-    } catch (const raft::cuda_error& rle) {
-      WHOLEMEMORY_FAIL_NOTHROW("%s", rle.what());
-    } catch (const raft::exception& re) {
+    } catch (const wholememory::cuda_error &wce) {
+      WHOLEMEMORY_FAIL_NOTHROW("%s", wce.what());
+    } catch (const raft::exception &re) {
       WHOLEMEMORY_FAIL_NOTHROW("%s", re.what());
     }
   }
@@ -336,7 +338,7 @@ class global_mapped_host_wholememory_impl : public wholememory_impl {
     unregister_host_memory();
     unmap_and_destroy_shared_host_memory();
   }
-  [[nodiscard]] void* get_continuous_mapping_pointer() const noexcept override {
+  [[nodiscard]] void *get_continuous_mapping_pointer() const noexcept override {
     return shared_host_handle_.shared_host_memory_ptr;
   }
   [[nodiscard]] wholememory_gref_t get_global_reference() const noexcept override {
@@ -345,7 +347,7 @@ class global_mapped_host_wholememory_impl : public wholememory_impl {
     gref.stride = 0;
     return gref;
   }
-  bool contains_pointer(const void* ptr) const override {
+  bool contains_pointer(const void *ptr) const override {
     uint64_t int_ptr = reinterpret_cast<uint64_t>(ptr);
     uint64_t int_start_ptr = reinterpret_cast<uint64_t>(shared_host_handle_.shared_host_memory_ptr);
     return int_ptr >= int_start_ptr && int_ptr < int_start_ptr + total_size_;
@@ -371,7 +373,9 @@ class global_mapped_host_wholememory_impl : public wholememory_impl {
     if (comm_->world_rank == 0) {
       shm_fd = shm_open(shm_full_path.c_str(), O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
       if (shm_fd < 0) {
-        WHOLEMEMORY_FATAL("Create host shared memory from file %s failed, Reason=%s.", shm_full_path.c_str(), strerror(errno));
+        WHOLEMEMORY_FATAL("Create host shared memory from file %s failed, Reason=%s.",
+                          shm_full_path.c_str(),
+                          strerror(errno));
       }
       WHOLEMEMORY_CHECK(ftruncate(shm_fd, alloc_strategy_.local_alloc_size) == 0);
       communicator_barrier(comm_);
@@ -386,21 +390,21 @@ class global_mapped_host_wholememory_impl : public wholememory_impl {
     communicator_barrier(comm_);
     auto *mmap_ptr = mmap(nullptr, alloc_strategy_.total_alloc_size, PROT_READ | PROT_WRITE,
                           MAP_SHARED, shm_fd, 0);
-    WHOLEMEMORY_CHECK(mmap_ptr != (void *)-1);
+    WHOLEMEMORY_CHECK(mmap_ptr != (void *) -1);
     WHOLEMEMORY_CHECK(close(shm_fd) == 0);
-    CUDA_CHECK(cudaHostRegister(mmap_ptr, alloc_strategy_.total_alloc_size, cudaHostRegisterDefault));
-    void* dev_ptr = nullptr;
-    CUDA_CHECK(cudaHostGetDevicePointer(&dev_ptr, mmap_ptr, 0));
+    WM_CUDA_CHECK(cudaHostRegister(mmap_ptr, alloc_strategy_.total_alloc_size, cudaHostRegisterDefault));
+    void *dev_ptr = nullptr;
+    WM_CUDA_CHECK(cudaHostGetDevicePointer(&dev_ptr, mmap_ptr, 0));
     WHOLEMEMORY_CHECK(dev_ptr == mmap_ptr);
     shared_host_handle_.shared_host_memory_ptr = dev_ptr;
-    local_partition_memory_pointer_ = static_cast<char*>(dev_ptr) + rank_partition_strategy_.local_mem_offset;
+    local_partition_memory_pointer_ = static_cast<char *>(dev_ptr) + rank_partition_strategy_.local_mem_offset;
   }
 
   void unmap_and_destroy_shared_host_memory() noexcept {
     try {
       void *ptr = shared_host_handle_.shared_host_memory_ptr;
       if (ptr == nullptr) return;
-      CUDA_CHECK(cudaHostUnregister(ptr));
+      WM_CUDA_CHECK(cudaHostUnregister(ptr));
       WHOLEMEMORY_CHECK(munmap(ptr, alloc_strategy_.total_alloc_size) == 0);
       communicator_barrier(comm_);
       auto shm_full_path = get_host_memory_full_path(comm_, handle_->handle_id);
@@ -409,11 +413,11 @@ class global_mapped_host_wholememory_impl : public wholememory_impl {
       }
       communicator_barrier(comm_);
       shared_host_handle_.shared_host_memory_ptr = nullptr;
-    } catch (const wholememory::logic_error& wle) {
+    } catch (const wholememory::logic_error &wle) {
       WHOLEMEMORY_FAIL_NOTHROW("%s", wle.what());
-    } catch (const raft::cuda_error& rce) {
-      WHOLEMEMORY_FAIL_NOTHROW("%s", rce.what());
-    } catch (const raft::exception& re) {
+    } catch (const wholememory::cuda_error &wce) {
+      WHOLEMEMORY_FAIL_NOTHROW("%s", wce.what());
+    } catch (const raft::exception &re) {
       WHOLEMEMORY_FAIL_NOTHROW("%s", re.what());
     }
   }
@@ -452,7 +456,7 @@ class continuous_device_wholememory_impl : public wholememory_impl {
     unregister_continuous_device_memory();
     unmap_and_destroy_driver_device_memory();
   }
-  [[nodiscard]] void* get_continuous_mapping_pointer() const noexcept override {
+  [[nodiscard]] void *get_continuous_mapping_pointer() const noexcept override {
     return cu_alloc_handle_.mapped_whole_memory;
   }
   [[nodiscard]] wholememory_gref_t get_global_reference() const noexcept override {
@@ -461,7 +465,7 @@ class continuous_device_wholememory_impl : public wholememory_impl {
     gref.stride = 0;
     return gref;
   }
-  bool contains_pointer(const void* ptr) const override {
+  bool contains_pointer(const void *ptr) const override {
     uint64_t int_ptr = reinterpret_cast<uint64_t>(ptr);
     uint64_t int_start_ptr = reinterpret_cast<uint64_t>(cu_alloc_handle_.mapped_whole_memory);
     return int_ptr >= int_start_ptr && int_ptr < int_start_ptr + total_size_;
@@ -489,7 +493,7 @@ class continuous_device_wholememory_impl : public wholememory_impl {
     prop.location.type = CU_MEM_LOCATION_TYPE_DEVICE;
     prop.allocFlags.compressionType = CU_MEM_ALLOCATION_COMP_NONE;
     prop.location.id = dev_id;
-    CU_CHECK(cuMemCreate(&h, mem_size, &prop, 0));
+    WM_CU_CHECK(cuMemCreate(&h, mem_size, &prop, 0));
     return h;
   }
 
@@ -497,15 +501,15 @@ class continuous_device_wholememory_impl : public wholememory_impl {
     ipc_sharable_cu_handle sharable_cu_handle;
     sharable_cu_handle.fd = -1;
     if (h != 0) {
-      CU_CHECK(cuMemExportToShareableHandle(
+      WM_CU_CHECK(cuMemExportToShareableHandle(
           &sharable_cu_handle.fd, h, CU_MEM_HANDLE_TYPE_POSIX_FILE_DESCRIPTOR, 0));
     }
     return sharable_cu_handle;
   }
 
-  static int ipc_open_socket(const std::string& name) {
+  static int ipc_open_socket(const std::string &name) {
     int sock = -1;
-    struct sockaddr_un skt_addr {0};
+    struct sockaddr_un skt_addr{0};
     if ((sock = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
       WHOLEMEMORY_FATAL("IPC failure: Socket creation error.");
     }
@@ -522,7 +526,7 @@ class continuous_device_wholememory_impl : public wholememory_impl {
     return sock;
   }
 
-  static void ipc_close_socket(int fd, const std::string& name) {
+  static void ipc_close_socket(int fd, const std::string &name) {
     WHOLEMEMORY_CHECK(fd >= 0);
     WHOLEMEMORY_CHECK(!name.empty());
     WHOLEMEMORY_CHECK(unlink(name.c_str()) == 0);
@@ -560,7 +564,7 @@ class continuous_device_wholememory_impl : public wholememory_impl {
   void close_unix_domain_sockets() {
     communicator_barrier(comm_);
     ipc_close_socket(cu_alloc_handle_.send_fd, get_sender_fd_name());
-    cu_alloc_handle_.send_fd= -1;
+    cu_alloc_handle_.send_fd = -1;
     WHOLEMEMORY_CHECK(cu_alloc_handle_.recv_fds.size() == comm_->world_size);
     for (int i = 0; i < comm_->world_size; i++) {
       ipc_close_socket(cu_alloc_handle_.recv_fds[i], get_recver_fd_name(i));
@@ -568,8 +572,10 @@ class continuous_device_wholememory_impl : public wholememory_impl {
     communicator_barrier(comm_);
   }
 
-  static void ipc_send_sharable_handle(int sock_fd, const ipc_sharable_cu_handle& sent_handle, const std::string& dst_name) {
-    struct msghdr message_header {};
+  static void ipc_send_sharable_handle(int sock_fd,
+                                       const ipc_sharable_cu_handle &sent_handle,
+                                       const std::string &dst_name) {
+    struct msghdr message_header{};
     struct iovec iov[1];
 
     union {
@@ -578,7 +584,7 @@ class continuous_device_wholememory_impl : public wholememory_impl {
     } control_un{};
 
     struct cmsghdr *cmptr;
-    struct sockaddr_un cliaddr {};
+    struct sockaddr_un cliaddr{};
 
     // Construct client address to send this Shareable handle to
     bzero(&cliaddr, sizeof(cliaddr));
@@ -601,7 +607,7 @@ class continuous_device_wholememory_impl : public wholememory_impl {
     message_header.msg_name = static_cast<void *>(&cliaddr);
     message_header.msg_namelen = sizeof(struct sockaddr_un);
 
-    iov[0].iov_base = const_cast<void*>(static_cast<const void*>(""));
+    iov[0].iov_base = const_cast<void *>(static_cast<const void *>(""));
     iov[0].iov_len = 1;
     message_header.msg_iov = iov;
     message_header.msg_iovlen = 1;
@@ -629,7 +635,7 @@ class continuous_device_wholememory_impl : public wholememory_impl {
     message_header.msg_control = control_un.control;
     message_header.msg_controllen = sizeof(control_un.control);
 
-    iov[0].iov_base = static_cast<void*>(&dummy_buffer[0]);
+    iov[0].iov_base = static_cast<void *>(&dummy_buffer[0]);
     iov[0].iov_len = sizeof(dummy_buffer);
 
     message_header.msg_iov = iov;
@@ -654,11 +660,13 @@ class continuous_device_wholememory_impl : public wholememory_impl {
   }
 
   void exchange_driver_device_memory_handles(
-      std::vector<ipc_sharable_cu_handle>* recv_ipc_sharable_cu_handles,
-      std::vector<ipc_sharable_cu_handle>* send_ipc_sharable_cu_handles) {
+      std::vector<ipc_sharable_cu_handle> *recv_ipc_sharable_cu_handles,
+      std::vector<ipc_sharable_cu_handle> *send_ipc_sharable_cu_handles) {
     for (int r = 0; r < comm_->world_size; r++) {
       if ((*send_ipc_sharable_cu_handles)[r].fd >= 0) {
-        ipc_send_sharable_handle(cu_alloc_handle_.send_fd, (*send_ipc_sharable_cu_handles)[r], get_target_recver_fd_name(r));
+        ipc_send_sharable_handle(cu_alloc_handle_.send_fd,
+                                 (*send_ipc_sharable_cu_handles)[r],
+                                 get_target_recver_fd_name(r));
       }
     }
     communicator_barrier(comm_);
@@ -676,12 +684,12 @@ class continuous_device_wholememory_impl : public wholememory_impl {
   }
   static CUmemGenericAllocationHandle import_cu_mem_handle(ipc_sharable_cu_handle sharable_cu_handle) {
     CUmemGenericAllocationHandle h;
-    CU_CHECK(cuMemImportFromShareableHandle(&h,
-                                            (void *) (uintptr_t) sharable_cu_handle.fd,
-                                            CU_MEM_HANDLE_TYPE_POSIX_FILE_DESCRIPTOR));
+    WM_CU_CHECK(cuMemImportFromShareableHandle(&h,
+                                               (void *) (uintptr_t) sharable_cu_handle.fd,
+                                               CU_MEM_HANDLE_TYPE_POSIX_FILE_DESCRIPTOR));
     return h;
   }
-  void map_driver_device_memory_handles(std::vector<ipc_sharable_cu_handle>* recv_ipc_sharable_cu_handles) {
+  void map_driver_device_memory_handles(std::vector<ipc_sharable_cu_handle> *recv_ipc_sharable_cu_handles) {
     cu_alloc_handle_.all_cu_handles.resize(comm_->world_size);
     for (int i = 0; i < comm_->world_size; i++) {
       size_t mem_size = alloc_strategy_.alloc_sizes[i];
@@ -689,7 +697,7 @@ class continuous_device_wholememory_impl : public wholememory_impl {
         WHOLEMEMORY_CHECK((*recv_ipc_sharable_cu_handles)[i].fd >= 0);
         cu_alloc_handle_.all_cu_handles[i] = import_cu_mem_handle((*recv_ipc_sharable_cu_handles)[i]);
 
-        CU_CHECK(cuMemMap(
+        WM_CU_CHECK(cuMemMap(
             reinterpret_cast<CUdeviceptr>(cu_alloc_handle_.mapped_whole_memory) + alloc_strategy_.alloc_offsets[i],
             mem_size,
             0,
@@ -705,17 +713,17 @@ class continuous_device_wholememory_impl : public wholememory_impl {
     madesc.location.type = CU_MEM_LOCATION_TYPE_DEVICE;
     madesc.location.id = comm_->dev_id;
     madesc.flags = CU_MEM_ACCESS_FLAGS_PROT_READWRITE;
-    CU_CHECK(cuMemSetAccess(reinterpret_cast<CUdeviceptr>(cu_alloc_handle_.mapped_whole_memory),
-                            alloc_strategy_.total_alloc_size,
-                            &madesc,
-                            1));
+    WM_CU_CHECK(cuMemSetAccess(reinterpret_cast<CUdeviceptr>(cu_alloc_handle_.mapped_whole_memory),
+                               alloc_strategy_.total_alloc_size,
+                               &madesc,
+                               1));
   }
   void create_and_map_driver_device_memory() {
-    CU_CHECK(cuMemAddressReserve(reinterpret_cast<CUdeviceptr *>(&cu_alloc_handle_.mapped_whole_memory),
-                                 alloc_strategy_.total_alloc_size,
-                                 alloc_strategy_.alignment,
-                                 0,
-                                 0));
+    WM_CU_CHECK(cuMemAddressReserve(reinterpret_cast<CUdeviceptr *>(&cu_alloc_handle_.mapped_whole_memory),
+                                    alloc_strategy_.total_alloc_size,
+                                    alloc_strategy_.alignment,
+                                    0,
+                                    0));
     cu_alloc_handle_.all_cu_handles.resize(comm_->world_size, 0);
     std::vector<ipc_sharable_cu_handle> send_ipc_sharable_cu_handles(comm_->world_size);
     std::vector<ipc_sharable_cu_handle> recv_ipc_sharable_cu_handles;
@@ -741,23 +749,23 @@ class continuous_device_wholememory_impl : public wholememory_impl {
       for (int i = 0; i < comm_->world_size; i++) {
         size_t mem_size = alloc_strategy_.alloc_sizes[i];
         if (mem_size > 0) {
-          CU_CHECK(cuMemUnmap(
+          WM_CU_CHECK(cuMemUnmap(
               reinterpret_cast<CUdeviceptr>(cu_alloc_handle_.mapped_whole_memory) + alloc_strategy_.alloc_offsets[i],
               mem_size));
-          CU_CHECK(cuMemRelease(cu_alloc_handle_.all_cu_handles[i]));
+          WM_CU_CHECK(cuMemRelease(cu_alloc_handle_.all_cu_handles[i]));
         }
       }
       communicator_barrier(comm_);
       if (alloc_strategy_.local_alloc_size > 0) {
-        CU_CHECK(cuMemRelease(cu_alloc_handle_.local_cu_handle));
+        WM_CU_CHECK(cuMemRelease(cu_alloc_handle_.local_cu_handle));
       }
-      CU_CHECK(cuMemAddressFree(reinterpret_cast<CUdeviceptr>(cu_alloc_handle_.mapped_whole_memory),
-                                alloc_strategy_.total_alloc_size));
+      WM_CU_CHECK(cuMemAddressFree(reinterpret_cast<CUdeviceptr>(cu_alloc_handle_.mapped_whole_memory),
+                                   alloc_strategy_.total_alloc_size));
 
       communicator_barrier(comm_);
-    } catch (const raft::cu_error& rce) {
-      WHOLEMEMORY_FAIL_NOTHROW("%s", rce.what());
-    } catch (const raft::exception& re) {
+    } catch (const wholememory::cu_error &wce) {
+      WHOLEMEMORY_FAIL_NOTHROW("%s", wce.what());
+    } catch (const raft::exception &re) {
       WHOLEMEMORY_FAIL_NOTHROW("%s", re.what());
     }
   }
@@ -765,7 +773,7 @@ class continuous_device_wholememory_impl : public wholememory_impl {
   struct cu_alloc_handle {
     CUmemGenericAllocationHandle local_cu_handle = 0;
     std::vector<CUmemGenericAllocationHandle> all_cu_handles;
-    void* mapped_whole_memory = nullptr;
+    void *mapped_whole_memory = nullptr;
     ipc_sharable_cu_handle local_ipc_handle;
 
     int send_fd = -1;
@@ -779,16 +787,16 @@ class continuous_device_wholememory_impl : public wholememory_impl {
 class chunked_device_wholememory_impl : public wholememory_impl {
  public:
   chunked_device_wholememory_impl(wholememory_handle_t wholememory_handle,
-                                      size_t total_size,
-                                      wholememory_comm_t comm,
-                                      wholememory_memory_type_t memory_type,
-                                      wholememory_memory_location_t memory_location,
-                                      size_t data_granularity) : wholememory_impl(wholememory_handle,
-                                                                                  total_size,
-                                                                                  comm,
-                                                                                  memory_type,
-                                                                                  memory_location,
-                                                                                  data_granularity) {
+                                  size_t total_size,
+                                  wholememory_comm_t comm,
+                                  wholememory_memory_type_t memory_type,
+                                  wholememory_memory_location_t memory_location,
+                                  size_t data_granularity) : wholememory_impl(wholememory_handle,
+                                                                              total_size,
+                                                                              comm,
+                                                                              memory_type,
+                                                                              memory_location,
+                                                                              data_granularity) {
     WHOLEMEMORY_CHECK(type_ == WHOLEMEMORY_MT_CHUNKED);
     WHOLEMEMORY_CHECK(location_ == WHOLEMEMORY_ML_DEVICE);
   }
@@ -805,12 +813,13 @@ class chunked_device_wholememory_impl : public wholememory_impl {
   [[nodiscard]] wholememory_gref_t get_global_reference() const noexcept override {
     return gref_;
   }
-  bool contains_pointer(const void* ptr) const override {
+  bool contains_pointer(const void *ptr) const override {
     uint64_t int_ptr = reinterpret_cast<uint64_t>(ptr);
     size_t acc_size = 0;
     for (int i = 0; i < comm_->world_size; i++) {
       size_t mem_size_of_this_rank_and_after = total_size_ - acc_size;
-      size_t mem_size_for_current_rank = std::min(mem_size_of_this_rank_and_after, rank_partition_strategy_.partition_mem_stride);
+      size_t mem_size_for_current_rank =
+          std::min(mem_size_of_this_rank_and_after, rank_partition_strategy_.partition_mem_stride);
       uint64_t int_start_ptr = reinterpret_cast<uint64_t>(cuda_ipc_handle_.mapped_ptrs[i]);
       if (int_ptr >= int_start_ptr && int_ptr < int_start_ptr + mem_size_for_current_rank) {
         return true;
@@ -825,7 +834,8 @@ class chunked_device_wholememory_impl : public wholememory_impl {
     size_t acc_size = 0;
     for (int i = 0; i < comm_->world_size; i++) {
       size_t mem_size_of_this_rank_and_after = total_size_ - acc_size;
-      size_t mem_size_for_current_rank = std::min(mem_size_of_this_rank_and_after, rank_partition_strategy_.partition_mem_stride);
+      size_t mem_size_for_current_rank =
+          std::min(mem_size_of_this_rank_and_after, rank_partition_strategy_.partition_mem_stride);
       if (mem_size_for_current_rank > 0) {
         register_wholememory_vma_range_locked(cuda_ipc_handle_.mapped_ptrs[i], mem_size_for_current_rank, handle_);
       }
@@ -837,7 +847,8 @@ class chunked_device_wholememory_impl : public wholememory_impl {
     size_t acc_size = 0;
     for (int i = 0; i < comm_->world_size; i++) {
       size_t mem_size_of_this_rank_and_after = total_size_ - acc_size;
-      size_t mem_size_for_current_rank = std::min(mem_size_of_this_rank_and_after, rank_partition_strategy_.partition_mem_stride);
+      size_t mem_size_for_current_rank =
+          std::min(mem_size_of_this_rank_and_after, rank_partition_strategy_.partition_mem_stride);
       if (mem_size_for_current_rank > 0) {
         unregister_wholememory_vma_range_locked(cuda_ipc_handle_.mapped_ptrs[i], mem_size_for_current_rank, handle_);
       }
@@ -847,41 +858,44 @@ class chunked_device_wholememory_impl : public wholememory_impl {
   void create_and_map_runtime_device_memory() {
     cuda_ipc_handle_.mapped_ptrs.resize(comm_->world_size, nullptr);
     cuda_ipc_handle_.all_mem_handles.resize(comm_->world_size);
-    CUDA_CHECK(cudaMalloc((void **) &cuda_ipc_handle_.local_mem_ptr, alloc_strategy_.local_alloc_size));
-    CUDA_CHECK(cudaIpcGetMemHandle(&cuda_ipc_handle_.local_ipc_handle, cuda_ipc_handle_.local_mem_ptr));
-    comm_->raft_nccl_comm->host_allgather(&cuda_ipc_handle_.local_ipc_handle,
-                                          cuda_ipc_handle_.all_mem_handles.data(),
-                                          sizeof(cuda_ipc_handle_.local_ipc_handle),
-                                          raft::comms::datatype_t::CHAR);
+    WM_CUDA_CHECK(cudaMalloc((void **) &cuda_ipc_handle_.local_mem_ptr, alloc_strategy_.local_alloc_size));
+    WM_CUDA_CHECK(cudaIpcGetMemHandle(&cuda_ipc_handle_.local_ipc_handle, cuda_ipc_handle_.local_mem_ptr));
+    comm_->host_allgather(&cuda_ipc_handle_.local_ipc_handle,
+                          cuda_ipc_handle_.all_mem_handles.data(),
+                          sizeof(cuda_ipc_handle_.local_ipc_handle),
+                          WHOLEMEMORY_DT_INT8);
     for (int i = 0; i < comm_->world_size; i++) {
       if (i == comm_->world_rank) {
         cuda_ipc_handle_.mapped_ptrs[i] = cuda_ipc_handle_.local_mem_ptr;
       } else {
-        CUDA_CHECK(cudaIpcOpenMemHandle(&cuda_ipc_handle_.mapped_ptrs[i],
-                                        cuda_ipc_handle_.all_mem_handles[i],
-                                        cudaIpcMemLazyEnablePeerAccess));
+        WM_CUDA_CHECK(cudaIpcOpenMemHandle(&cuda_ipc_handle_.mapped_ptrs[i],
+                                           cuda_ipc_handle_.all_mem_handles[i],
+                                           cudaIpcMemLazyEnablePeerAccess));
       }
     }
     local_partition_memory_pointer_ = cuda_ipc_handle_.local_mem_ptr;
-    CUDA_CHECK(cudaMalloc(&gref_.pointer, sizeof(void*) * comm_->world_size));
-    CUDA_CHECK(cudaMemcpy(gref_.pointer, cuda_ipc_handle_.mapped_ptrs.data(), sizeof(void*) * comm_->world_size, cudaMemcpyHostToDevice));
+    WM_CUDA_CHECK(cudaMalloc(&gref_.pointer, sizeof(void *) * comm_->world_size));
+    WM_CUDA_CHECK(cudaMemcpy(gref_.pointer,
+                             cuda_ipc_handle_.mapped_ptrs.data(),
+                             sizeof(void *) * comm_->world_size,
+                             cudaMemcpyHostToDevice));
     gref_.stride = alloc_strategy_.local_alloc_size;
   }
   void unmap_and_destroy_runtime_device_memory() noexcept {
     try {
-      CUDA_CHECK(cudaFree(gref_.pointer));
+      WM_CUDA_CHECK(cudaFree(gref_.pointer));
       gref_.pointer = nullptr;
       for (int i = 0; i < comm_->world_size; i++) {
         if (i != comm_->world_rank) {
-          CUDA_CHECK(cudaIpcCloseMemHandle(cuda_ipc_handle_.mapped_ptrs[i]));
+          WM_CUDA_CHECK(cudaIpcCloseMemHandle(cuda_ipc_handle_.mapped_ptrs[i]));
         }
       }
       // Check all memory unmapped.
       communicator_barrier(comm_);
-      CUDA_CHECK(cudaFree(cuda_ipc_handle_.local_mem_ptr));
-    } catch (const raft::cuda_error& rce) {
-      WHOLEMEMORY_FAIL_NOTHROW("%s", rce.what());
-    } catch (const raft::exception& re) {
+      WM_CUDA_CHECK(cudaFree(cuda_ipc_handle_.local_mem_ptr));
+    } catch (const wholememory::cuda_error &wce) {
+      WHOLEMEMORY_FAIL_NOTHROW("%s", wce.what());
+    } catch (const raft::exception &re) {
       WHOLEMEMORY_FAIL_NOTHROW("%s", re.what());
     }
   }
@@ -889,8 +903,8 @@ class chunked_device_wholememory_impl : public wholememory_impl {
   struct cuda_ipc_handle {
     cudaIpcMemHandle_t local_ipc_handle;
     std::vector<cudaIpcMemHandle_t> all_mem_handles;
-    std::vector<void*> mapped_ptrs;
-    void* local_mem_ptr;
+    std::vector<void *> mapped_ptrs;
+    void *local_mem_ptr;
   } cuda_ipc_handle_;
 
   wholememory_gref_t gref_;
@@ -971,10 +985,10 @@ int negotiate_handle_id_with_comm_locked(wholememory_comm_t wm_comm) {
   int id = 0;
   bool all_same = false;
   std::vector<int> rank_ids(wm_comm->world_size);
-  auto& id_handle_map = wm_comm->wholememory_map;
+  auto &id_handle_map = wm_comm->wholememory_map;
   while (!all_same) {
     while (id_handle_map.find(id) != id_handle_map.end()) id++;
-    wm_comm->raft_nccl_comm->host_allgather(&id, rank_ids.data(), 1, raft::comms::datatype_t::INT32);
+    wm_comm->host_allgather(&id, rank_ids.data(), 1, WHOLEMEMORY_DT_INT);
     int max_id = -1;
     all_same = true;
     for (int i = 0; i < wm_comm->world_size; i++) {
@@ -988,21 +1002,21 @@ int negotiate_handle_id_with_comm_locked(wholememory_comm_t wm_comm) {
 
 struct wholememory_create_param {
   wholememory_create_param() = default;
-  wholememory_create_param(const struct wholememory_create_param&) = default;
-  wholememory_create_param(struct wholememory_create_param&&) = default;
-  wholememory_create_param& operator=(const wholememory_create_param&) = default;
-  wholememory_create_param& operator=(wholememory_create_param&&) = default;
+  wholememory_create_param(const struct wholememory_create_param &) = default;
+  wholememory_create_param(struct wholememory_create_param &&) = default;
+  wholememory_create_param &operator=(const wholememory_create_param &) = default;
+  wholememory_create_param &operator=(wholememory_create_param &&) = default;
   wholememory_create_param(size_t ts, wholememory_memory_type_t mt, wholememory_memory_location_t ml, size_t mg) {
     total_size = ts;
     memory_type = mt;
     memory_location = ml;
     min_granularity = mg;
   }
-  bool operator==(const wholememory_create_param& rhs) const {
+  bool operator==(const wholememory_create_param &rhs) const {
     return total_size == rhs.total_size && memory_type == rhs.memory_type && memory_location == rhs.memory_location
         && min_granularity == rhs.min_granularity;
   }
-  bool operator!=(const wholememory_create_param& rhs) const {
+  bool operator!=(const wholememory_create_param &rhs) const {
     return !(*this == rhs);
   }
   size_t total_size;
@@ -1015,7 +1029,7 @@ wholememory_error_code_t create_wholememory(wholememory_handle_t *wholememory_ha
                                             size_t total_size,
                                             wholememory_comm_t comm,
                                             wholememory_memory_type_t memory_type,
-                                            wholememory_memory_location_t  memory_location,
+                                            wholememory_memory_location_t memory_location,
                                             size_t min_granularity) noexcept {
   try {
     if (total_size % min_granularity != 0)
@@ -1026,8 +1040,8 @@ wholememory_error_code_t create_wholememory(wholememory_handle_t *wholememory_ha
     auto *whole_memory_handle = new wholememory_handle_();
 
     int dev_id = -1;
-    CUDA_CHECK(cudaGetDevice(&dev_id));
-    CUDA_CHECK(cudaGetDeviceProperties(&whole_memory_handle->device_prop, dev_id));
+    WM_CUDA_CHECK(cudaGetDevice(&dev_id));
+    WM_CUDA_CHECK(cudaGetDeviceProperties(&whole_memory_handle->device_prop, dev_id));
 
     whole_memory_handle->handle_id = negotiate_handle_id_with_comm_locked(comm);
     WM_COMM_CHECK_ALL_SAME(comm, WM_MEM_OP_CREATE);
@@ -1074,13 +1088,13 @@ wholememory_error_code_t create_wholememory(wholememory_handle_t *wholememory_ha
 
     *wholememory_handle_ptr = whole_memory_handle;
     return WHOLEMEMORY_SUCCESS;
-  } catch (const raft::cuda_error& rce) {
-    WHOLEMEMORY_FAIL_NOTHROW("%s", rce.what());
-  } catch (const raft::logic_error& rle) {
+  } catch (const wholememory::cuda_error &wce) {
+    WHOLEMEMORY_FAIL_NOTHROW("%s", wce.what());
+  } catch (const raft::logic_error &rle) {
     WHOLEMEMORY_FAIL_NOTHROW("%s", rle.what());
-  } catch (const wholememory::logic_error& wle) {
+  } catch (const wholememory::logic_error &wle) {
     WHOLEMEMORY_FAIL_NOTHROW("%s", wle.what());
-  } catch (const raft::exception& re) {
+  } catch (const raft::exception &re) {
     WHOLEMEMORY_FAIL_NOTHROW("%s", re.what());
   } catch (...) {
     WHOLEMEMORY_FAIL_NOTHROW("Unknown exception.");
@@ -1105,13 +1119,13 @@ wholememory_error_code_t destroy_wholememory_with_comm_locked(wholememory_handle
     delete wholememory_handle;
 
     return WHOLEMEMORY_SUCCESS;
-  } catch (const raft::cuda_error& rce) {
-    WHOLEMEMORY_FAIL_NOTHROW("%s", rce.what());
-  } catch (const raft::logic_error& rle) {
+  } catch (const wholememory::cuda_error &wce) {
+    WHOLEMEMORY_FAIL_NOTHROW("%s", wce.what());
+  } catch (const raft::logic_error &rle) {
     WHOLEMEMORY_FAIL_NOTHROW("%s", rle.what());
-  } catch (const wholememory::logic_error& wle) {
+  } catch (const wholememory::logic_error &wle) {
     WHOLEMEMORY_FAIL_NOTHROW("%s", wle.what());
-  } catch (const raft::exception& re) {
+  } catch (const raft::exception &re) {
     WHOLEMEMORY_FAIL_NOTHROW("%s", re.what());
   } catch (...) {
     WHOLEMEMORY_FAIL_NOTHROW("Unknown exception.");
@@ -1124,7 +1138,7 @@ wholememory_error_code_t destroy_wholememory(wholememory_handle_t wholememory_ha
   return destroy_wholememory_with_comm_locked(wholememory_handle);
 }
 
-wholememory_error_code_t get_communicator_from_handle(wholememory_comm_t* comm,
+wholememory_error_code_t get_communicator_from_handle(wholememory_comm_t *comm,
                                                       wholememory_handle_t wholememory_handle) noexcept {
   if (wholememory_handle == nullptr || wholememory_handle->impl == nullptr) {
     return WHOLEMEMORY_INVALID_INPUT;
@@ -1141,9 +1155,9 @@ wholememory_memory_location_t get_memory_location(wholememory_handle_t wholememo
   return wholememory_handle->impl->get_location();
 }
 
-wholememory_error_code_t get_local_memory_from_handle(void** local_ptr,
-                                                      size_t* local_size,
-                                                      size_t* local_offset,
+wholememory_error_code_t get_local_memory_from_handle(void **local_ptr,
+                                                      size_t *local_size,
+                                                      size_t *local_offset,
                                                       wholememory_handle_t wholememory_handle) noexcept {
   if (wholememory_handle == nullptr || wholememory_handle->impl == nullptr) {
     return WHOLEMEMORY_INVALID_INPUT;
@@ -1152,7 +1166,7 @@ wholememory_error_code_t get_local_memory_from_handle(void** local_ptr,
   return WHOLEMEMORY_SUCCESS;
 }
 
-wholememory_error_code_t get_global_pointer_from_handle(void** global_ptr,
+wholememory_error_code_t get_global_pointer_from_handle(void **global_ptr,
                                                         wholememory_handle_t wholememory_handle) noexcept {
   if (wholememory_handle == nullptr || wholememory_handle->impl == nullptr) {
     return WHOLEMEMORY_INVALID_INPUT;
@@ -1161,7 +1175,7 @@ wholememory_error_code_t get_global_pointer_from_handle(void** global_ptr,
   return (*global_ptr) == nullptr ? WHOLEMEMORY_INVALID_INPUT : WHOLEMEMORY_SUCCESS;
 }
 
-wholememory_error_code_t get_global_reference_from_handle(wholememory_gref_t* wholememory_gref,
+wholememory_error_code_t get_global_reference_from_handle(wholememory_gref_t *wholememory_gref,
                                                           wholememory_handle_t wholememory_handle) noexcept {
   if (wholememory_handle == nullptr || wholememory_handle->impl == nullptr) {
     return WHOLEMEMORY_INVALID_INPUT;

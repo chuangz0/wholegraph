@@ -79,6 +79,9 @@ rapids_find_package(CUDAToolkit REQUIRED
   INSTALL_EXPORT_SET  wholegraph-exports
 )
 
+set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CMAKE_COMMAND} -E time")
+set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK "${CMAKE_COMMAND} -E time")
+
 set(WHOLEGRAPH_CXX_FLAGS "")
 set(WHOLEGRAPH_CUDA_FLAGS "")
 
@@ -114,21 +117,28 @@ rapids_cpm_init()
 include(../cmake/thirdparty/get_raft.cmake)
 include(../cmake/thirdparty/get_nccl.cmake)
 
-set(WHOLEMEMORY_SOURCES
-        src/logger.cpp
-        src/parallel_utils.cpp
-        src/wholememory/wholememory.cpp
-        src/wholememory/env_func_ptrs.cpp
-        src/wholememory/global_reference.cpp
-        src/wholememory/initialize.cpp
-        src/wholememory/communicator.cpp
-        src/wholememory/memory_handle.cpp
-        src/wholememory/tensor_description.cpp
-        src/wholememory_ops/thrust_allocator.cpp
-        src/wholememory_ops/gather_op.cpp
-        src/wholememory_ops/gather_op_impl_mapped.cu
-        src/wholememory_ops/gather_op_impl_nccl.cu
-    )
+file(GLOB WHOLEMEMORY_SOURCES
+        "src/*.cpp"
+        "src/wholememory/*.cpp"
+        "src/wholememory_ops/*.cpp"
+        "src/wholememory_ops/*.cu"
+        "src/wholememory_ops/functions/*.cu")
+
+#set(WHOLEMEMORY_SOURCES
+#        src/logger.cpp
+#        src/parallel_utils.cpp
+#        src/wholememory/wholememory.cpp
+#        src/wholememory/env_func_ptrs.cpp
+#        src/wholememory/global_reference.cpp
+#        src/wholememory/initialize.cpp
+#        src/wholememory/communicator.cpp
+#        src/wholememory/memory_handle.cpp
+#        src/wholememory/tensor_description.cpp
+#        src/wholememory_ops/thrust_allocator.cpp
+#        src/wholememory_ops/gather_op.cpp
+#        src/wholememory_ops/gather_op_impl_mapped.cu
+#        src/wholememory_ops/gather_op_impl_nccl.cu
+#    )
 
 add_library(wholememory SHARED "")
 

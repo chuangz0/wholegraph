@@ -4,8 +4,7 @@
 #include <cuda_runtime_api.h>
 #include <nccl.h>
 
-#include "raft/core/cu_macros.hpp"
-
+#include "cuda_macros.hpp"
 #include "error.hpp"
 #include "logger.hpp"
 #include "communicator.hpp"
@@ -22,10 +21,11 @@ wholememory_error_code_t init(unsigned int flags) noexcept {
     std::unique_lock<std::mutex> lock(mu);
     (void) flags;
     WHOLEMEMORY_EXPECTS(!is_wm_init, "WholeMemory has already been initialized.");
-    CU_CHECK(cuInit(0));
+    WM_CU_CHECK(cuInit(0));
     is_wm_init = true;
     return WHOLEMEMORY_SUCCESS;
   } catch (raft::logic_error& logic_error) {
+    WHOLEMEMORY_ERROR("init failed, logic_error=%s", logic_error.what());
     return WHOLEMEMORY_LOGIC_ERROR;
   } catch (...) {
     return WHOLEMEMORY_UNKNOW_ERROR;
