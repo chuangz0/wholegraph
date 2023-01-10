@@ -10,8 +10,10 @@ extern "C" {
  * @brief Global reference of a WholeMemory object
  */
 typedef struct wholememory_global_reference {
-  void* pointer;  /*!< pointer to data for CONTINUOUS WholeMemory or pointer to data pointer array for CHUNKED WholeMemory */
-  size_t stride;  /*!< must be 0 for CONTINUOUS WholeMemory or memory size in byte for each pointer */
+  void* pointer; /*!< pointer to data for CONTINUOUS WholeMemory or pointer to data pointer array
+                    for CHUNKED WholeMemory */
+  size_t
+    stride; /*!< must be 0 for CONTINUOUS WholeMemory or memory size in byte for each pointer */
 } wholememory_gref_t;
 
 /**

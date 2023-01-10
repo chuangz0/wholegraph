@@ -11,7 +11,8 @@ wholememory_error_code_t wholememory_gather(wholememory_handle_t wholememory_han
                                             void* output,
                                             wholememory_matrix_description_t output_desc,
                                             wholememory_env_func_t* p_env_fns,
-                                            cudaStream_t stream) {
+                                            cudaStream_t stream)
+{
   auto memory_type = wholememory_get_memory_type(wholememory_handle);
   if (memory_type == WHOLEMEMORY_MT_DISTRIBUTED) {
     return wholememory_ops::wholememory_gather_nccl(wholememory_handle,
@@ -24,8 +25,9 @@ wholememory_error_code_t wholememory_gather(wholememory_handle_t wholememory_han
                                                     stream);
   }
 
-  WHOLEMEMORY_EXPECTS_NOTHROW(memory_type == WHOLEMEMORY_MT_CHUNKED || memory_type == WHOLEMEMORY_MT_CONTINUOUS,
-                              "Memory type not supported.");
+  WHOLEMEMORY_EXPECTS_NOTHROW(
+    memory_type == WHOLEMEMORY_MT_CHUNKED || memory_type == WHOLEMEMORY_MT_CONTINUOUS,
+    "Memory type not supported.");
 
   return wholememory_ops::wholememory_gather_mapped(wholememory_handle,
                                                     wholememory_desc,

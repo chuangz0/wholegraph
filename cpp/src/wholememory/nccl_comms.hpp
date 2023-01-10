@@ -24,10 +24,7 @@ class nccl_comms {
    * @param stream cuda stream for synchronizing and ordering collective operations
    * @param subcomms_ucp use ucp for subcommunicators
    */
-  nccl_comms(ncclComm_t nccl_comm,
-             int num_ranks,
-             int rank,
-             cudaStream_t stream);
+  nccl_comms(ncclComm_t nccl_comm, int num_ranks, int rank, cudaStream_t stream);
 
   void initialize();
 
@@ -52,7 +49,8 @@ class nccl_comms {
                       ncclDataType_t datatype,
                       ncclRedOp_t op) const;
 
-  void bcast(void* buff, size_t count, ncclDataType_t datatype, int root, cudaStream_t stream) const;
+  void bcast(
+    void* buff, size_t count, ncclDataType_t datatype, int root, cudaStream_t stream) const;
 
   void bcast(const void* sendbuff,
              void* recvbuff,
@@ -61,11 +59,8 @@ class nccl_comms {
              int root,
              cudaStream_t stream) const;
 
-  void host_bcast(const void *sendbuff,
-                  void *recvbuff,
-                  size_t count,
-                  ncclDataType_t datatype,
-                  int root) const;
+  void host_bcast(
+    const void* sendbuff, void* recvbuff, size_t count, ncclDataType_t datatype, int root) const;
 
   void host_bcast(void* buff, size_t count, ncclDataType_t datatype, int root) const;
 
@@ -77,8 +72,8 @@ class nccl_comms {
               int root,
               cudaStream_t stream) const;
 
-  void host_reduce(const void *sendbuff,
-                   void *recvbuff,
+  void host_reduce(const void* sendbuff,
+                   void* recvbuff,
                    size_t count,
                    ncclDataType_t datatype,
                    ncclRedOp_t op,
@@ -90,8 +85,8 @@ class nccl_comms {
                  ncclDataType_t datatype,
                  cudaStream_t stream) const;
 
-  void host_allgather(const void *sendbuff,
-                      void *recvbuff,
+  void host_allgather(const void* sendbuff,
+                      void* recvbuff,
                       size_t sendcount,
                       ncclDataType_t datatype) const;
 
@@ -102,10 +97,10 @@ class nccl_comms {
                   ncclDataType_t datatype,
                   cudaStream_t stream) const;
 
-  void host_allgatherv(const void *sendbuf,
-                       void *recvbuf,
-                       const size_t *recvcounts,
-                       const size_t *displs,
+  void host_allgatherv(const void* sendbuf,
+                       void* recvbuf,
+                       const size_t* recvcounts,
+                       const size_t* displs,
                        ncclDataType_t datatype) const;
 
   void gather(const void* sendbuff,
@@ -115,11 +110,11 @@ class nccl_comms {
               int root,
               cudaStream_t stream) const;
 
-  void host_gather(const void *sendbuff,
-                   void *recvbuff,
+  void host_gather(const void* sendbuff,
+                   void* recvbuff,
                    size_t sendcount,
                    ncclDataType_t datatype,
-                   int root) const ;
+                   int root) const;
 
   void gatherv(const void* sendbuff,
                void* recvbuff,
@@ -143,20 +138,19 @@ class nccl_comms {
                 ncclDataType_t datatype,
                 cudaStream_t stream) const;
 
-  void host_alltoall(const void *sendbuff,
-                     void *recvbuff,
+  void host_alltoall(const void* sendbuff,
+                     void* recvbuff,
                      size_t sendcount,
                      ncclDataType_t datatype) const;
 
-  void alltoallv(const void *sendbuff,
-                 void *recvbuff,
-                 const size_t *sendcounts,
-                 const size_t *senddispls,
-                 const size_t *recvcounts,
-                 const size_t *recvdispls,
+  void alltoallv(const void* sendbuff,
+                 void* recvbuff,
+                 const size_t* sendcounts,
+                 const size_t* senddispls,
+                 const size_t* recvcounts,
+                 const size_t* recvdispls,
                  ncclDataType_t datatype,
                  cudaStream_t stream) const;
-
 
   wholememory_error_code_t sync_stream(cudaStream_t stream) const;
 

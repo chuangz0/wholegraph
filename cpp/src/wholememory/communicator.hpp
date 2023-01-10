@@ -21,10 +21,7 @@ class nccl_comms;
 }
 
 struct wholememory_comm_ {
-  wholememory_comm_(ncclComm_t nccl_comm,
-                    int num_ranks,
-                    int rank,
-                    cudaStream_t stream);
+  wholememory_comm_(ncclComm_t nccl_comm, int num_ranks, int rank, cudaStream_t stream);
   ~wholememory_comm_();
 
   void barrier() const;
@@ -42,7 +39,8 @@ struct wholememory_comm_ {
                       wholememory_dtype_t datatype,
                       ncclRedOp_t op) const;
 
-  void bcast(void* buff, size_t count, wholememory_dtype_t datatype, int root, cudaStream_t stream) const;
+  void bcast(
+    void* buff, size_t count, wholememory_dtype_t datatype, int root, cudaStream_t stream) const;
 
   void bcast(const void* sendbuff,
              void* recvbuff,
@@ -51,8 +49,8 @@ struct wholememory_comm_ {
              int root,
              cudaStream_t stream) const;
 
-  void host_bcast(const void *sendbuff,
-                  void *recvbuff,
+  void host_bcast(const void* sendbuff,
+                  void* recvbuff,
                   size_t count,
                   wholememory_dtype_t datatype,
                   int root) const;
@@ -67,8 +65,8 @@ struct wholememory_comm_ {
               int root,
               cudaStream_t stream) const;
 
-  void host_reduce(const void *sendbuff,
-                   void *recvbuff,
+  void host_reduce(const void* sendbuff,
+                   void* recvbuff,
                    size_t count,
                    wholememory_dtype_t datatype,
                    ncclRedOp_t op,
@@ -80,8 +78,8 @@ struct wholememory_comm_ {
                  wholememory_dtype_t datatype,
                  cudaStream_t stream) const;
 
-  void host_allgather(const void *sendbuff,
-                      void *recvbuff,
+  void host_allgather(const void* sendbuff,
+                      void* recvbuff,
                       size_t sendcount,
                       wholememory_dtype_t datatype) const;
 
@@ -92,10 +90,10 @@ struct wholememory_comm_ {
                   wholememory_dtype_t datatype,
                   cudaStream_t stream) const;
 
-  void host_allgatherv(const void *sendbuf,
-                       void *recvbuf,
-                       const size_t *recvcounts,
-                       const size_t *displs,
+  void host_allgatherv(const void* sendbuf,
+                       void* recvbuf,
+                       const size_t* recvcounts,
+                       const size_t* displs,
                        wholememory_dtype_t datatype) const;
 
   void gather(const void* sendbuff,
@@ -105,11 +103,11 @@ struct wholememory_comm_ {
               int root,
               cudaStream_t stream) const;
 
-  void host_gather(const void *sendbuff,
-                   void *recvbuff,
+  void host_gather(const void* sendbuff,
+                   void* recvbuff,
                    size_t sendcount,
                    wholememory_dtype_t datatype,
-                   int root) const ;
+                   int root) const;
 
   void gatherv(const void* sendbuff,
                void* recvbuff,
@@ -133,20 +131,19 @@ struct wholememory_comm_ {
                 wholememory_dtype_t datatype,
                 cudaStream_t stream) const;
 
-  void host_alltoall(const void *sendbuff,
-                     void *recvbuff,
+  void host_alltoall(const void* sendbuff,
+                     void* recvbuff,
                      size_t sendcount,
                      wholememory_dtype_t datatype) const;
 
-  void alltoallv(const void *sendbuff,
-                 void *recvbuff,
-                 const size_t *sendcounts,
-                 const size_t *senddispls,
-                 const size_t *recvcounts,
-                 const size_t *recvdispls,
+  void alltoallv(const void* sendbuff,
+                 void* recvbuff,
+                 const size_t* sendcounts,
+                 const size_t* senddispls,
+                 const size_t* recvcounts,
+                 const size_t* recvdispls,
                  wholememory_dtype_t datatype,
                  cudaStream_t stream) const;
-
 
   wholememory_error_code_t sync_stream(cudaStream_t stream) const;
 
@@ -182,15 +179,15 @@ struct wholememory_comm_ {
 
   wholememory::nccl_comms* raft_nccl_comm;
   cudaStream_t comm_stream = nullptr;
-  cudaEvent_t cuda_event = nullptr;
+  cudaEvent_t cuda_event   = nullptr;
   ncclComm_t raw_nccl_comm = nullptr;
 
   int world_rank = 0;
   int world_size = 1;
 
-  int intra_node_first_rank = -1;
-  int intra_node_rank = -1;
-  int intra_node_rank_num = 0;
+  int intra_node_first_rank     = -1;
+  int intra_node_rank           = -1;
+  int intra_node_rank_num       = 0;
   int intra_node_first_rank_pid = -1;
 
   int comm_id = -1;
@@ -203,10 +200,11 @@ struct wholememory_comm_ {
   std::map<int, wholememory_handle_t> wholememory_map;
 } __attribute__((aligned(64)));
 
-template <typename T>
-inline bool wm_comm_check_all_same(wholememory_comm_t comm, const T& t) {
-  std::unique_ptr<T[]> t_array(new T[comm->world_size]());
-  comm->host_allgather(&t, t_array.get(), sizeof(T), WHOLEMEMORY_DT_INT8);
+template <typename TypeT>
+inline bool wm_comm_check_all_same(wholememory_comm_t comm, const TypeT& t)
+{
+  std::unique_ptr<TypeT[]> t_array(new TypeT[comm->world_size]());
+  comm->host_allgather(&t, t_array.get(), sizeof(TypeT), WHOLEMEMORY_DT_INT8);
   for (int r = 0; r < comm->world_size; r++) {
     if (t_array.get()[r] != t) return false;
   }
@@ -214,7 +212,8 @@ inline bool wm_comm_check_all_same(wholememory_comm_t comm, const T& t) {
 }
 
 template <>
-inline bool wm_comm_check_all_same(wholememory_comm_t comm, const std::string& str) {
+inline bool wm_comm_check_all_same(wholememory_comm_t comm, const std::string& str)
+{
   size_t str_len = str.size();
   if (!wm_comm_check_all_same(comm, str_len)) return false;
   std::string cat_str;
@@ -226,18 +225,16 @@ inline bool wm_comm_check_all_same(wholememory_comm_t comm, const std::string& s
   return true;
 }
 
-#define WM_COMM_CHECK_ALL_SAME(comm, data)               \
-do {                                                     \
-  if (!wm_comm_check_all_same(comm, data)) {             \
-    WHOLEMEMORY_FATAL("COMM_CHECK_ALL_SAME failed.");    \
-  }                                                      \
-} while(0)
+#define WM_COMM_CHECK_ALL_SAME(comm, data)                                                         \
+  do {                                                                                             \
+    if (!wm_comm_check_all_same(comm, data)) { WHOLEMEMORY_FATAL("COMM_CHECK_ALL_SAME failed."); } \
+  } while (0)
 
 namespace wholememory {
 
-wholememory_error_code_t create_unique_id(wholememory_unique_id_t *unique_id) noexcept;
+wholememory_error_code_t create_unique_id(wholememory_unique_id_t* unique_id) noexcept;
 
-wholememory_error_code_t create_communicator(wholememory_comm_t *comm,
+wholememory_error_code_t create_communicator(wholememory_comm_t* comm,
                                              wholememory_unique_id_t unique_id,
                                              int rank,
                                              int size) noexcept;
@@ -248,11 +245,9 @@ wholememory_error_code_t destroy_communicator(wholememory_comm_t comm) noexcept;
 
 wholememory_error_code_t destroy_all_communicators() noexcept;
 
-wholememory_error_code_t communicator_get_rank(int *rank,
-                                               wholememory_comm_t comm) noexcept;
+wholememory_error_code_t communicator_get_rank(int* rank, wholememory_comm_t comm) noexcept;
 
-wholememory_error_code_t communicator_get_size(int* size,
-                                               wholememory_comm_t comm) noexcept;
+wholememory_error_code_t communicator_get_size(int* size, wholememory_comm_t comm) noexcept;
 
 void communicator_barrier(wholememory_comm_t comm);
 

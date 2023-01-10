@@ -44,20 +44,20 @@ struct cu_error : public raft::exception {
  * exception detailing the CUDA error that occurred
  *
  */
-#define WM_CUDA_TRY(call)                          \
-  do {                                             \
-    cudaError_t const status = call;               \
-    if (status != cudaSuccess) {                   \
-      cudaGetLastError();                          \
-      std::string msg{};                           \
-      SET_WHOLEMEMORY_ERROR_MSG(msg,               \
-                    "CUDA error encountered at: ", \
-                    "call='%s', Reason=%s:%s",     \
-                    #call,                         \
-                    cudaGetErrorName(status),      \
-                    cudaGetErrorString(status));   \
-      throw wholememory::cuda_error(msg);          \
-    }                                              \
+#define WM_CUDA_TRY(call)                                      \
+  do {                                                         \
+    cudaError_t const status = call;                           \
+    if (status != cudaSuccess) {                               \
+      cudaGetLastError();                                      \
+      std::string msg{};                                       \
+      SET_WHOLEMEMORY_ERROR_MSG(msg,                           \
+                                "CUDA error encountered at: ", \
+                                "call='%s', Reason=%s:%s",     \
+                                #call,                         \
+                                cudaGetErrorName(status),      \
+                                cudaGetErrorString(status));   \
+      throw wholememory::cuda_error(msg);                      \
+    }                                                          \
   } while (0)
 
 #ifndef WM_CUDA_CHECK
@@ -92,25 +92,25 @@ struct cu_error : public raft::exception {
  * exception detailing the CU error that occurred
  *
  */
-#define WM_CU_TRY(call)                                                        \
-  do {                                                                         \
-    CUresult const status = call;                                              \
-    if (status != CUDA_SUCCESS) {                                              \
-      const char *p_err_name = nullptr;                                        \
-      cuGetErrorName(status, &p_err_name);                                     \
-      const char *p_err_str = nullptr;                                         \
-      if (cuGetErrorString(status, &p_err_str) == CUDA_ERROR_INVALID_VALUE) {  \
-        p_err_str = "Unrecoginzed CU error num";                               \
-      }                                                                        \
-      std::string msg{};                                                       \
-      SET_WHOLEMEMORY_ERROR_MSG(msg,                                           \
-                    "CU error encountered at: ",                               \
-                    "call='%s', Reason=%s:%s",                                 \
-                    #call,                                                     \
-                    p_err_name,                                                \
-                    p_err_str);                                                \
-      throw wholememory::cu_error(msg);                                        \
-    }                                                                          \
+#define WM_CU_TRY(call)                                                       \
+  do {                                                                        \
+    CUresult const status = call;                                             \
+    if (status != CUDA_SUCCESS) {                                             \
+      const char* p_err_name = nullptr;                                       \
+      cuGetErrorName(status, &p_err_name);                                    \
+      const char* p_err_str = nullptr;                                        \
+      if (cuGetErrorString(status, &p_err_str) == CUDA_ERROR_INVALID_VALUE) { \
+        p_err_str = "Unrecoginzed CU error num";                              \
+      }                                                                       \
+      std::string msg{};                                                      \
+      SET_WHOLEMEMORY_ERROR_MSG(msg,                                          \
+                                "CU error encountered at: ",                  \
+                                "call='%s', Reason=%s:%s",                    \
+                                #call,                                        \
+                                p_err_name,                                   \
+                                p_err_str);                                   \
+      throw wholememory::cu_error(msg);                                       \
+    }                                                                         \
   } while (0)
 
 #ifndef WM_CU_CHECK
@@ -121,24 +121,23 @@ struct cu_error : public raft::exception {
 //  * @brief check for cuda driver API errors but log error instead of raising
 //  *        exception.
 //  */
-#define WM_CU_TRY_NO_THROW(call)                                               \
-  do {                                                                         \
-    CUresult const status = call;                                              \
-    if (status != CUDA_SUCCESS) {                                              \
-      const char *p_err_str = nullptr;                                         \
-      if (cuGetErrorString(status, &p_err_str) == CUDA_ERROR_INVALID_VALUE) {  \
-        p_err_str = "Unrecoginzed CU error num";                               \
-      }                                                                        \
-      std::string msg{};                                                       \
+#define WM_CU_TRY_NO_THROW(call)                                              \
+  do {                                                                        \
+    CUresult const status = call;                                             \
+    if (status != CUDA_SUCCESS) {                                             \
+      const char* p_err_str = nullptr;                                        \
+      if (cuGetErrorString(status, &p_err_str) == CUDA_ERROR_INVALID_VALUE) { \
+        p_err_str = "Unrecoginzed CU error num";                              \
+      }                                                                       \
+      std::string msg{};                                                      \
       printf("CU call='%s' at file=%s line=%d failed with %s\n",               \
              #call,                                                            \
              __FILE__,                                                         \
              __LINE__,                                                         \
-             p_err_str;                                                        \
-    }                                                                          \
+             p_err_str;                                                       \
+    }                                                                         \
   } while (0)
 
 #ifndef WM_CU_CHECK_NO_THROW
 #define WM_CU_CHECK_NO_THROW(call) WM_CU_TRY_NO_THROW(call)
 #endif
-

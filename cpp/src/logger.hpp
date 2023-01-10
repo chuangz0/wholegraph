@@ -2,11 +2,11 @@
 
 #include <cstdarg>
 
-#include <string>
 #include <iostream>
+#include <string>
 
-#include <raft/error.hpp>
 #include <cassert>
+#include <raft/error.hpp>
 
 #include "error.hpp"
 
@@ -64,22 +64,17 @@ inline std::string format(const char* fmt, ...)
       std::cout << wholememory::format(fmt, ##__VA_ARGS__) << std::endl << std::flush; \
   } while (0)
 
-#define WHOLEMEMORY_FATAL(fmt, ...) \
+#define WHOLEMEMORY_FATAL(fmt, ...)                                                    \
   do {                                                                                 \
     std::string fatal_msg{};                                                           \
     SET_WHOLEMEMORY_ERROR_MSG(fatal_msg, "WholeMemory FATAL at ", fmt, ##__VA_ARGS__); \
     throw wholememory::logic_error(fatal_msg);                                         \
   } while (0)
 
-#define WHOLEMEMORY_ERROR(fmt, ...) \
-  WHOLEMEMORY_LOG(wholememory::LEVEL_ERROR, fmt, ##__VA_ARGS__)
-#define WHOLEMEMORY_WARN(fmt, ...) \
-  WHOLEMEMORY_LOG(wholememory::LEVEL_WARN, fmt, ##__VA_ARGS__)
-#define WHOLEMEMORY_INFO(fmt, ...) \
-  WHOLEMEMORY_LOG(wholememory::LEVEL_INFO, fmt, ##__VA_ARGS__)
-#define WHOLEMEMORY_DEBUG(fmt, ...) \
-  WHOLEMEMORY_LOG(wholememory::LEVEL_DEBUG, fmt, ##__VA_ARGS__)
-#define WHOLEMEMORY_TRACE(fmt, ...) \
-  WHOLEMEMORY_LOG(wholememory::LEVEL_TRACE, fmt, ##__VA_ARGS__)
+#define WHOLEMEMORY_ERROR(fmt, ...) WHOLEMEMORY_LOG(wholememory::LEVEL_ERROR, fmt, ##__VA_ARGS__)
+#define WHOLEMEMORY_WARN(fmt, ...)  WHOLEMEMORY_LOG(wholememory::LEVEL_WARN, fmt, ##__VA_ARGS__)
+#define WHOLEMEMORY_INFO(fmt, ...)  WHOLEMEMORY_LOG(wholememory::LEVEL_INFO, fmt, ##__VA_ARGS__)
+#define WHOLEMEMORY_DEBUG(fmt, ...) WHOLEMEMORY_LOG(wholememory::LEVEL_DEBUG, fmt, ##__VA_ARGS__)
+#define WHOLEMEMORY_TRACE(fmt, ...) WHOLEMEMORY_LOG(wholememory::LEVEL_TRACE, fmt, ##__VA_ARGS__)
 
 }  // namespace wholememory

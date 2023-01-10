@@ -42,6 +42,10 @@ project(WHOLEGRAPH VERSION ${WHOLEGRAPH_VERSION} LANGUAGES CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 17)
 
+set(CMAKE_C_USE_RESPONSE_FILE_FOR_INCLUDES   FALSE)
+set(CMAKE_CXX_USE_RESPONSE_FILE_FOR_INCLUDES   FALSE)
+set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_INCLUDES   FALSE)
+
 # Write the version header
 rapids_cmake_write_version_file(include/wholegraph/version_config.hpp)
 
@@ -81,6 +85,7 @@ rapids_find_package(CUDAToolkit REQUIRED
 
 set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CMAKE_COMMAND} -E time")
 set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK "${CMAKE_COMMAND} -E time")
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(WHOLEGRAPH_CXX_FLAGS "")
 set(WHOLEGRAPH_CUDA_FLAGS "")
@@ -123,22 +128,6 @@ file(GLOB WHOLEMEMORY_SOURCES
         "src/wholememory_ops/*.cpp"
         "src/wholememory_ops/*.cu"
         "src/wholememory_ops/functions/*.cu")
-
-#set(WHOLEMEMORY_SOURCES
-#        src/logger.cpp
-#        src/parallel_utils.cpp
-#        src/wholememory/wholememory.cpp
-#        src/wholememory/env_func_ptrs.cpp
-#        src/wholememory/global_reference.cpp
-#        src/wholememory/initialize.cpp
-#        src/wholememory/communicator.cpp
-#        src/wholememory/memory_handle.cpp
-#        src/wholememory/tensor_description.cpp
-#        src/wholememory_ops/thrust_allocator.cpp
-#        src/wholememory_ops/gather_op.cpp
-#        src/wholememory_ops/gather_op_impl_mapped.cu
-#        src/wholememory_ops/gather_op_impl_nccl.cu
-#    )
 
 add_library(wholememory SHARED "")
 

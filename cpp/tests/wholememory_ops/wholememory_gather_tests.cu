@@ -6,86 +6,103 @@
 
 #include "parallel_utils.hpp"
 #include "wholememory/communicator.hpp"
-#include "wholememory/initialize.hpp"
 #include "wholememory/env_func_ptrs.hpp"
+#include "wholememory/initialize.hpp"
 
 #include "../wholememory/wholememory_test_utils.hpp"
 #include "embedding_test_utils.hpp"
 
 typedef struct WholeMemoryGatherTestParam {
-  wholememory_matrix_description_t get_embedding_desc() const {
+  wholememory_matrix_description_t get_embedding_desc() const
+  {
     int64_t matrix_sizes[2] = {embedding_dim, embedding_entry_count};
-    return wholememory_create_matrix_desc(matrix_sizes, embedding_stride, embedding_storage_offset, embedding_type);
+    return wholememory_create_matrix_desc(
+      matrix_sizes, embedding_stride, embedding_storage_offset, embedding_type);
   }
-  wholememory_array_description_t get_indices_desc() const {
+  wholememory_array_description_t get_indices_desc() const
+  {
     return wholememory_create_array_desc(indices_count, indices_storage_offset, indices_type);
   }
-  wholememory_matrix_description_t get_output_desc() const {
+  wholememory_matrix_description_t get_output_desc() const
+  {
     int64_t output_sizes[2] = {embedding_dim, indices_count};
-    return wholememory_create_matrix_desc(output_sizes, output_stride, output_storage_offset, output_type);
+    return wholememory_create_matrix_desc(
+      output_sizes, output_stride, output_storage_offset, output_type);
   }
-  int64_t get_embedding_granularity() const {
+  int64_t get_embedding_granularity() const
+  {
     return embedding_stride * wholememory_dtype_get_element_size(embedding_type);
   }
 
-  WholeMemoryGatherTestParam& set_memory_type(wholememory_memory_type_t new_memory_type) {
+  WholeMemoryGatherTestParam& set_memory_type(wholememory_memory_type_t new_memory_type)
+  {
     memory_type = new_memory_type;
     return *this;
   }
-  WholeMemoryGatherTestParam& set_memory_location(wholememory_memory_location_t new_memory_location) {
+  WholeMemoryGatherTestParam& set_memory_location(wholememory_memory_location_t new_memory_location)
+  {
     memory_location = new_memory_location;
     return *this;
   }
-  WholeMemoryGatherTestParam& set_entry_count(int64_t entry_count) {
+  WholeMemoryGatherTestParam& set_entry_count(int64_t entry_count)
+  {
     embedding_entry_count = entry_count;
     return *this;
   }
-  WholeMemoryGatherTestParam& set_embedding_dim(int64_t new_embedding_dim) {
+  WholeMemoryGatherTestParam& set_embedding_dim(int64_t new_embedding_dim)
+  {
     embedding_dim = new_embedding_dim;
     if (embedding_stride < embedding_dim) embedding_stride = embedding_dim;
     if (output_stride < embedding_dim) output_stride = embedding_dim;
     return *this;
   }
-  WholeMemoryGatherTestParam& set_embedding_stride(int64_t new_embedding_stride) {
+  WholeMemoryGatherTestParam& set_embedding_stride(int64_t new_embedding_stride)
+  {
     embedding_stride = new_embedding_stride;
     return *this;
   }
-  WholeMemoryGatherTestParam& set_output_stride(int64_t new_output_stride) {
+  WholeMemoryGatherTestParam& set_output_stride(int64_t new_output_stride)
+  {
     output_stride = new_output_stride;
     return *this;
   }
-  WholeMemoryGatherTestParam& set_embedding_type(wholememory_dtype_t new_embedding_type) {
+  WholeMemoryGatherTestParam& set_embedding_type(wholememory_dtype_t new_embedding_type)
+  {
     embedding_type = new_embedding_type;
     return *this;
   }
-  WholeMemoryGatherTestParam& set_indices_type(wholememory_dtype_t new_indices_type) {
+  WholeMemoryGatherTestParam& set_indices_type(wholememory_dtype_t new_indices_type)
+  {
     indices_type = new_indices_type;
     return *this;
   }
-  WholeMemoryGatherTestParam& set_output_type(wholememory_dtype_t new_output_type) {
+  WholeMemoryGatherTestParam& set_output_type(wholememory_dtype_t new_output_type)
+  {
     output_type = new_output_type;
     return *this;
   }
-  wholememory_memory_type_t memory_type = WHOLEMEMORY_MT_CHUNKED;
+  wholememory_memory_type_t memory_type         = WHOLEMEMORY_MT_CHUNKED;
   wholememory_memory_location_t memory_location = WHOLEMEMORY_ML_DEVICE;
-  int64_t embedding_entry_count = 1000000LL;
-  int64_t embedding_dim = 32;
-  int64_t embedding_stride = 32;
-  int64_t indices_count = 100000;
-  int64_t output_stride = 32;
-  wholememory_dtype_t embedding_type = WHOLEMEMORY_DT_FLOAT;
-  wholememory_dtype_t indices_type = WHOLEMEMORY_DT_INT;
-  wholememory_dtype_t output_type = WHOLEMEMORY_DT_FLOAT;
-  int64_t embedding_storage_offset = 0;
-  int64_t indices_storage_offset = 0;
-  int64_t output_storage_offset = 0;
+  int64_t embedding_entry_count                 = 1000000LL;
+  int64_t embedding_dim                         = 32;
+  int64_t embedding_stride                      = 32;
+  int64_t indices_count                         = 100000;
+  int64_t output_stride                         = 32;
+  wholememory_dtype_t embedding_type            = WHOLEMEMORY_DT_FLOAT;
+  wholememory_dtype_t indices_type              = WHOLEMEMORY_DT_INT;
+  wholememory_dtype_t output_type               = WHOLEMEMORY_DT_FLOAT;
+  int64_t embedding_storage_offset              = 0;
+  int64_t indices_storage_offset                = 0;
+  int64_t output_storage_offset                 = 0;
 } WholeMemoryGatherTestParam;
 
-class WholeMemoryGatherParameterTests : public ::testing::TestWithParam<WholeMemoryGatherTestParam> {
+class WholeMemoryGatherParameterTests
+  : public ::testing::TestWithParam<WholeMemoryGatherTestParam> {
 };
 
-TEST_P(WholeMemoryGatherParameterTests, GatherTest) {
-  auto params = GetParam();
+TEST_P(WholeMemoryGatherParameterTests, GatherTest)
+{
+  auto params   = GetParam();
   int dev_count = ForkGetDeviceCount();
   EXPECT_GE(dev_count, 1);
   std::vector<std::array<int, 2>> pipes;
@@ -98,23 +115,24 @@ TEST_P(WholeMemoryGatherParameterTests, GatherTest) {
     wholememory_comm_t wm_comm = create_communicator_by_pipes(pipes, world_rank, world_size);
 
     wholememory_handle_t embedding_handle;
-    auto embedding_desc = params.get_embedding_desc();
-    auto indices_desc = params.get_indices_desc();
-    auto output_desc = params.get_output_desc();
+    auto embedding_desc         = params.get_embedding_desc();
+    auto indices_desc           = params.get_indices_desc();
+    auto output_desc            = params.get_output_desc();
     size_t embedding_entry_size = params.get_embedding_granularity();
     EXPECT_EQ(wholememory_malloc(&embedding_handle,
                                  wholememory_get_memory_size_from_matrix(&embedding_desc),
                                  wm_comm,
                                  params.memory_type,
                                  params.memory_location,
-                                 embedding_entry_size), WHOLEMEMORY_SUCCESS);
+                                 embedding_entry_size),
+              WHOLEMEMORY_SUCCESS);
 
     cudaStream_t stream;
     EXPECT_EQ(cudaStreamCreate(&stream), cudaSuccess);
 
-    void *dev_indices, *dev_gather_buffer, *dev_reference_buffer, *host_indices, *host_gather_buffer,
-        *host_reference_buffer;
-    size_t gather_buffer_size = wholememory_get_memory_size_from_matrix(&output_desc);
+    void *dev_indices, *dev_gather_buffer, *dev_reference_buffer, *host_indices,
+      *host_gather_buffer, *host_reference_buffer;
+    size_t gather_buffer_size  = wholememory_get_memory_size_from_matrix(&output_desc);
     size_t indices_buffer_size = wholememory_get_memory_size_from_array(&indices_desc);
 
     EXPECT_EQ(cudaMallocHost(&host_indices, indices_buffer_size), cudaSuccess);
@@ -124,21 +142,28 @@ TEST_P(WholeMemoryGatherParameterTests, GatherTest) {
     EXPECT_EQ(cudaMallocHost(&host_gather_buffer, gather_buffer_size), cudaSuccess);
     EXPECT_EQ(cudaMallocHost(&host_reference_buffer, gather_buffer_size), cudaSuccess);
 
-    wholememory_ops::testing::device_random_init_local_embedding_table(embedding_handle, embedding_desc, stream);
+    wholememory_ops::testing::device_random_init_local_embedding_table(
+      embedding_handle, embedding_desc, stream);
     wholememory_ops::testing::host_random_init_indices(host_indices, indices_desc);
     EXPECT_EQ(cudaMemcpyAsync(dev_indices,
                               host_indices,
                               wholememory_get_memory_size_from_array(&indices_desc),
                               cudaMemcpyHostToDevice,
-                              stream), cudaSuccess);
+                              stream),
+              cudaSuccess);
 
     EXPECT_EQ(cudaStreamSynchronize(stream), cudaSuccess);
     wholememory_communicator_barrier(wm_comm);
 
-    EXPECT_EQ(wholememory_gather(embedding_handle, embedding_desc,
-                                 dev_indices, indices_desc,
-                                 dev_gather_buffer, output_desc,
-                                 wholememory::get_default_env_func(), stream), WHOLEMEMORY_SUCCESS);
+    EXPECT_EQ(wholememory_gather(embedding_handle,
+                                 embedding_desc,
+                                 dev_indices,
+                                 indices_desc,
+                                 dev_gather_buffer,
+                                 output_desc,
+                                 wholememory::get_default_env_func(),
+                                 stream),
+              WHOLEMEMORY_SUCCESS);
 
     EXPECT_EQ(cudaGetLastError(), cudaSuccess);
     EXPECT_EQ(cudaStreamSynchronize(stream), cudaSuccess);
@@ -154,19 +179,19 @@ TEST_P(WholeMemoryGatherParameterTests, GatherTest) {
                               dev_gather_buffer,
                               wholememory_get_memory_size_from_matrix(&output_desc),
                               cudaMemcpyDeviceToHost,
-                              stream), cudaSuccess);
+                              stream),
+              cudaSuccess);
     EXPECT_EQ(cudaMemcpyAsync(host_reference_buffer,
                               dev_reference_buffer,
                               wholememory_get_memory_size_from_matrix(&output_desc),
                               cudaMemcpyDeviceToHost,
-                              stream), cudaSuccess);
+                              stream),
+              cudaSuccess);
     EXPECT_EQ(cudaGetLastError(), cudaSuccess);
     EXPECT_EQ(cudaStreamSynchronize(stream), cudaSuccess);
 
-    wholememory_ops::testing::host_check_embedding_same(host_gather_buffer,
-                                                        output_desc,
-                                                        host_reference_buffer,
-                                                        output_desc);
+    wholememory_ops::testing::host_check_embedding_same(
+      host_gather_buffer, output_desc, host_reference_buffer, output_desc);
 
     EXPECT_EQ(cudaFreeHost(host_indices), cudaSuccess);
     EXPECT_EQ(cudaFree(dev_indices), cudaSuccess);
@@ -183,51 +208,95 @@ TEST_P(WholeMemoryGatherParameterTests, GatherTest) {
   });
 }
 
-INSTANTIATE_TEST_CASE_P(
-    WholeMemoryGatherOpTests,
-    WholeMemoryGatherParameterTests,
-    ::testing::Values(
+INSTANTIATE_TEST_SUITE_P(
+  WholeMemoryGatherOpTests,
+  WholeMemoryGatherParameterTests,
+  ::testing::Values(
 #if 1
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS).set_memory_location(WHOLEMEMORY_ML_HOST),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED).set_memory_location(WHOLEMEMORY_ML_HOST),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED).set_memory_location(WHOLEMEMORY_ML_HOST),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS).set_embedding_dim(128),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED).set_embedding_dim(128),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED).set_embedding_dim(128),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS).set_embedding_dim(127),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED).set_embedding_dim(127),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED).set_embedding_dim(127),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS).set_embedding_dim(129),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED).set_embedding_dim(129),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED).set_embedding_dim(129),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS).set_embedding_dim(513),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED).set_embedding_dim(513),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED).set_embedding_dim(513),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS).set_embedding_type(WHOLEMEMORY_DT_HALF),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED).set_embedding_type(WHOLEMEMORY_DT_HALF),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED).set_embedding_type(WHOLEMEMORY_DT_HALF),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS).set_output_type(WHOLEMEMORY_DT_HALF),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED).set_output_type(WHOLEMEMORY_DT_HALF),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED).set_output_type(WHOLEMEMORY_DT_HALF),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS).set_embedding_type(WHOLEMEMORY_DT_HALF).set_output_type(WHOLEMEMORY_DT_HALF),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED).set_embedding_type(WHOLEMEMORY_DT_HALF).set_output_type(WHOLEMEMORY_DT_HALF),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED).set_embedding_type(WHOLEMEMORY_DT_HALF).set_output_type(WHOLEMEMORY_DT_HALF),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS).set_indices_type(WHOLEMEMORY_DT_INT64),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED).set_indices_type(WHOLEMEMORY_DT_INT64),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED).set_indices_type(WHOLEMEMORY_DT_INT64),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS).set_embedding_stride(33),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED).set_embedding_stride(33),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED).set_embedding_stride(33),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS).set_output_stride(33),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED).set_output_stride(33),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED).set_output_stride(33),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS).set_embedding_type(WHOLEMEMORY_DT_HALF).set_embedding_stride(33),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED).set_embedding_type(WHOLEMEMORY_DT_HALF).set_embedding_stride(33),
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED).set_embedding_type(WHOLEMEMORY_DT_HALF).set_embedding_stride(33),
+    WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS),
+    WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED),
+    WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED),
+    WholeMemoryGatherTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_CONTINUOUS)
+      .set_memory_location(WHOLEMEMORY_ML_HOST),
+    WholeMemoryGatherTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_CHUNKED)
+      .set_memory_location(WHOLEMEMORY_ML_HOST),
+    WholeMemoryGatherTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED)
+      .set_memory_location(WHOLEMEMORY_ML_HOST),
+    WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS).set_embedding_dim(128),
+    WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED).set_embedding_dim(128),
+    WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED).set_embedding_dim(128),
+    WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS).set_embedding_dim(127),
+    WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED).set_embedding_dim(127),
+    WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED).set_embedding_dim(127),
+    WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS).set_embedding_dim(129),
+    WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED).set_embedding_dim(129),
+    WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED).set_embedding_dim(129),
+    WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS).set_embedding_dim(513),
+    WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED).set_embedding_dim(513),
+    WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED).set_embedding_dim(513),
+    WholeMemoryGatherTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_CONTINUOUS)
+      .set_embedding_type(WHOLEMEMORY_DT_HALF),
+    WholeMemoryGatherTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_CHUNKED)
+      .set_embedding_type(WHOLEMEMORY_DT_HALF),
+    WholeMemoryGatherTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED)
+      .set_embedding_type(WHOLEMEMORY_DT_HALF),
+    WholeMemoryGatherTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_CONTINUOUS)
+      .set_output_type(WHOLEMEMORY_DT_HALF),
+    WholeMemoryGatherTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_CHUNKED)
+      .set_output_type(WHOLEMEMORY_DT_HALF),
+    WholeMemoryGatherTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED)
+      .set_output_type(WHOLEMEMORY_DT_HALF),
+    WholeMemoryGatherTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_CONTINUOUS)
+      .set_embedding_type(WHOLEMEMORY_DT_HALF)
+      .set_output_type(WHOLEMEMORY_DT_HALF),
+    WholeMemoryGatherTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_CHUNKED)
+      .set_embedding_type(WHOLEMEMORY_DT_HALF)
+      .set_output_type(WHOLEMEMORY_DT_HALF),
+    WholeMemoryGatherTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED)
+      .set_embedding_type(WHOLEMEMORY_DT_HALF)
+      .set_output_type(WHOLEMEMORY_DT_HALF),
+    WholeMemoryGatherTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_CONTINUOUS)
+      .set_indices_type(WHOLEMEMORY_DT_INT64),
+    WholeMemoryGatherTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_CHUNKED)
+      .set_indices_type(WHOLEMEMORY_DT_INT64),
+    WholeMemoryGatherTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED)
+      .set_indices_type(WHOLEMEMORY_DT_INT64),
+    WholeMemoryGatherTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_CONTINUOUS)
+      .set_embedding_stride(33),
+    WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED).set_embedding_stride(33),
+    WholeMemoryGatherTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED)
+      .set_embedding_stride(33),
+    WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS).set_output_stride(33),
+    WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED).set_output_stride(33),
+    WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED).set_output_stride(33),
+    WholeMemoryGatherTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_CONTINUOUS)
+      .set_embedding_type(WHOLEMEMORY_DT_HALF)
+      .set_embedding_stride(33),
+    WholeMemoryGatherTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_CHUNKED)
+      .set_embedding_type(WHOLEMEMORY_DT_HALF)
+      .set_embedding_stride(33),
+    WholeMemoryGatherTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED)
+      .set_embedding_type(WHOLEMEMORY_DT_HALF)
+      .set_embedding_stride(33),
 #endif
-        WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED)
-    ));
-
+    WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED)));

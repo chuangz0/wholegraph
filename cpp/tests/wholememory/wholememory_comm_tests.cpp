@@ -5,14 +5,15 @@
 
 #include "wholememory_test_utils.hpp"
 
-TEST(WholeMemoryCommTest, SimpleCreateDestroyCommunicator) {
+TEST(WholeMemoryCommTest, SimpleCreateDestroyCommunicator)
+{
   int dev_count = ForkGetDeviceCount();
   EXPECT_GE(dev_count, 1);
   WHOLEMEMORY_CHECK(dev_count >= 1);
   int nproc = dev_count;
   std::vector<std::array<int, 2>> pipes;
   CreatePipes(&pipes, dev_count);
-  MultiProcessRun(nproc, [&pipes](int rank, int world_size){
+  MultiProcessRun(nproc, [&pipes](int rank, int world_size) {
     EXPECT_EQ(cudaSetDevice(rank), cudaSuccess);
     wholememory_comm_t wm_comm1 = create_communicator_by_pipes(pipes, rank, world_size);
     EXPECT_EQ(wm_comm1->comm_id, 0);
@@ -22,14 +23,15 @@ TEST(WholeMemoryCommTest, SimpleCreateDestroyCommunicator) {
   });
 }
 
-TEST(WholeMemoryCommTest, CommunicatorFunctions) {
+TEST(WholeMemoryCommTest, CommunicatorFunctions)
+{
   int dev_count = ForkGetDeviceCount();
   EXPECT_GE(dev_count, 1);
   WHOLEMEMORY_CHECK(dev_count >= 1);
   int nproc = dev_count;
   std::vector<std::array<int, 2>> pipes;
   CreatePipes(&pipes, dev_count);
-  MultiProcessRun(nproc, [&pipes](int rank, int world_size){
+  MultiProcessRun(nproc, [&pipes](int rank, int world_size) {
     EXPECT_EQ(cudaSetDevice(rank), cudaSuccess);
     wholememory_comm_t wm_comm1 = create_communicator_by_pipes(pipes, rank, world_size);
     EXPECT_EQ(wm_comm1->comm_id, 0);
@@ -46,14 +48,15 @@ TEST(WholeMemoryCommTest, CommunicatorFunctions) {
   });
 }
 
-TEST(WholeMemoryCommTest, MultipleCreateDestroyCommunicator) {
+TEST(WholeMemoryCommTest, MultipleCreateDestroyCommunicator)
+{
   int dev_count = ForkGetDeviceCount();
   EXPECT_GE(dev_count, 1);
   WHOLEMEMORY_CHECK(dev_count >= 1);
   int nproc = dev_count;
   std::vector<std::array<int, 2>> pipes;
   CreatePipes(&pipes, dev_count);
-  MultiProcessRun(nproc, [&pipes](int rank, int world_size){
+  MultiProcessRun(nproc, [&pipes](int rank, int world_size) {
     EXPECT_EQ(cudaSetDevice(rank), cudaSuccess);
     wholememory_comm_t wm_comm1 = create_communicator_by_pipes(pipes, rank, world_size);
     EXPECT_EQ(wm_comm1->comm_id, 0);

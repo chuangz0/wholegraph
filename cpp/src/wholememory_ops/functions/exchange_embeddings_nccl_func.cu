@@ -14,7 +14,8 @@ wholememory_error_code_t exchange_embeddings_nccl_func(const void* dev_local_gat
                                                        void* dev_embedding_recv_buffer_ptr,
                                                        size_t embedding_size,
                                                        wholememory_comm_t wm_comm,
-                                                       cudaStream_t stream) {
+                                                       cudaStream_t stream)
+{
   try {
     int world_size;
     WHOLEMEMORY_RETURN_ON_FAIL(wholememory_communicator_get_size(&world_size, wm_comm));
@@ -24,8 +25,8 @@ wholememory_error_code_t exchange_embeddings_nccl_func(const void* dev_local_gat
     for (int i = 0; i < world_size; i++) {
       embedding_send_displs[i] = send_disp;
       embedding_recv_displs[i] = recv_disp;
-      size_t send_count = host_send_to_rank_count_ptr[i] * embedding_size;
-      size_t recv_count = host_recv_from_rank_count_ptr[i] * embedding_size;
+      size_t send_count        = host_send_to_rank_count_ptr[i] * embedding_size;
+      size_t recv_count        = host_recv_from_rank_count_ptr[i] * embedding_size;
       embedding_send_counts[i] = send_count;
       embedding_recv_counts[i] = recv_count;
       send_disp += send_count;

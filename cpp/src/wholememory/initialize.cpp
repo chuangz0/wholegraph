@@ -4,10 +4,10 @@
 #include <cuda_runtime_api.h>
 #include <nccl.h>
 
+#include "communicator.hpp"
 #include "cuda_macros.hpp"
 #include "error.hpp"
 #include "logger.hpp"
-#include "communicator.hpp"
 
 namespace wholememory {
 
@@ -16,10 +16,11 @@ static bool is_wm_init = false;
 
 static const std::string RAFT_NAME = "wholememory";
 
-wholememory_error_code_t init(unsigned int flags) noexcept {
+wholememory_error_code_t init(unsigned int flags) noexcept
+{
   try {
     std::unique_lock<std::mutex> lock(mu);
-    (void) flags;
+    (void)flags;
     WHOLEMEMORY_EXPECTS(!is_wm_init, "WholeMemory has already been initialized.");
     WM_CU_CHECK(cuInit(0));
     is_wm_init = true;
@@ -32,10 +33,11 @@ wholememory_error_code_t init(unsigned int flags) noexcept {
   }
 }
 
-wholememory_error_code_t finalize() noexcept {
+wholememory_error_code_t finalize() noexcept
+{
   std::unique_lock<std::mutex> lock(mu);
   is_wm_init = false;
   return destroy_all_communicators();
 }
 
-}
+}  // namespace wholememory

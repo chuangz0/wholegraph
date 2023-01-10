@@ -14,7 +14,7 @@ class wm_thrust_allocator {
   ~wm_thrust_allocator();
 
   value_type* allocate(std::ptrdiff_t mem_size);
-  void deallocate(value_type *p, size_t mem_size);
+  void deallocate(value_type* p, size_t mem_size);
   void deallocate_all();
 
   wholememory_env_func_t* fns;

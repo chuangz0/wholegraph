@@ -24,23 +24,24 @@ struct logic_error : public raft::exception {
  * Macro to append error message to first argument.
  * This should only be called in contexts where it is OK to throw exceptions!
  */
-#define SET_WHOLEMEMORY_ERROR_MSG(msg, location_prefix, fmt, ...)                                      \
-  do {                                                                                                 \
-    int size1 = std::snprintf(nullptr, 0, "%s", location_prefix);                                      \
-    int size2 = std::snprintf(nullptr, 0, "file=%s line=%d: ", __FILE__, __LINE__);                    \
-    int size3 = std::snprintf(nullptr, 0, fmt, ##__VA_ARGS__);                                         \
-    if (size1 < 0 || size2 < 0 || size3 < 0) {                                                         \
-      (void)printf("Error in snprintf, cannot handle raft exception.\n");                              \
-      (void)fflush(stdout);                                                                            \
-      abort();                                                                                         \
-    }                                                                                                  \
-    auto size = size1 + size2 + size3 + 1; /* +1 for final '\0' */                                     \
-    std::vector<char> buf(size);                                                                       \
-    (void)std::snprintf(buf.data(), size1 + 1 /* +1 for '\0' */, "%s", location_prefix);               \
-    (void)std::snprintf(                                                                               \
-      buf.data() + size1, size2 + 1 /* +1 for '\0' */, "file=%s line=%d: ", __FILE__, __LINE__);       \
-    (void)std::snprintf(buf.data() + size1 + size2, size3 + 1 /* +1 for '\0' */, fmt, ##__VA_ARGS__);  \
-    msg += std::string(buf.data(), buf.data() + size - 1); /* -1 to remove final '\0' */               \
+#define SET_WHOLEMEMORY_ERROR_MSG(msg, location_prefix, fmt, ...)                                \
+  do {                                                                                           \
+    int size1 = std::snprintf(nullptr, 0, "%s", location_prefix);                                \
+    int size2 = std::snprintf(nullptr, 0, "file=%s line=%d: ", __FILE__, __LINE__);              \
+    int size3 = std::snprintf(nullptr, 0, fmt, ##__VA_ARGS__);                                   \
+    if (size1 < 0 || size2 < 0 || size3 < 0) {                                                   \
+      (void)printf("Error in snprintf, cannot handle raft exception.\n");                        \
+      (void)fflush(stdout);                                                                      \
+      abort();                                                                                   \
+    }                                                                                            \
+    auto size = size1 + size2 + size3 + 1; /* +1 for final '\0' */                               \
+    std::vector<char> buf(size);                                                                 \
+    (void)std::snprintf(buf.data(), size1 + 1 /* +1 for '\0' */, "%s", location_prefix);         \
+    (void)std::snprintf(                                                                         \
+      buf.data() + size1, size2 + 1 /* +1 for '\0' */, "file=%s line=%d: ", __FILE__, __LINE__); \
+    (void)std::snprintf(                                                                         \
+      buf.data() + size1 + size2, size3 + 1 /* +1 for '\0' */, fmt, ##__VA_ARGS__);              \
+    msg += std::string(buf.data(), buf.data() + size - 1); /* -1 to remove final '\0' */         \
   } while (0)
 
 /**
@@ -98,13 +99,13 @@ struct logic_error : public raft::exception {
  * @param[in] fmt String literal description of the reason that this code path is erroneous with
  * optinal format tags, this macro will not throw exceptions but abort the process.
  */
-#define WHOLEMEMORY_FAIL_NOTHROW(fmt, ...)                                                 \
-  do {                                                                                     \
-    std::string error_msg{};                                                               \
-    SET_WHOLEMEMORY_ERROR_MSG(error_msg, "WholeMemory failure at ", fmt, ##__VA_ARGS__);   \
-    (void)printf("%s\n", error_msg.c_str());                                               \
-    (void)fflush(stdout);                                                                  \
-    abort();                                                                               \
+#define WHOLEMEMORY_FAIL_NOTHROW(fmt, ...)                                               \
+  do {                                                                                   \
+    std::string error_msg{};                                                             \
+    SET_WHOLEMEMORY_ERROR_MSG(error_msg, "WholeMemory failure at ", fmt, ##__VA_ARGS__); \
+    (void)printf("%s\n", error_msg.c_str());                                             \
+    (void)fflush(stdout);                                                                \
+    abort();                                                                             \
   } while (0)
 
 /**
@@ -113,21 +114,17 @@ struct logic_error : public raft::exception {
  * @param[in] X boolean expression to check
  * @throw always throws wholememory::logic_error
  */
-#define WHOLEMEMORY_CHECK(X)                    \
-do {                                            \
-  if (!(X)) {                                   \
-    WHOLEMEMORY_FAIL("%s check failed.", #X);   \
-  }                                             \
-} while (0)
+#define WHOLEMEMORY_CHECK(X)                                \
+  do {                                                      \
+    if (!(X)) { WHOLEMEMORY_FAIL("%s check failed.", #X); } \
+  } while (0)
 
 /**
  * @brief Indicates that an erroneous code path has been taken.
  *
  * @param[in] X boolean expression to check
  */
-#define WHOLEMEMORY_CHECK_NOTHROW(X)                    \
-do {                                                    \
-  if (!(X)) {                                           \
-    WHOLEMEMORY_FAIL_NOTHROW("%s check failed.", #X);   \
-  }                                                     \
-} while (0)
+#define WHOLEMEMORY_CHECK_NOTHROW(X)                                \
+  do {                                                              \
+    if (!(X)) { WHOLEMEMORY_FAIL_NOTHROW("%s check failed.", #X); } \
+  } while (0)

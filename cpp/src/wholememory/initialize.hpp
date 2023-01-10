@@ -8,4 +8,4 @@ wholememory_error_code_t init(unsigned int flags) noexcept;
 
 wholememory_error_code_t finalize() noexcept;
 
-}
+}  // namespace wholememory

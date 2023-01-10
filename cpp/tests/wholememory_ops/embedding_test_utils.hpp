@@ -6,13 +6,13 @@
 
 namespace wholememory_ops::testing {
 
-void device_matrix_type_cast(void *dst,
+void device_matrix_type_cast(void* dst,
                              wholememory_matrix_description_t dst_desc,
-                             const void *src,
+                             const void* src,
                              wholememory_matrix_description_t src_desc,
                              cudaStream_t stream);
 
-void device_array_type_cast(void *dst,
+void device_array_type_cast(void* dst,
                             wholememory_array_description_t dst_desc,
                             const void* src,
                             wholememory_array_description_t src_desc,
@@ -30,8 +30,7 @@ void device_get_expected_embedding(void* output,
                                    wholememory_env_func_t* p_env_fns,
                                    cudaStream_t stream);
 
-void host_random_init_indices(void *indices,
-                              wholememory_array_description_t indices_desc);
+void host_random_init_indices(void* indices, wholememory_array_description_t indices_desc);
 
 void host_check_embedding_same(void* host_embedding,
                                wholememory_matrix_description_t embedding_desc,

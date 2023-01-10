@@ -27,18 +27,19 @@
 
 #include "cuda_macros.hpp"
 
-void MultiThreadRun(int size, std::function<void(int, int)> f) {
+void MultiThreadRun(int size, std::function<void(int, int)> f)
+{
   std::vector<std::unique_ptr<std::thread>> threads(size);
   for (int i = 0; i < size; i++) {
-    threads[i] =
-        std::make_unique<std::thread>([f, i, size] { return f(i, size); });
+    threads[i] = std::make_unique<std::thread>([f, i, size] { return f(i, size); });
   }
   for (int i = 0; i < size; i++) {
     threads[i]->join();
   }
 }
 
-void MultiProcessRun(int world_size, std::function<void(int, int)> f) {
+void MultiProcessRun(int world_size, std::function<void(int, int)> f)
+{
   // This variable is added to prevent from calling MultiProcessRun recursively by mistake,
   // which may fork too many process and lead to system crash.
   if (world_size == 1) {
@@ -47,8 +48,8 @@ void MultiProcessRun(int world_size, std::function<void(int, int)> f) {
   }
   static std::atomic<int64_t> running_count(0);
   std::vector<pid_t> pids(world_size);
-  bool is_child = false;
-  int child_idx = 0;
+  bool is_child             = false;
+  int child_idx             = 0;
   int current_running_count = running_count.fetch_add(1);
   if (current_running_count > 0) {
     WHOLEMEMORY_FATAL("Already have MultiProcessRun, running_count=%d", current_running_count);
@@ -78,7 +79,8 @@ void MultiProcessRun(int world_size, std::function<void(int, int)> f) {
     int wstatus;
     pid_t pid_ret = waitpid(pids[i], &wstatus, 0);
     if (pid_ret != pids[i]) {
-      WHOLEMEMORY_FATAL("Rank %d returned pid %d not equal to pid %d", i, (int)pid_ret, (int)pids[i]);
+      WHOLEMEMORY_FATAL(
+        "Rank %d returned pid %d not equal to pid %d", i, (int)pid_ret, (int)pids[i]);
     }
     if ((!WIFEXITED(wstatus)) || (WEXITSTATUS(wstatus) != 0)) {
       WHOLEMEMORY_FATAL("Rank %d exit with error", i);
@@ -87,7 +89,8 @@ void MultiProcessRun(int world_size, std::function<void(int, int)> f) {
   running_count.fetch_sub(1);
 }
 
-int ForkGetDeviceCount() {
+int ForkGetDeviceCount()
+{
   int pipes[2];
   if (pipe(pipes) == -1) {
     WHOLEMEMORY_ERROR("Create pipe failed.");
@@ -103,24 +106,18 @@ int ForkGetDeviceCount() {
     WM_CUDA_CHECK(cudaGetDeviceCount(&dev_count));
     WHOLEMEMORY_CHECK(close(pipes[0]) == 0);
     auto wret = write(pipes[1], &dev_count, sizeof(int));
-    if (wret != sizeof(int)) {
-      WHOLEMEMORY_FATAL("write dev_count to pipe failed.");
-    }
+    if (wret != sizeof(int)) { WHOLEMEMORY_FATAL("write dev_count to pipe failed."); }
     WHOLEMEMORY_CHECK(close(pipes[1]) == 0);
     exit(0);
   } else {
     int dev_count = -1;
     WHOLEMEMORY_CHECK(close(pipes[1]) == 0);
     auto rret = read(pipes[0], &dev_count, sizeof(int));
-    if (rret != sizeof(int)) {
-      WHOLEMEMORY_FATAL("read dev_count from pipe failed.");
-    }
+    if (rret != sizeof(int)) { WHOLEMEMORY_FATAL("read dev_count from pipe failed."); }
     WHOLEMEMORY_CHECK(close(pipes[0]) == 0);
     int wstatus;
     pid_t pid_ret = waitpid(pid, &wstatus, 0);
-    if (pid_ret != pid) {
-      WHOLEMEMORY_FATAL("wait dev_count process failed.");
-    }
+    if (pid_ret != pid) { WHOLEMEMORY_FATAL("wait dev_count process failed."); }
     return dev_count;
   }
 }
