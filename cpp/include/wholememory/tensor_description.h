@@ -8,10 +8,10 @@ extern "C" {
 #endif
 
 /**
- * @enum WholeMemory data type
+ * @enum wholememory_dtype_t
  * @brief defines WholeMemory data type for tensors
  */
-typedef enum wholememory_dtype_ {
+enum wholememory_dtype_t {
   WHOLEMEMORY_DT_UNKNOWN = 0,
   WHOLEMEMORY_DT_FLOAT,
   WHOLEMEMORY_DT_HALF,
@@ -22,7 +22,7 @@ typedef enum wholememory_dtype_ {
   WHOLEMEMORY_DT_INT16,
   WHOLEMEMORY_DT_INT8,
   WHOLEMEMORY_DT_COUNT,
-} wholememory_dtype_t;
+};
 
 /**
  * Get element size of wholememory_dtype_t
@@ -51,29 +51,29 @@ bool wholememory_dtype_is_integer_number(wholememory_dtype_t dtype);
  * @struct wholememory_array_description_t
  * @brief wrapper for array in WholeMemory
  */
-typedef struct wholememory_array_description_ {
+struct wholememory_array_description_t {
   int64_t size;
   int64_t storage_offset; /* offset in number of elements, NOT in bytes. */
   wholememory_dtype_t dtype;
-} wholememory_array_description_t;
+};
 
-typedef struct wholememory_matrix_description_ {
+struct wholememory_matrix_description_t {
   int64_t sizes[2];
   int64_t stride;         /* stride of first dimension, in number of elements */
   int64_t storage_offset; /* offset in number of elements, NOT in bytes. */
   wholememory_dtype_t dtype;
-} wholememory_matrix_description_t;
+};
 
 #define WHOLEMEMORY_MAX_TENSOR_DIM (8)
 
-typedef struct wholememory_tensor_description_ {
+struct wholememory_tensor_description_t {
   int64_t sizes[WHOLEMEMORY_MAX_TENSOR_DIM];   /* size of each dimension of the tensor, in number of
                                                   elements */
   int64_t strides[WHOLEMEMORY_MAX_TENSOR_DIM]; /* stride of the tensor, in number of elements */
   int64_t storage_offset;                      /* offset in number of elements, NOT in bytes. */
   int dim;
   wholememory_dtype_t dtype;
-} wholememory_tensor_description_t;
+};
 
 /*!
  * Create wholememory_array_description_t object
@@ -88,7 +88,7 @@ wholememory_array_description_t wholememory_create_array_desc(int64_t size,
 
 /*!
  * Create wholememory_matrix_description_t object
- * @param size : matrix sizes array, counted in number of elements, sizes[0] changes fastest.
+ * @param sizes : matrix sizes array, counted in number of elements, sizes[0] changes fastest.
  * @param stride : stride of last dimension(slower changed dimension), stride is counted in number
  * of elements
  * @param storage_offset : storage offset in number of elements

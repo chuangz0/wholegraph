@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-typedef enum wholememory_error_code_ {
+enum wholememory_error_code_t {
   WHOLEMEMORY_SUCCESS = 0,         /* success */
   WHOLEMEMORY_UNKNOW_ERROR,        /* unknown error */
   WHOLEMEMORY_NOT_IMPLEMENTED,     /* method is not implemented */
@@ -17,7 +17,7 @@ typedef enum wholememory_error_code_ {
   WHOLEMEMORY_COMMUNICATION_ERROR, /* communication error */
   WHOLEMEMORY_INVALID_INPUT,       /* input is invalid, e.g. nullptr */
   WHOLEMEMORY_INVALID_VALUE,       /* input value is invalid */
-} wholememory_error_code_t;
+};
 
 #define WHOLEMEMORY_RETURN_ON_FAIL(X)               \
   do {                                              \
@@ -25,18 +25,18 @@ typedef enum wholememory_error_code_ {
     if (err != WHOLEMEMORY_SUCCESS) { return err; } \
   } while (0)
 
-typedef enum wholememory_memory_type_ {
+enum wholememory_memory_type_t {
   WHOLEMEMORY_MT_NONE = 0,
   WHOLEMEMORY_MT_CONTINUOUS,
   WHOLEMEMORY_MT_CHUNKED,
   WHOLEMEMORY_MT_DISTRIBUTED,
-} wholememory_memory_type_t;
+};
 
-typedef enum wholememory_memory_location_ {
+enum wholememory_memory_location_t {
   WHOLEMEMORY_ML_NONE = 0,
   WHOLEMEMORY_ML_DEVICE,
   WHOLEMEMORY_ML_HOST,
-} wholememory_memory_location_t;
+};
 
 wholememory_error_code_t wholememory_init(unsigned int flags);
 

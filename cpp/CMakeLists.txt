@@ -183,3 +183,34 @@ if(BUILD_TESTS AND CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     add_subdirectory(tests)
 endif()
 
+##############################################################################
+# - doxygen docs -------------------------------------------------------------
+
+include(../cmake/doxygen.cmake)
+add_doxygen_target(
+        IN_DOXYFILE  Doxyfile.in
+        OUT_DOXYFILE ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
+        OUT_DIR      ${CMAKE_CURRENT_BINARY_DIR}/html
+        CWD          ${CMAKE_CURRENT_BINARY_DIR}
+        DEP_TARGETS  ${DOXYGEN_DEP_TARGETS})
+
+##############################################################################
+# - code checker -------------------------------------------------------------
+
+include(../cmake/CodeChecker.cmake)
+set(CLANG_FORMAT_EXE "clang-format")
+set(CLANG_TIDY_EXE "clang-tidy")
+set(FLAKE8_EXE "flake8")
+if(CLANG_TOOL_PATH)
+    set(CLANG_FORMAT_EXE ${CLANG_TOOL_PATH}/clang-format)
+    set(CLANG_TIDY_EXE ${CLANG_TOOL_PATH}/clang-tidy)
+endif()
+add_code_checks(
+        CWD          ${PROJECT_SOURCE_DIR}
+        CLANG_FORMAT ${CLANG_FORMAT_EXE}
+        CLANG_TIDY   ${CLANG_TIDY_EXE}
+        FLAKE8       ${FLAKE8_EXE})
+
+##############################################################################
+# - install targets ----------------------------------------------------------
+

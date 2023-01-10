@@ -24,7 +24,7 @@ typedef void* (*wholememory_malloc_func_t)(wholememory_tensor_description_t*,
 
 typedef void (*wholememory_free_func_t)(void* ptr, void* memory_context, void* global_context);
 
-typedef struct wholememory_memory_func_ {
+struct wholememory_memory_func_t {
   wholememory_create_memory_context_func_t create_memory_context_fn;
   wholememory_destroy_memory_context_func_t destroy_memory_context_fn;
   wholememory_malloc_func_t host_malloc_fn;
@@ -34,9 +34,9 @@ typedef struct wholememory_memory_func_ {
   wholememory_malloc_func_t pinned_malloc_fn;
   wholememory_free_func_t pinned_free_fn;
   void* global_context;
-} wholememory_memory_func_t;
+};
 
-typedef struct wholememory_env_func_ {
+struct wholememory_env_func_t {
   wholememory_memory_func_t temporary_fns; /* function pointers to create temporary memory */
   wholememory_memory_func_t output_fns;    /* function pointers to create Op output memory */
-} wholememory_env_func_t;
+};
