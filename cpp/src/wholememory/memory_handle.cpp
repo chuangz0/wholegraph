@@ -627,8 +627,7 @@ class continuous_device_wholememory_impl : public wholememory_impl {
                                        const ipc_sharable_cu_handle& sent_handle,
                                        const std::string& dst_name)
   {
-    struct msghdr message_header {
-    };
+    struct msghdr message_header {};
     struct iovec iov[1];
 
     union {
@@ -637,8 +636,7 @@ class continuous_device_wholememory_impl : public wholememory_impl {
     } control_un{};
 
     struct cmsghdr* cmptr;
-    struct sockaddr_un cliaddr {
-    };
+    struct sockaddr_un cliaddr {};
 
     // Construct client address to send this Shareable handle to
     bzero(&cliaddr, sizeof(cliaddr));
@@ -1087,11 +1085,11 @@ int negotiate_handle_id_with_comm_locked(wholememory_comm_t wm_comm)
 }
 
 struct wholememory_create_param {
-  wholememory_create_param()                                       = default;
-  wholememory_create_param(const struct wholememory_create_param&) = default;
-  wholememory_create_param(struct wholememory_create_param&&)      = default;
+  wholememory_create_param()                                           = default;
+  wholememory_create_param(const struct wholememory_create_param&)     = default;
+  wholememory_create_param(struct wholememory_create_param&&)          = default;
   wholememory_create_param& operator=(const wholememory_create_param&) = default;
-  wholememory_create_param& operator=(wholememory_create_param&&) = default;
+  wholememory_create_param& operator=(wholememory_create_param&&)      = default;
   wholememory_create_param(size_t ts,
                            wholememory_memory_type_t mt,
                            wholememory_memory_location_t ml,
@@ -1119,10 +1117,10 @@ wholememory_error_code_t create_wholememory(wholememory_handle_t* wholememory_ha
                                             wholememory_comm_t comm,
                                             wholememory_memory_type_t memory_type,
                                             wholememory_memory_location_t memory_location,
-                                            size_t min_granularity) noexcept
+                                            size_t data_granularity) noexcept
 {
   try {
-    if (total_size % min_granularity != 0) return WHOLEMEMORY_INVALID_VALUE;
+    if (total_size % data_granularity != 0) return WHOLEMEMORY_INVALID_VALUE;
 
     *wholememory_handle_ptr = nullptr;
     std::unique_lock<std::mutex> mlock(comm->mu);
@@ -1134,21 +1132,21 @@ wholememory_error_code_t create_wholememory(wholememory_handle_t* wholememory_ha
 
     whole_memory_handle->handle_id = negotiate_handle_id_with_comm_locked(comm);
     WM_COMM_CHECK_ALL_SAME(comm, WM_MEM_OP_CREATE);
-    wholememory_create_param wcp(total_size, memory_type, memory_location, min_granularity);
+    wholememory_create_param wcp(total_size, memory_type, memory_location, data_granularity);
     WM_COMM_CHECK_ALL_SAME(comm, wcp);
 
     if (memory_type == WHOLEMEMORY_MT_DISTRIBUTED) {
       whole_memory_handle->impl = new distributed_wholememory_impl(
-        whole_memory_handle, total_size, comm, memory_type, memory_location, min_granularity);
+        whole_memory_handle, total_size, comm, memory_type, memory_location, data_granularity);
     } else if (memory_location == WHOLEMEMORY_ML_HOST) {
       whole_memory_handle->impl = new global_mapped_host_wholememory_impl(
-        whole_memory_handle, total_size, comm, memory_type, memory_location, min_granularity);
+        whole_memory_handle, total_size, comm, memory_type, memory_location, data_granularity);
     } else if (memory_type == WHOLEMEMORY_MT_CONTINUOUS) {
       whole_memory_handle->impl = new continuous_device_wholememory_impl(
-        whole_memory_handle, total_size, comm, memory_type, memory_location, min_granularity);
+        whole_memory_handle, total_size, comm, memory_type, memory_location, data_granularity);
     } else if (memory_type == WHOLEMEMORY_MT_CHUNKED) {
       whole_memory_handle->impl = new chunked_device_wholememory_impl(
-        whole_memory_handle, total_size, comm, memory_type, memory_location, min_granularity);
+        whole_memory_handle, total_size, comm, memory_type, memory_location, data_granularity);
     } else {
       WHOLEMEMORY_FATAL("Unsupported memory_type (%d) and memory_location (%d).",
                         (int)memory_type,

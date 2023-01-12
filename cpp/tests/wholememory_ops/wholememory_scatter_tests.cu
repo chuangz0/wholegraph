@@ -97,8 +97,7 @@ typedef struct WholeMemoryScatterTestParam {
 } WholeMemoryScatterTestParam;
 
 class WholeMemoryScatterParameterTests
-  : public ::testing::TestWithParam<WholeMemoryScatterTestParam> {
-};
+  : public ::testing::TestWithParam<WholeMemoryScatterTestParam> {};
 
 TEST_P(WholeMemoryScatterParameterTests, ScatterTest)
 {

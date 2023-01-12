@@ -97,8 +97,7 @@ typedef struct WholeMemoryGatherTestParam {
 } WholeMemoryGatherTestParam;
 
 class WholeMemoryGatherParameterTests
-  : public ::testing::TestWithParam<WholeMemoryGatherTestParam> {
-};
+  : public ::testing::TestWithParam<WholeMemoryGatherTestParam> {};
 
 TEST_P(WholeMemoryGatherParameterTests, GatherTest)
 {

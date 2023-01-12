@@ -9,13 +9,11 @@
 
 class WholeMemoryHandleCreateDestroyParameterTests
   : public ::testing::TestWithParam<
-      std::tuple<size_t, wholememory_memory_type_t, wholememory_memory_location_t, size_t>> {
-};
+      std::tuple<size_t, wholememory_memory_type_t, wholememory_memory_location_t, size_t>> {};
 
 class WholeMemoryHandleSingleProcessCreateDestroyParameterTests
   : public ::testing::TestWithParam<
-      std::tuple<size_t, wholememory_memory_type_t, wholememory_memory_location_t, size_t>> {
-};
+      std::tuple<size_t, wholememory_memory_type_t, wholememory_memory_location_t, size_t>> {};
 
 TEST_P(WholeMemoryHandleSingleProcessCreateDestroyParameterTests, CreateDestroyTest)
 {
@@ -131,8 +129,7 @@ INSTANTIATE_TEST_CASE_P(
 
 class WholeMemoryHandleMultiCreateParameterTests
   : public ::testing::TestWithParam<
-      std::tuple<wholememory_memory_type_t, wholememory_memory_location_t>> {
-};
+      std::tuple<wholememory_memory_type_t, wholememory_memory_location_t>> {};
 
 TEST_P(WholeMemoryHandleMultiCreateParameterTests, CreateDestroyTest)
 {

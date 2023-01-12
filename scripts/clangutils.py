@@ -18,7 +18,7 @@ import os
 import subprocess
 
 DEFAULT_DIRS = ["cpp"]
-ALWAYS_IGNORED_DIRS = ["build", "_skbuild", "_cython_build", "cmake-build-debug"]
+ALWAYS_IGNORED_DIRS = ["build", "_skbuild", "_cython_build", "cmake-build-debug", "_dep"]
 HEADER_SUB_DIRS = ["cpp/include", "cpp/src"]
 EXCLUDED_HEADER_NAMES = set(["dlpack.h"])
 HEADER_EXT = ["h", "hpp", "cuh"]
@@ -26,8 +26,8 @@ SRC_EXT_RE = r"[.](cu|cuh|h|hpp|cpp)$"
 
 CLANG_COMPILER = "clang++"
 EXPECTED_VERSIONS = ("16.0.0",)
-CLANG_VERSION_RE = re.compile(r"(Ubuntu )?clang version ([0-9.]+)(-[0-9]+)?(~ubuntu[0-9.]+)?")
-CLANG_FMT_VERSION_RE = re.compile(r"(Ubuntu )?clang-format version ([0-9.]+)(-[0-9]+)?(~ubuntu[0-9.]+)?")
+CLANG_VERSION_RE = re.compile(r"(Ubuntu |Debian )?clang version ([0-9.]+)(-[0-9]+)?(~ubuntu[0-9.]+)?")
+CLANG_FMT_VERSION_RE = re.compile(r"(Ubuntu |Debian )?clang-format version ([0-9.]+)(-[0-9]+)?(~ubuntu[0-9.]+)?")
 
 GNU_DEFAULT_COMPILER = "g++"
 CMAKE_COMPILER_REGEX = re.compile(
