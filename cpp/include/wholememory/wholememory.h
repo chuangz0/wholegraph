@@ -46,9 +46,9 @@ wholememory_error_code_t wholememory_finalize();
 typedef struct wholememory_comm_* wholememory_comm_t;
 
 #define WHOLEMEMORY_UNIQUE_ID_BYTES (128)
-typedef struct {
+struct wholememory_unique_id_t {
   char internal[WHOLEMEMORY_UNIQUE_ID_BYTES];
-} wholememory_unique_id_t;
+};
 
 wholememory_error_code_t wholememory_create_unique_id(wholememory_unique_id_t* unique_id);
 
@@ -84,10 +84,18 @@ wholememory_memory_type_t wholememory_get_memory_type(wholememory_handle_t whole
 wholememory_memory_location_t wholememory_get_memory_location(
   wholememory_handle_t wholememory_handle);
 
+size_t wholememory_get_total_size(wholememory_handle_t wholememory_handle);
+
 wholememory_error_code_t wholememory_get_local_memory(void** local_ptr,
                                                       size_t* local_size,
                                                       size_t* local_offset,
                                                       wholememory_handle_t wholememory_handle);
+
+wholememory_error_code_t wholememory_get_rank_memory(void** rank_memory_ptr,
+                                                     size_t* rank_memory_size,
+                                                     size_t* rank_memory_offset,
+                                                     int rank,
+                                                     wholememory_handle_t wholememory_handle);
 
 wholememory_error_code_t wholememory_get_global_pointer(void** global_ptr,
                                                         wholememory_handle_t wholememory_handle);
@@ -106,6 +114,8 @@ wholememory_error_code_t wholememory_determine_entry_partition_plan(size_t* entr
 
 wholememory_error_code_t wholememory_get_partition_plan(size_t* size_per_rank,
                                                         wholememory_handle_t wholememory_handle);
+
+int fork_get_device_count();
 
 wholememory_error_code_t wholememory_load_from_file(wholememory_handle_t wholememory_handle,
                                                     size_t memory_offset,

@@ -40,10 +40,19 @@ wholememory_memory_type_t get_memory_type(wholememory_handle_t wholememory_handl
 
 wholememory_memory_location_t get_memory_location(wholememory_handle_t wholememory_handle) noexcept;
 
+size_t get_total_size(wholememory_handle_t wholememory_handle) noexcept;
+
 wholememory_error_code_t get_local_memory_from_handle(
   void** local_ptr,
   size_t* local_size,
   size_t* local_offset,
+  wholememory_handle_t wholememory_handle) noexcept;
+
+wholememory_error_code_t get_rank_memory_from_handle(
+  void** rank_memory_ptr,
+  size_t* rank_memory_size,
+  size_t* rank_memory_offset,
+  int rank,
   wholememory_handle_t wholememory_handle) noexcept;
 
 wholememory_error_code_t get_global_pointer_from_handle(

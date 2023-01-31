@@ -18,7 +18,7 @@ import os
 import subprocess
 
 DEFAULT_DIRS = ["cpp"]
-ALWAYS_IGNORED_DIRS = ["build", "_skbuild", "_cython_build", "cmake-build-debug", "_dep"]
+ALWAYS_IGNORED_DIRS = ["build", "_skbuild", "_cython_build", "cmake-build-debug"]
 HEADER_SUB_DIRS = ["cpp/include", "cpp/src"]
 EXCLUDED_HEADER_NAMES = set(["dlpack.h"])
 HEADER_EXT = ["h", "hpp", "cuh"]

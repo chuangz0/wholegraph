@@ -21,8 +21,9 @@ void MultiThreadRun(int size, std::function<void(int, int)> f);
  * gtest failures. See parallel_utils_tests.cpp for reference.
  * @param size : process count
  * @param f : process function
+ * @param inline_single_process : use current process to run f if size==1
  */
-void MultiProcessRun(int size, std::function<void(int, int)> f);
+void MultiProcessRun(int size, std::function<void(int, int)> f, bool inline_single_process = false);
 
 inline int CreatePipes(std::vector<std::array<int, 2>>* pipes, int nproc)
 {

@@ -68,6 +68,16 @@ class wholememory_impl {
     if (local_size != nullptr) *local_size = rank_partition_strategy_.local_mem_size;
     if (local_offset != nullptr) *local_offset = rank_partition_strategy_.local_mem_offset;
   }
+  virtual bool get_rank_memory(void** rank_memory_ptr,
+                               size_t* rank_memory_size,
+                               size_t* rank_memory_offset,
+                               int rank) const noexcept
+  {
+    *rank_memory_ptr    = nullptr;
+    *rank_memory_size   = 0;
+    *rank_memory_offset = 0;
+    return false;
+  }
   [[nodiscard]] size_t get_partition_stride() const
   {
     return rank_partition_strategy_.partition_mem_stride;
@@ -103,21 +113,17 @@ class wholememory_impl {
   void generate_rank_partition_strategy();
 
   /*
-   *  ++-----------------------------------------------------------------------------------------------++
-   *  ||     Type     ||       CONTINUOUS        ||        CHUNKED          ||       DISTRIBUTED ||
-   *  ++--------------+--------------------------------------------------------------------------------++
-   *  ||   Location   ||   DEVICE   |    HOST    ||   DEVICE   |    HOST    ||   DEVICE   |    HOST
-   * ||
-   *  ++-----------------------------------------------------------------------------------------------++
-   *  || Allocated by ||    EACH    |   FIRST    ||    EACH    |   FIRST    ||    EACH    |    EACH
-   * ||
-   *  ++-----------------------------------------------------------------------------------------------++
-   *  || Allocate API ||   Driver   |    Host    ||   Runtime  |    Host    ||   Runtime  | Runtime
-   * ||
-   *  ++-----------------------------------------------------------------------------------------------++
-   *  ||  IPC Mapping ||  Unix fd   |    mmap    ||  cudaIpc   |    mmap    || No IPC map | No IPC
-   * map ||
-   *  ++-----------------------------------------------------------------------------------------------++
+   *  ++---------------------------------------------------------------------------------------++
+   *  ||     Type     ||     CONTINUOUS      ||      CHUNKED        ||       DISTRIBUTED       ||
+   *  ++--------------+------------------------------------------------------------------------++
+   *  ||   Location   ||  DEVICE  |   HOST   ||  DEVICE  |   HOST   ||   DEVICE   |    HOST    ||
+   *  ++---------------------------------------------------------------------------------------++
+   *  || Allocated by ||   EACH   |  FIRST   ||   EACH   |  FIRST   ||    EACH    |    EACH    ||
+   *  ++---------------------------------------------------------------------------------------++
+   *  || Allocate API ||  Driver  |   Host   ||  Runtime |   Host   ||   Runtime  |   Runtime  ||
+   *  ++---------------------------------------------------------------------------------------++
+   *  ||  IPC Mapping || Unix fd  |   mmap   ||  cudaIpc |   mmap   || No IPC map | No IPC map ||
+   *  ++---------------------------------------------------------------------------------------++
    */
 
   wholememory_handle_t handle_;
@@ -145,6 +151,19 @@ class wholememory_impl {
     size_t partition_mem_stride = 0;
   } rank_partition_strategy_;
   void* local_partition_memory_pointer_ = nullptr;
+
+  void get_rank_partition_info(size_t* rank_mem_size,
+                               size_t* rank_mem_start,
+                               int rank) const noexcept
+  {
+    WHOLEMEMORY_CHECK_NOTHROW(rank >= 0 && rank <= comm_->world_size);
+    size_t rank_mem_part_start =
+      std::min(rank_partition_strategy_.partition_mem_stride * rank, total_size_);
+    size_t rank_mem_part_end =
+      std::min(rank_partition_strategy_.partition_mem_stride * (rank + 1), total_size_);
+    if (rank_mem_size != nullptr) *rank_mem_size = rank_mem_part_end - rank_mem_part_start;
+    if (rank_mem_start != nullptr) *rank_mem_start = rank_mem_part_start;
+  }
 
   static constexpr size_t HUGE_PAGE_THRESHOLD = 16UL * 1024UL * 1024UL * 1024UL;
   static constexpr size_t HUGE_PAGE_SIZE      = 512UL * 1024UL * 1024UL;
@@ -366,6 +385,19 @@ class global_mapped_host_wholememory_impl : public wholememory_impl {
     uint64_t int_start_ptr = reinterpret_cast<uint64_t>(shared_host_handle_.shared_host_memory_ptr);
     return int_ptr >= int_start_ptr && int_ptr < int_start_ptr + total_size_;
   }
+  bool get_rank_memory(void** rank_memory_ptr,
+                       size_t* rank_memory_size,
+                       size_t* rank_memory_offset,
+                       int rank) const noexcept override
+  {
+    size_t mem_size, mem_start;
+    get_rank_partition_info(&mem_size, &mem_start, rank);
+    if (rank_memory_ptr != nullptr)
+      *rank_memory_ptr = (char*)get_continuous_mapping_pointer() + mem_start;
+    if (rank_memory_size != nullptr) *rank_memory_size = mem_size;
+    if (rank_memory_offset != nullptr) *rank_memory_offset = mem_start;
+    return true;
+  }
 
  protected:
   void register_host_memory()
@@ -495,6 +527,19 @@ class continuous_device_wholememory_impl : public wholememory_impl {
     uint64_t int_ptr       = reinterpret_cast<uint64_t>(ptr);
     uint64_t int_start_ptr = reinterpret_cast<uint64_t>(cu_alloc_handle_.mapped_whole_memory);
     return int_ptr >= int_start_ptr && int_ptr < int_start_ptr + total_size_;
+  }
+  bool get_rank_memory(void** rank_memory_ptr,
+                       size_t* rank_memory_size,
+                       size_t* rank_memory_offset,
+                       int rank) const noexcept override
+  {
+    size_t mem_size, mem_start;
+    get_rank_partition_info(&mem_size, &mem_start, rank);
+    if (rank_memory_ptr != nullptr)
+      *rank_memory_ptr = (char*)get_continuous_mapping_pointer() + mem_start;
+    if (rank_memory_size != nullptr) *rank_memory_size = mem_size;
+    if (rank_memory_offset != nullptr) *rank_memory_offset = mem_start;
+    return true;
   }
 
  protected:
@@ -894,6 +939,18 @@ class chunked_device_wholememory_impl : public wholememory_impl {
     }
     return false;
   }
+  bool get_rank_memory(void** rank_memory_ptr,
+                       size_t* rank_memory_size,
+                       size_t* rank_memory_offset,
+                       int rank) const noexcept override
+  {
+    size_t mem_size, mem_start;
+    get_rank_partition_info(&mem_size, &mem_start, rank);
+    if (rank_memory_ptr != nullptr) *rank_memory_ptr = cuda_ipc_handle_.mapped_ptrs[rank];
+    if (rank_memory_size != nullptr) *rank_memory_size = mem_size;
+    if (rank_memory_offset != nullptr) *rank_memory_offset = mem_start;
+    return true;
+  }
 
  protected:
   void register_chunked_device_memory()
@@ -1232,6 +1289,11 @@ wholememory_memory_location_t get_memory_location(wholememory_handle_t wholememo
   return wholememory_handle->impl->get_location();
 }
 
+size_t get_total_size(wholememory_handle_t wholememory_handle) noexcept
+{
+  return wholememory_handle->impl->total_size();
+}
+
 wholememory_error_code_t get_local_memory_from_handle(
   void** local_ptr,
   size_t* local_size,
@@ -1242,6 +1304,25 @@ wholememory_error_code_t get_local_memory_from_handle(
     return WHOLEMEMORY_INVALID_INPUT;
   }
   wholememory_handle->impl->get_local_memory(local_ptr, local_size, local_offset);
+  return WHOLEMEMORY_SUCCESS;
+}
+
+wholememory_error_code_t get_rank_memory_from_handle(
+  void** rank_memory_ptr,
+  size_t* rank_memory_size,
+  size_t* rank_memory_offset,
+  int rank,
+  wholememory_handle_t wholememory_handle) noexcept
+{
+  if (wholememory_handle == nullptr || wholememory_handle->impl == nullptr) {
+    return WHOLEMEMORY_INVALID_INPUT;
+  }
+  auto* comm = wholememory_handle->impl->get_comm();
+  if (rank < 0 || rank >= comm->world_size) { return WHOLEMEMORY_INVALID_INPUT; }
+  if (wholememory_handle->impl->get_rank_memory(
+        rank_memory_ptr, rank_memory_size, rank_memory_offset, rank) == false) {
+    return WHOLEMEMORY_INVALID_INPUT;
+  }
   return WHOLEMEMORY_SUCCESS;
 }
 

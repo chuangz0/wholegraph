@@ -3,6 +3,7 @@
 #include "communicator.hpp"
 #include "initialize.hpp"
 #include "memory_handle.hpp"
+#include "parallel_utils.hpp"
 
 #ifdef __cplusplus
 extern "C" {
@@ -79,6 +80,11 @@ wholememory_memory_location_t wholememory_get_memory_location(
   return wholememory::get_memory_location(wholememory_handle);
 }
 
+size_t wholememory_get_total_size(wholememory_handle_t wholememory_handle)
+{
+  return wholememory::get_total_size(wholememory_handle);
+}
+
 wholememory_error_code_t wholememory_get_local_memory(void** local_ptr,
                                                       size_t* local_size,
                                                       size_t* local_offset,
@@ -86,6 +92,16 @@ wholememory_error_code_t wholememory_get_local_memory(void** local_ptr,
 {
   return wholememory::get_local_memory_from_handle(
     local_ptr, local_size, local_offset, wholememory_handle);
+}
+
+wholememory_error_code_t wholememory_get_rank_memory(void** rank_memory_ptr,
+                                                     size_t* rank_memory_size,
+                                                     size_t* rank_memory_offset,
+                                                     int rank,
+                                                     wholememory_handle_t wholememory_handle)
+{
+  return wholememory::get_rank_memory_from_handle(
+    rank_memory_ptr, rank_memory_size, rank_memory_offset, rank, wholememory_handle);
 }
 
 wholememory_error_code_t wholememory_get_global_pointer(void** global_ptr,
@@ -122,6 +138,16 @@ wholememory_error_code_t wholememory_get_partition_plan(size_t* size_per_rank,
                                                         wholememory_handle_t wholememory_handle)
 {
   return wholememory::get_partition_plan_from_handle(size_per_rank, wholememory_handle);
+}
+
+int fork_get_device_count()
+{
+  try {
+    return ForkGetDeviceCount();
+  } catch (...) {
+    WHOLEMEMORY_ERROR("fork_get_device_count failed.");
+    return -1;
+  }
 }
 
 wholememory_error_code_t wholememory_load_from_file(wholememory_handle_t wholememory_handle,

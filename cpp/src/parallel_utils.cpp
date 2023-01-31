@@ -38,14 +38,14 @@ void MultiThreadRun(int size, std::function<void(int, int)> f)
   }
 }
 
-void MultiProcessRun(int world_size, std::function<void(int, int)> f)
+void MultiProcessRun(int world_size, std::function<void(int, int)> f, bool inline_single_process)
 {
-  // This variable is added to prevent from calling MultiProcessRun recursively by mistake,
-  // which may fork too many process and lead to system crash.
-  if (world_size == 1) {
+  if (world_size == 1 && inline_single_process) {
     f(0, 1);
     return;
   }
+  // This variable is added to prevent from calling MultiProcessRun recursively by mistake,
+  // which may fork too many process and lead to system crash.
   static std::atomic<int64_t> running_count(0);
   std::vector<pid_t> pids(world_size);
   bool is_child             = false;

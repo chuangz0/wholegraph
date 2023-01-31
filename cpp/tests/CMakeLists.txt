@@ -8,7 +8,7 @@ function(ConfigureTestInternal TEST_NAME)
     add_executable(${TEST_NAME} ${ARGN})
     target_include_directories(${TEST_NAME} PRIVATE "$<BUILD_INTERFACE:${WHOLEGRAPH_SOURCE_DIR}>/src")
     target_link_libraries(${TEST_NAME} GTest::gmock GTest::gtest GTest::gmock_main GTest::gtest_main
-            wholememory raft::raft rmm::rmm pthread)
+            wholegraph raft::raft rmm::rmm pthread)
     set_target_properties(
             ${TEST_NAME}
             PROPERTIES POSITION_INDEPENDENT_CODE ON

@@ -342,8 +342,9 @@ enum wm_comm_op : int32_t {
 wholememory_error_code_t create_unique_id(wholememory_unique_id_t* unique_id) noexcept
 {
   ncclUniqueId id;
+  WHOLEMEMORY_CHECK_NOTHROW(sizeof(ncclUniqueId) <= sizeof(wholememory_unique_id_t));
   WHOLEMEMORY_CHECK_NOTHROW(ncclGetUniqueId(&id) == ncclSuccess);
-  memcpy(unique_id->internal, id.internal, sizeof(unique_id->internal));
+  memcpy(unique_id->internal, id.internal, sizeof(ncclUniqueId));
   return WHOLEMEMORY_SUCCESS;
 }
 

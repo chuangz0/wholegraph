@@ -122,18 +122,19 @@ rapids_cpm_init()
 include(../cmake/thirdparty/get_raft.cmake)
 include(../cmake/thirdparty/get_nccl.cmake)
 
-file(GLOB WHOLEMEMORY_SOURCES
+file(GLOB WHOLEGRAPH_SOURCES
         "src/*.cpp"
         "src/wholememory/*.cpp"
         "src/wholememory_ops/*.cpp"
         "src/wholememory_ops/*.cu"
         "src/wholememory_ops/functions/*.cu")
 
-add_library(wholememory SHARED "")
+add_library(wholegraph SHARED "")
+add_library(wholegraph::wholegraph ALIAS wholegraph)
 
-target_sources(wholememory PRIVATE ${WHOLEMEMORY_SOURCES})
+target_sources(wholegraph PRIVATE ${WHOLEGRAPH_SOURCES})
 
-set_target_properties(wholememory
+set_target_properties(wholegraph
         PROPERTIES BUILD_RPATH "\$ORIGIN"
         INSTALL_RPATH "\$ORIGIN"
         # set target compile options
@@ -145,28 +146,31 @@ set_target_properties(wholememory
         INTERFACE_POSITION_INDEPENDENT_CODE ON
         )
 
-target_compile_options(wholememory
+target_compile_options(wholegraph
             PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${WHOLEGRAPH_CXX_FLAGS}>"
                     "$<$<COMPILE_LANGUAGE:CUDA>:${WHOLEGRAPH_CUDA_FLAGS}>"
 )
 
-target_link_libraries(wholememory PRIVATE -static-libgcc -static-libstdc++)
+#target_link_libraries(wholegraph PRIVATE -static-libgcc -static-libstdc++)
 
 ################################################################################
 # - include paths --------------------------------------------------------------
 
-target_include_directories(wholememory
+set(WHOLEGRAPH_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include CACHE STRING
+        "Path to wholegraph include directory")
+
+target_include_directories(wholegraph
     PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/src"
     PUBLIC
-        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+        "$<BUILD_INTERFACE:${WHOLEGRAPH_INCLUDE_DIR}>"
         "$<INSTALL_INTERFACE:include>"
 )
 
 
 ################################################################################
 # - link libraries -------------------------------------------------------------
-target_link_libraries(wholememory
+target_link_libraries(wholegraph
 PUBLIC
     raft::raft
     CUDA::cuda_driver
@@ -214,3 +218,46 @@ add_code_checks(
 ##############################################################################
 # - install targets ----------------------------------------------------------
 
+set(doc_string [=[
+]=])
+set(code_string
+        [=[
+]=])
+
+set(WHOLEGRAPH_PUBLIC_HEADERS
+        wholememory/device_reference.cuh
+        wholememory/env_func_ptrs.h
+        wholememory/global_reference.h
+        wholememory/tensor_description.h
+        wholememory/wholememory.h
+        wholememory/wholememory_op.h
+        )
+
+foreach(file IN LISTS WHOLEGRAPH_PUBLIC_HEADERS)
+    install(FILES "${WHOLEGRAPH_INCLUDE_DIR}/${file}"
+            DESTINATION "${file}")
+endforeach()
+
+rapids_cmake_install_lib_dir( lib_dir )
+
+install(
+        TARGETS     wholegraph
+        DESTINATION ${lib_dir}
+        EXPORT wholegraph-exports)
+
+rapids_export(
+        INSTALL wholegraph
+        EXPORT_SET wholegraph-exports
+        GLOBAL_TARGETS wholegraph
+        NAMESPACE wholegraph::
+        DOCUMENTATION doc_string
+        FINAL_CODE_BLOCK code_string)
+
+# build export targets
+rapids_export(
+        BUILD wholegraph
+        EXPORT_SET wholegraph-exports
+        GLOBAL_TARGETS wholegraph
+        NAMESPACE wholegraph::
+        DOCUMENTATION doc_string
+        FINAL_CODE_BLOCK code_string)
