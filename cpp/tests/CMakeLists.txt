@@ -79,6 +79,9 @@ ConfigureTest(WHOLEMEMORY_COMM_TEST wholememory/wholememory_comm_tests.cpp)
 # wholememory handle tests
 ConfigureTest(WHOLEMEMORY_HANDLE_TEST wholememory/wholememory_handle_tests.cpp)
 
+# wholememory tensor tests
+ConfigureTest(WHOLEMEMORY_TENSOR_TEST wholememory/wholememory_tensor_tests.cpp)
+
 # wholememory gather op tests
 ConfigureTest(WHOLEMEMORY_GATHER_TEST wholememory_ops/wholememory_gather_tests.cu wholememory_ops/embedding_test_utils.cu)
 

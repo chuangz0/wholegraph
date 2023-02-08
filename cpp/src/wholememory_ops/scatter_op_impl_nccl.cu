@@ -29,7 +29,7 @@ wholememory_error_code_t wholememory_scatter_nccl(void* input,
 {
   try {
     if (wholememory_desc.storage_offset < 0 ||
-        wholememory_desc.storage_offset + wholememory_desc.sizes[0] > wholememory_desc.stride) {
+        wholememory_desc.storage_offset + wholememory_desc.sizes[1] > wholememory_desc.stride) {
       return WHOLEMEMORY_INVALID_INPUT;
     }
 
@@ -126,7 +126,7 @@ wholememory_error_code_t wholememory_scatter_nccl(void* input,
     // Local Reorder
     temp_memory_handle dev_local_reorder_buffer(p_env_fns), dev_embedding_recv_buffer(p_env_fns);
     auto local_reorder_desc =
-      wholememory_create_matrix_desc(input_desc.sizes, input_desc.sizes[0], 0, input_desc.dtype);
+      wholememory_create_matrix_desc(input_desc.sizes, input_desc.sizes[1], 0, input_desc.dtype);
     void* dev_local_reorder_buffer_ptr = dev_local_reorder_buffer.device_malloc(
       wholememory_get_memory_element_count_from_matrix(&local_reorder_desc), input_desc.dtype);
     wholememory_gref_t input_gref = wholememory_create_continuous_global_reference(input);
@@ -141,9 +141,9 @@ wholememory_error_code_t wholememory_scatter_nccl(void* input,
                                            stream));
     // AllToAllV for embeddings
     void* dev_embedding_recv_buffer_ptr = dev_embedding_recv_buffer.device_malloc(
-      total_recv_count * input_desc.sizes[0], input_desc.dtype);
+      total_recv_count * input_desc.sizes[1], input_desc.dtype);
     size_t embedding_size =
-      wholememory_desc.sizes[0] * wholememory_dtype_get_element_size(input_desc.dtype);
+      wholememory_desc.sizes[1] * wholememory_dtype_get_element_size(input_desc.dtype);
     WHOLEMEMORY_RETURN_ON_FAIL(exchange_embeddings_nccl_func(dev_local_reorder_buffer_ptr,
                                                              host_rank_id_count_ptr,
                                                              host_recv_rank_id_count_ptr,
@@ -160,9 +160,9 @@ wholememory_error_code_t wholememory_scatter_nccl(void* input,
     wholememory_gref_t local_fake_embedding_gref =
       wholememory_create_continuous_global_reference(local_fake_ptr);
 
-    std::vector<int64_t> recv_embedding_sizes            = {input_desc.sizes[0], total_recv_count};
+    std::vector<int64_t> recv_embedding_sizes            = {total_recv_count, input_desc.sizes[1]};
     wholememory_matrix_description_t recv_embedding_desc = wholememory_create_matrix_desc(
-      recv_embedding_sizes.data(), input_desc.sizes[0], 0, input_desc.dtype);
+      recv_embedding_sizes.data(), input_desc.sizes[1], 0, input_desc.dtype);
     auto recv_indices_desc = wholememory_create_array_desc(total_recv_count, 0, indices_desc.dtype);
     WHOLEMEMORY_RETURN_ON_FAIL(scatter_func(dev_embedding_recv_buffer_ptr,
                                             recv_embedding_desc,

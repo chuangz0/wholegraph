@@ -190,7 +190,39 @@ cdef extern from "wholememory/tensor_description.h":
         WHOLEMEMORY_DT_INT8     "WHOLEMEMORY_DT_INT8"
         WHOLEMEMORY_DT_COUNT    "WHOLEMEMORY_DT_COUNT"
 
+    cdef struct wholememory_tensor_description_t:
+        int64_t sizes[8]
+        int64_t strides[8]
+        int64_t storage_offset
+        int dim
+        wholememory_dtype_t dtype
+
     cdef size_t wholememory_dtype_get_element_size(wholememory_dtype_t dtype)
+
+
+cdef extern from "wholememory/wholememory_tensor.h":
+    cdef struct wholememory_tensor_:
+        pass
+
+    ctypedef wholememory_tensor_ * wholememory_tensor_t
+
+    cdef wholememory_error_code_t wholememory_create_tensor(wholememory_tensor_t *wholememory_tensor,
+                                                            wholememory_tensor_description_t *tensor_description,
+                                                            wholememory_comm_t comm,
+                                                            wholememory_memory_type_t memory_type,
+                                                            wholememory_memory_location_t memory_location)
+
+    cdef wholememory_error_code_t wholememory_destroy_tensor(wholememory_tensor_t wholememory_tensor)
+
+    cdef wholememory_handle_t wholememory_tensor_get_memory_handle(wholememory_tensor_t wholememory_tensor)
+
+    cdef void wholememory_tensor_get_tensor_description(wholememory_tensor_description_t * tensor_description,
+                                                        wholememory_tensor_t wholememory_tensor)
+
+    cdef wholememory_error_code_t wholememory_tensor_get_subtensor(wholememory_tensor_t * sub_wholememory_tensor,
+                                                                   wholememory_tensor_t wholememory_tensor,
+                                                                   size_t *starts,
+                                                                   size_t *ends)
 
 
 cpdef enum WholeMemoryDataType:

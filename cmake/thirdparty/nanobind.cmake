@@ -15,7 +15,7 @@
 #=============================================================================
 
 if (NOT SKBUILD)
-  message(WARNING "CUGRAPH_OPS: This CMake file should be executed via scikit-build.")
+  message(WARNING "WHOLEGRAPH: This CMake file should be executed via scikit-build.")
 endif()
 
 if (SKBUILD)
@@ -51,7 +51,7 @@ execute_process(
   OUTPUT_VARIABLE _tmp_dir
   OUTPUT_STRIP_TRAILING_WHITESPACE COMMAND_ECHO STDOUT
 )
-message(STATUS "CUGRAPH_OPS: nanobind dir='${_tmp_dir}'")
+message(STATUS "WHOLEGRAPH: nanobind dir='${_tmp_dir}'")
 list(APPEND CMAKE_PREFIX_PATH "${_tmp_dir}")
 
 # Now import nanobind from CMake

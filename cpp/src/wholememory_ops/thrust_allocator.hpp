@@ -18,7 +18,7 @@ class wm_thrust_allocator {
   void deallocate_all();
 
   wholememory_env_func_t* fns;
-  std::map<value_type*, void*> mem_ptr_to_context_map;
+  std::map<value_type*, memory_context_t*> mem_ptr_to_context_map;
 };
 
 }  // namespace wholememory_ops

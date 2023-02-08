@@ -57,8 +57,12 @@ struct wholememory_array_description_t {
   wholememory_dtype_t dtype;
 };
 
+/**
+ * @struct wholememory_matrix_description_t
+ * @brief wrapper for matrix in WholeMemory
+ */
 struct wholememory_matrix_description_t {
-  int64_t sizes[2];
+  int64_t sizes[2];       /* sizes[0] is row of the matrix, sizes[1] is column of the matrix */
   int64_t stride;         /* stride of first dimension, in number of elements */
   int64_t storage_offset; /* offset in number of elements, NOT in bytes. */
   wholememory_dtype_t dtype;
@@ -66,6 +70,10 @@ struct wholememory_matrix_description_t {
 
 #define WHOLEMEMORY_MAX_TENSOR_DIM (8)
 
+/**
+ * @struct wholememory_tensor_description_t
+ * @brief Tensor description in WholeMemory, dimension 0 is the slowest changed dimension
+ */
 struct wholememory_tensor_description_t {
   int64_t sizes[WHOLEMEMORY_MAX_TENSOR_DIM];   /* size of each dimension of the tensor, in number of
                                                   elements */
@@ -88,8 +96,8 @@ wholememory_array_description_t wholememory_create_array_desc(int64_t size,
 
 /*!
  * Create wholememory_matrix_description_t object
- * @param sizes : matrix sizes array, counted in number of elements, sizes[0] changes fastest.
- * @param stride : stride of last dimension(slower changed dimension), stride is counted in number
+ * @param sizes : matrix sizes array, counted in number of elements, sizes[1] changes fastest.
+ * @param stride : stride of first dimension(slower changed dimension), stride is counted in number
  * of elements
  * @param storage_offset : storage offset in number of elements
  * @param dtype : data type of matrix elements

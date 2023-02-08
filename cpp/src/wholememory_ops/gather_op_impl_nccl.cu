@@ -29,7 +29,7 @@ wholememory_error_code_t wholememory_gather_nccl(wholememory_handle_t wholememor
 {
   try {
     if (wholememory_desc.storage_offset < 0 ||
-        wholememory_desc.storage_offset + wholememory_desc.sizes[0] > wholememory_desc.stride) {
+        wholememory_desc.storage_offset + wholememory_desc.sizes[1] > wholememory_desc.stride) {
       return WHOLEMEMORY_INVALID_INPUT;
     }
 
@@ -110,9 +110,9 @@ wholememory_error_code_t wholememory_gather_nccl(wholememory_handle_t wholememor
       total_recv_count += host_recv_rank_id_count_ptr[i];
     }
     void* dev_local_gather_buffer_ptr = dev_local_gather_buffer.device_malloc(
-      wholememory_desc.sizes[0] * total_recv_count, output_desc.dtype);
+      wholememory_desc.sizes[1] * total_recv_count, output_desc.dtype);
     void* dev_embedding_recv_buffer_ptr = dev_embedding_recv_buffer.device_malloc(
-      wholememory_desc.sizes[0] * indice_desc.size, output_desc.dtype);
+      wholememory_desc.sizes[1] * indice_desc.size, output_desc.dtype);
     void* indice_ptr =
       static_cast<char*>(indices) +
       wholememory_dtype_get_element_size(indice_desc.dtype) * indice_desc.storage_offset;
@@ -137,9 +137,9 @@ wholememory_error_code_t wholememory_gather_nccl(wholememory_handle_t wholememor
     local_fake_ptr = static_cast<char*>(local_fake_ptr) - local_mem_offset;
     wholememory_gref_t local_fake_gref =
       wholememory_create_continuous_global_reference(local_fake_ptr);
-    int64_t local_buffer_size[2] = {wholememory_desc.sizes[0], total_recv_count};
+    int64_t local_buffer_size[2] = {total_recv_count, wholememory_desc.sizes[1]};
     wholememory_matrix_description_t local_gather_buffer_desc = wholememory_create_matrix_desc(
-      local_buffer_size, wholememory_desc.sizes[0], 0, output_desc.dtype);
+      local_buffer_size, wholememory_desc.sizes[1], 0, output_desc.dtype);
     auto dev_recv_indice_desc =
       wholememory_create_array_desc(total_recv_count, 0, indice_desc.dtype);
     WHOLEMEMORY_RETURN_ON_FAIL(gather_func(local_fake_gref,
@@ -151,7 +151,7 @@ wholememory_error_code_t wholememory_gather_nccl(wholememory_handle_t wholememor
                                            stream));
     // AllToAllV for embeddings
     size_t embedding_size =
-      wholememory_desc.sizes[0] * wholememory_dtype_get_element_size(output_desc.dtype);
+      wholememory_desc.sizes[1] * wholememory_dtype_get_element_size(output_desc.dtype);
     WHOLEMEMORY_RETURN_ON_FAIL(exchange_embeddings_nccl_func(dev_local_gather_buffer_ptr,
                                                              host_recv_rank_id_count_ptr,
                                                              host_rank_id_count_ptr,
@@ -162,7 +162,7 @@ wholememory_error_code_t wholememory_gather_nccl(wholememory_handle_t wholememor
     // Local reorder
     wholememory_gref_t output_gref = wholememory_create_continuous_global_reference(output);
     wholememory_matrix_description_t local_recv_buffer_desc =
-      wholememory_create_matrix_desc(output_desc.sizes, output_desc.sizes[0], 0, output_desc.dtype);
+      wholememory_create_matrix_desc(output_desc.sizes, output_desc.sizes[1], 0, output_desc.dtype);
     auto raw_indice_desc = wholememory_create_array_desc(indice_desc.size, 0, WHOLEMEMORY_DT_INT64);
     WHOLEMEMORY_RETURN_ON_FAIL(scatter_func(dev_embedding_recv_buffer_ptr,
                                             local_recv_buffer_desc,

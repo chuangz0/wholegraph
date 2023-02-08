@@ -27,6 +27,93 @@ __device__ __forceinline__ void mov_data(void* to, const void* from)
     ptr_to[i] = ptr_from[i];
   }
 }
+template <typename DataTypeT, int DATA_SIZE>
+struct typed_data_vector {
+  DataTypeT data[DATA_SIZE];
+};
+template <>
+struct typed_data_vector<double, 2> {
+  double2 data;
+};
+template <>
+struct typed_data_vector<int64_t, 2> {
+  int4 data;
+};
+template <>
+struct typed_data_vector<float, 2> {
+  float2 data;
+};
+template <>
+struct typed_data_vector<float, 4> {
+  float4 data;
+};
+template <>
+struct typed_data_vector<int, 2> {
+  int2 data;
+};
+template <>
+struct typed_data_vector<int, 4> {
+  int2 data;
+};
+template <>
+struct typed_data_vector<__half, 2> {
+  __half2 data;
+};
+template <>
+struct typed_data_vector<__half, 4> {
+  int2 data;
+};
+template <>
+struct typed_data_vector<__half, 8> {
+  int4 data;
+};
+template <>
+struct typed_data_vector<int16_t, 2> {
+  int data;
+};
+template <>
+struct typed_data_vector<int16_t, 4> {
+  int2 data;
+};
+template <>
+struct typed_data_vector<int16_t, 8> {
+  int4 data;
+};
+template <>
+struct typed_data_vector<nv_bfloat16, 2> {
+  nv_bfloat162 data;
+};
+template <>
+struct typed_data_vector<nv_bfloat16, 4> {
+  int2 data;
+};
+template <>
+struct typed_data_vector<nv_bfloat16, 8> {
+  int4 data;
+};
+template <>
+struct typed_data_vector<int8_t, 2> {
+  int16_t data;
+};
+template <>
+struct typed_data_vector<int8_t, 4> {
+  int data;
+};
+template <>
+struct typed_data_vector<int8_t, 8> {
+  int2 data;
+};
+template <>
+struct typed_data_vector<int8_t, 16> {
+  int4 data;
+};
+template <typename DataTypeT, int DATA_SIZE>
+__device__ __forceinline__ DataTypeT& typed_data_vector_at(
+  typed_data_vector<DataTypeT, DATA_SIZE>& v, int idx)
+{
+  return ((DataTypeT*)(&v.data))[idx];
+}
+
 template <>
 __device__ __forceinline__ void mov_data<1>(void* to, const void* from)
 {
@@ -115,7 +202,7 @@ inline int determine_wholememory_alignment_elt_count(
   int alignment = 16 / elt_size;
   for (; alignment > 1; alignment /= 2) {
     if (embedding_desc.storage_offset % alignment == 0 &&
-        embedding_desc.sizes[0] % alignment == 0 && embedding_desc.stride % alignment == 0)
+        embedding_desc.sizes[1] % alignment == 0 && embedding_desc.stride % alignment == 0)
       break;
   }
   return alignment;
@@ -138,7 +225,7 @@ inline int determine_memory_alignment_elt_count(const void* ptr,
   int_ptr /= elt_size;
   int_ptr += memory_desc.storage_offset;
   for (; alignment > 1; alignment /= 2) {
-    if (int_ptr % alignment == 0 && memory_desc.sizes[0] % alignment == 0 &&
+    if (int_ptr % alignment == 0 && memory_desc.sizes[1] % alignment == 0 &&
         memory_desc.stride % alignment == 0)
       break;
   }
@@ -158,23 +245,24 @@ __global__ void gather_func_kernel(wholememory_gref_t embedding_gref,
     IndexT embedding_table_idx = indices[output_idx];
     wholememory::device_reference<EmbeddingT> embedding_dev_ref(embedding_gref);
     int thread_idx           = threadIdx.x;
-    int embedding_size       = embedding_desc.sizes[0];
+    int embedding_size       = embedding_desc.sizes[1];
     int64_t embedding_stride = embedding_desc.stride;
     int64_t output_stride    = output_desc.stride;
-    EmbeddingT embeddings[ALIGNMENT];
-    OutputT outputs[ALIGNMENT];
+    typed_data_vector<EmbeddingT, ALIGNMENT> embeddings;
+    typed_data_vector<OutputT, ALIGNMENT> outputs;
     OutputT* output_ptr = output + output_desc.storage_offset + output_stride * output_idx;
     int64_t embedding_offset =
       embedding_desc.storage_offset + embedding_table_idx * embedding_stride;
     for (int emb_idx = thread_idx * ALIGNMENT; emb_idx < embedding_size;
          emb_idx += ALIGNMENT * blockDim.x) {
-      mov_data<sizeof(EmbeddingT) * ALIGNMENT>(embeddings,
+      mov_data<sizeof(EmbeddingT) * ALIGNMENT>(&embeddings,
                                                &embedding_dev_ref[embedding_offset + emb_idx]);
 #pragma unroll
       for (int sub_idx = 0; sub_idx < ALIGNMENT; sub_idx++) {
-        outputs[sub_idx] = convert_type<EmbeddingT, OutputT>(embeddings[sub_idx]);
+        typed_data_vector_at(outputs, sub_idx) =
+          convert_type<EmbeddingT, OutputT>(typed_data_vector_at(embeddings, sub_idx));
       }
-      mov_data<sizeof(OutputT) * ALIGNMENT>(output_ptr + emb_idx, outputs);
+      mov_data<sizeof(OutputT) * ALIGNMENT>(output_ptr + emb_idx, &outputs);
     }
   }
 }
@@ -188,15 +276,15 @@ void gather_temp_func(wholememory_gref_t embedding_gref,
                       wholememory_matrix_description_t output_desc,
                       cudaStream_t stream)
 {
-  WHOLEMEMORY_EXPECTS(output_desc.sizes[1] == indice_count,
-                      "gather_func, output shape[1]=%ld, but indice_count=%ld",
-                      output_desc.sizes[1],
+  WHOLEMEMORY_EXPECTS(output_desc.sizes[0] == indice_count,
+                      "gather_func, output shape[0]=%ld, but indice_count=%ld",
+                      output_desc.sizes[0],
                       indice_count);
-  if (indice_count == 0 || embedding_desc.sizes[0] == 0) return;
+  if (indice_count == 0 || embedding_desc.sizes[1] == 0) return;
   int wm_alignment   = determine_wholememory_alignment_elt_count(embedding_desc);
   int mm_alignment   = determine_memory_alignment_elt_count(output, output_desc);
   int alignment      = std::min<int>(wm_alignment, mm_alignment);
-  int embedding_size = embedding_desc.sizes[0];
+  int embedding_size = embedding_desc.sizes[1];
   int thread_x       = raft::div_rounding_up_safe<int>(embedding_size, alignment);
   thread_x           = std::min(thread_x, 256);
   int thread_y       = 1;
@@ -264,23 +352,24 @@ __global__ void scatter_func_kernel(const InputT* input,
     IndexT embedding_table_idx = indices[input_idx];
     wholememory::device_reference<EmbeddingT> embedding_dev_ref(embedding_gref);
     int thread_idx           = threadIdx.x;
-    int embedding_size       = embedding_desc.sizes[0];
+    int embedding_size       = embedding_desc.sizes[1];
     int64_t embedding_stride = embedding_desc.stride;
     int64_t input_stride     = input_desc.stride;
-    EmbeddingT embeddings[ALIGNMENT];
-    InputT inputs[ALIGNMENT];
+    typed_data_vector<EmbeddingT, ALIGNMENT> embeddings;
+    typed_data_vector<InputT, ALIGNMENT> inputs;
     const InputT* input_ptr = input + input_desc.storage_offset + input_stride * input_idx;
     int64_t embedding_offset =
       embedding_desc.storage_offset + embedding_table_idx * embedding_stride;
     for (int emb_idx = thread_idx * ALIGNMENT; emb_idx < embedding_size;
          emb_idx += ALIGNMENT * blockDim.x) {
-      mov_data<sizeof(InputT) * ALIGNMENT>(inputs, input_ptr + emb_idx);
+      mov_data<sizeof(InputT) * ALIGNMENT>(&inputs, input_ptr + emb_idx);
 #pragma unroll
       for (int sub_idx = 0; sub_idx < ALIGNMENT; sub_idx++) {
-        embeddings[sub_idx] = convert_type<InputT, EmbeddingT>(inputs[sub_idx]);
+        typed_data_vector_at(embeddings, sub_idx) =
+          convert_type<InputT, EmbeddingT>(typed_data_vector_at(inputs, sub_idx));
       }
       mov_data<sizeof(EmbeddingT) * ALIGNMENT>(&embedding_dev_ref[embedding_offset + emb_idx],
-                                               embeddings);
+                                               &embeddings);
     }
   }
 }
@@ -294,15 +383,15 @@ void scatter_temp_func(const void* input,
                        wholememory_matrix_description_t embedding_desc,
                        cudaStream_t stream)
 {
-  WHOLEMEMORY_EXPECTS(input_desc.sizes[1] == indice_count,
-                      "scatter_func, input shape[1]=%ld, but indice_count=%ld",
-                      input_desc.sizes[1],
+  WHOLEMEMORY_EXPECTS(input_desc.sizes[0] == indice_count,
+                      "scatter_func, input shape[0]=%ld, but indice_count=%ld",
+                      input_desc.sizes[0],
                       indice_count);
-  if (indice_count == 0 || embedding_desc.sizes[0] == 0) return;
+  if (indice_count == 0 || embedding_desc.sizes[1] == 0) return;
   int wm_alignment   = determine_wholememory_alignment_elt_count(embedding_desc);
   int mm_alignment   = determine_memory_alignment_elt_count(input, input_desc);
   int alignment      = std::min<int>(wm_alignment, mm_alignment);
-  int embedding_size = embedding_desc.sizes[0];
+  int embedding_size = embedding_desc.sizes[1];
   int thread_x       = raft::div_rounding_up_safe<int>(embedding_size, alignment);
   thread_x           = std::min(thread_x, 256);
   int thread_y       = 1;

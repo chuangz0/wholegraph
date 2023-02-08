@@ -63,6 +63,8 @@ option(BUILD_TESTS "Configure CMake to build tests" ON)
 #rapids_cmake_build_type(Release)
 rapids_cmake_build_type(RelWithDebInfo)
 
+message("CMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}")
+
 if(DETECT_CONDA_ENV)
   rapids_cmake_support_conda_env( conda_env MODIFY_PREFIX_PATH )
   if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT AND DEFINED ENV{CONDA_PREFIX})
@@ -172,9 +174,9 @@ target_include_directories(wholegraph
 # - link libraries -------------------------------------------------------------
 target_link_libraries(wholegraph
 PUBLIC
-    raft::raft
     CUDA::cuda_driver
     CUDA::cudart
+    raft::raft
 PRIVATE
     NCCL::NCCL
 )
@@ -230,19 +232,30 @@ set(WHOLEGRAPH_PUBLIC_HEADERS
         wholememory/global_reference.h
         wholememory/tensor_description.h
         wholememory/wholememory.h
+        wholememory/wholememory_tensor.h
         wholememory/wholememory_op.h
         )
 
 foreach(file IN LISTS WHOLEGRAPH_PUBLIC_HEADERS)
+    cmake_path(GET file PARENT_PATH file_out_)
+    string(JOIN "/" out_path "include" ${file_out_})
     install(FILES "${WHOLEGRAPH_INCLUDE_DIR}/${file}"
-            DESTINATION "${file}")
+            DESTINATION "${out_path}")
+    #install(FILES "${WHOLEGRAPH_INCLUDE_DIR}/${file}"
+    #        DESTINATION "${file}")
 endforeach()
 
 rapids_cmake_install_lib_dir( lib_dir )
 
+set(PROGRAM_PERMISSIONS_DEFAULT
+        OWNER_WRITE OWNER_READ OWNER_EXECUTE
+        GROUP_READ GROUP_EXECUTE
+        WORLD_READ WORLD_EXECUTE)
+
 install(
         TARGETS     wholegraph
         DESTINATION ${lib_dir}
+        PERMISSIONS ${PROGRAM_PERMISSIONS_DEFAULT}
         EXPORT wholegraph-exports)
 
 rapids_export(

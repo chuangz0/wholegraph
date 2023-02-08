@@ -73,6 +73,7 @@ void wholememory_copy_array_desc_to_tensor(wholememory_tensor_description_t* p_t
   wholememory_initialize_tensor_desc(p_tensor_description);
   p_tensor_description->dim            = 1;
   p_tensor_description->sizes[0]       = p_array_description->size;
+  p_tensor_description->strides[0]     = 1;
   p_tensor_description->dtype          = p_array_description->dtype;
   p_tensor_description->storage_offset = p_array_description->storage_offset;
 }
@@ -84,7 +85,8 @@ void wholememory_copy_matrix_desc_to_tensor(wholememory_tensor_description_t* p_
   p_tensor_description->dim            = 2;
   p_tensor_description->sizes[0]       = p_matrix_description->sizes[0];
   p_tensor_description->sizes[1]       = p_matrix_description->sizes[1];
-  p_tensor_description->strides[1]     = p_matrix_description->stride;
+  p_tensor_description->strides[0]     = p_matrix_description->stride;
+  p_tensor_description->strides[1]     = 1;
   p_tensor_description->dtype          = p_matrix_description->dtype;
   p_tensor_description->storage_offset = p_matrix_description->storage_offset;
 }
@@ -112,12 +114,12 @@ bool wholememory_convert_tensor_desc_to_matrix(
       p_tensor_description->dtype >= WHOLEMEMORY_DT_COUNT)
     return false;
   if (p_tensor_description->dim != 2) return false;
-  if (p_tensor_description->strides[0] != 1) return false;
+  if (p_tensor_description->strides[1] != 1) return false;
   p_matrix_description->dtype          = p_tensor_description->dtype;
   p_matrix_description->storage_offset = p_tensor_description->storage_offset;
   p_matrix_description->sizes[0]       = p_tensor_description->sizes[0];
   p_matrix_description->sizes[1]       = p_tensor_description->sizes[1];
-  p_matrix_description->stride         = p_tensor_description->strides[1];
+  p_matrix_description->stride         = p_tensor_description->strides[0];
   return true;
 }
 
@@ -136,7 +138,7 @@ int64_t wholememory_get_memory_size_from_array(wholememory_array_description_t* 
 int64_t wholememory_get_memory_element_count_from_matrix(
   wholememory_matrix_description_t* p_matrix_description)
 {
-  return p_matrix_description->sizes[1] * p_matrix_description->stride;
+  return p_matrix_description->sizes[0] * p_matrix_description->stride;
 }
 
 int64_t wholememory_get_memory_size_from_matrix(
@@ -152,8 +154,7 @@ int64_t wholememory_get_memory_element_count_from_tensor(
   if (p_tensor_description->dim == 0) return 1;
   if (p_tensor_description->dim < 0 || p_tensor_description->dim >= WHOLEMEMORY_MAX_TENSOR_DIM)
     return -1;
-  int dim = p_tensor_description->dim;
-  return p_tensor_description->strides[dim - 1] * p_tensor_description->sizes[dim - 1];
+  return p_tensor_description->strides[0] * p_tensor_description->sizes[0];
 }
 
 int64_t wholememory_get_memory_size_from_tensor(

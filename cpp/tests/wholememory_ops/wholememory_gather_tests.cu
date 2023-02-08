@@ -15,7 +15,7 @@
 typedef struct WholeMemoryGatherTestParam {
   wholememory_matrix_description_t get_embedding_desc() const
   {
-    int64_t matrix_sizes[2] = {embedding_dim, embedding_entry_count};
+    int64_t matrix_sizes[2] = {embedding_entry_count, embedding_dim};
     return wholememory_create_matrix_desc(
       matrix_sizes, embedding_stride, embedding_storage_offset, embedding_type);
   }
@@ -25,7 +25,7 @@ typedef struct WholeMemoryGatherTestParam {
   }
   wholememory_matrix_description_t get_output_desc() const
   {
-    int64_t output_sizes[2] = {embedding_dim, indices_count};
+    int64_t output_sizes[2] = {indices_count, embedding_dim};
     return wholememory_create_matrix_desc(
       output_sizes, output_stride, output_storage_offset, output_type);
   }
@@ -204,6 +204,7 @@ TEST_P(WholeMemoryGatherParameterTests, GatherTest)
     EXPECT_EQ(wholememory::destroy_all_communicators(), WHOLEMEMORY_SUCCESS);
 
     EXPECT_EQ(wholememory_finalize(), WHOLEMEMORY_SUCCESS);
+    WHOLEMEMORY_CHECK(::testing::Test::HasFailure() == false);
   });
 }
 

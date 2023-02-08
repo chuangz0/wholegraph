@@ -124,8 +124,8 @@ void device_matrix_type_cast(void* dst,
                        FloatMatrixTestCast,
                        dst,
                        src,
-                       src_desc.sizes[1],
                        src_desc.sizes[0],
+                       src_desc.sizes[1],
                        dst_desc.stride,
                        src_desc.stride,
                        stream);
@@ -135,8 +135,8 @@ void device_matrix_type_cast(void* dst,
                        IntMatrixTestCast,
                        dst,
                        src,
-                       src_desc.sizes[1],
                        src_desc.sizes[0],
+                       src_desc.sizes[1],
                        dst_desc.stride,
                        src_desc.stride,
                        stream);
@@ -250,7 +250,7 @@ void get_embedding_data(void* embedding_ptr,
                         cudaStream_t stream)
 {
   int64_t storage_offset = embedding_desc.storage_offset;
-  int embedding_dim      = embedding_desc.sizes[0];
+  int embedding_dim      = embedding_desc.sizes[1];
   int embedding_stride   = embedding_desc.stride;
   int block_size         = embedding_dim;
   block_size             = std::min(block_size, 256);
@@ -363,14 +363,14 @@ void device_get_expected_embedding_temp_func(void* gen_buffer,
                                              wholememory_array_description_t indices_desc,
                                              cudaStream_t stream)
 {
-  EXPECT_EQ(gen_buffer_desc.sizes[1], indices_desc.size);
+  EXPECT_EQ(gen_buffer_desc.sizes[0], indices_desc.size);
   if (indices_desc.size == 0) return;
-  int block_count  = gen_buffer_desc.sizes[1];
-  int thread_count = std::min<int>(gen_buffer_desc.sizes[0], 256);
+  int block_count  = gen_buffer_desc.sizes[0];
+  int thread_count = std::min<int>(gen_buffer_desc.sizes[1], 256);
   device_get_expected_embedding_kernel<IndexT, GenTypeT>
     <<<block_count, thread_count, 0, stream>>>(static_cast<GenTypeT*>(gen_buffer),
                                                gen_buffer_desc.storage_offset,
-                                               gen_buffer_desc.sizes[0],
+                                               gen_buffer_desc.sizes[1],
                                                gen_buffer_desc.stride,
                                                static_cast<const IndexT*>(indices),
                                                indices_desc.size);
@@ -395,7 +395,7 @@ void device_get_expected_embedding(void* output,
   auto gen_desc = output_desc;
   if (embedding_dtype != output_desc.dtype) {
     gen_desc.dtype          = embedding_dtype;
-    gen_desc.stride         = gen_desc.sizes[0];
+    gen_desc.stride         = gen_desc.sizes[1];
     gen_desc.storage_offset = 0;
     gen_buffer              = gen_buffer_tmh.device_malloc(
       wholememory_get_memory_element_count_from_matrix(&gen_desc), gen_desc.dtype);
@@ -452,8 +452,8 @@ void host_check_embedding_same(void* host_embedding,
   EXPECT_EQ(embedding_desc.dtype, reference_desc.dtype);
   EXPECT_EQ(embedding_desc.sizes[0], reference_desc.sizes[0]);
   EXPECT_EQ(embedding_desc.sizes[1], reference_desc.sizes[1]);
-  int64_t row_count   = embedding_desc.sizes[1];
-  int64_t col_count   = embedding_desc.sizes[0];
+  int64_t row_count   = embedding_desc.sizes[0];
+  int64_t col_count   = embedding_desc.sizes[1];
   size_t element_size = wholememory_dtype_get_element_size(embedding_desc.dtype);
   int64_t diff_count  = 0;
   for (int64_t row = 0; row < row_count; row++) {

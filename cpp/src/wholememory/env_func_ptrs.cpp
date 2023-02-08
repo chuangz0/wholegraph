@@ -7,25 +7,36 @@
 
 namespace wholememory {
 
-void* empty_create_memory_context_func(void* /*global_context*/) { return nullptr; }
+void empty_create_memory_context_func(memory_context_t* memory_context, void* /*global_context*/)
+{
+  wholememory_initialize_tensor_desc(&memory_context->desc);
+  memory_context->context = nullptr;
+}
 
-void empty_destroy_memory_context_func(void* /*memory_context*/, void* /*global_context*/) {}
+void empty_destroy_memory_context_func(memory_context_t* /*memory_context*/,
+                                       void* /*global_context*/)
+{
+}
 
 void* default_host_malloc_func(wholememory_tensor_description_t* tensor_description,
-                               void* /*memory_context*/,
+                               memory_context_t* memory_context,
                                void* /*global_context*/)
 {
-  void* ptr = malloc(wholememory_get_memory_size_from_tensor(tensor_description));
+  void* ptr               = malloc(wholememory_get_memory_size_from_tensor(tensor_description));
+  memory_context->desc    = *tensor_description;
+  memory_context->context = ptr;
   return ptr;
 }
 
-void default_host_free_func(void* ptr, void* /*memory_context*/, void* /*global_context*/)
+void default_host_free_func(memory_context_t* memory_context, void* /*global_context*/)
 {
-  free(ptr);
+  free(memory_context->context);
+  wholememory_initialize_tensor_desc(&memory_context->desc);
+  memory_context->context = nullptr;
 }
 
 void* default_device_malloc_func(wholememory_tensor_description_t* tensor_description,
-                                 void* /*memory_context*/,
+                                 memory_context_t* memory_context,
                                  void* /*global_context*/)
 {
   void* ptr = nullptr;
@@ -34,20 +45,24 @@ void* default_device_malloc_func(wholememory_tensor_description_t* tensor_descri
   } catch (wholememory::cuda_error& wce) {
     WHOLEMEMORY_FAIL_NOTHROW("cudaMalloc failed, %s.\n", wce.what());
   }
+  memory_context->desc    = *tensor_description;
+  memory_context->context = ptr;
   return ptr;
 }
 
-void default_device_free_func(void* ptr, void* /*memory_context*/, void* /*global_context*/)
+void default_device_free_func(memory_context_t* memory_context, void* /*global_context*/)
 {
   try {
-    WM_CUDA_CHECK(cudaFree(ptr));
+    WM_CUDA_CHECK(cudaFree(memory_context->context));
   } catch (wholememory::cuda_error& wce) {
     WHOLEMEMORY_FAIL_NOTHROW("cudaFree failed, %s.\n", wce.what());
   }
+  wholememory_initialize_tensor_desc(&memory_context->desc);
+  memory_context->context = nullptr;
 }
 
 void* default_pinned_malloc_func(wholememory_tensor_description_t* tensor_description,
-                                 void* /*memory_context*/,
+                                 memory_context_t* memory_context,
                                  void* /*global_context*/)
 {
   void* ptr = nullptr;
@@ -57,16 +72,20 @@ void* default_pinned_malloc_func(wholememory_tensor_description_t* tensor_descri
   } catch (wholememory::cuda_error& wce) {
     WHOLEMEMORY_FAIL_NOTHROW("cudaMallocHost failed, %s.\n", wce.what());
   }
+  memory_context->desc    = *tensor_description;
+  memory_context->context = ptr;
   return ptr;
 }
 
-void default_pinned_free_func(void* ptr, void* /*memory_context*/, void* /*global_context*/)
+void default_pinned_free_func(memory_context_t* memory_context, void* /*global_context*/)
 {
   try {
-    WM_CUDA_CHECK(cudaFreeHost(ptr));
+    WM_CUDA_CHECK(cudaFreeHost(memory_context->context));
   } catch (wholememory::cuda_error& wce) {
     WHOLEMEMORY_FAIL_NOTHROW("cudaFreeHost failed, %s.\n", wce.what());
   }
+  wholememory_initialize_tensor_desc(&memory_context->desc);
+  memory_context->context = nullptr;
 }
 
 static wholememory_env_func_t default_env_func = {
@@ -83,15 +102,13 @@ static wholememory_env_func_t default_env_func = {
       .global_context            = nullptr,
     },
   .output_fns = {
-    .create_memory_context_fn  = empty_create_memory_context_func,
-    .destroy_memory_context_fn = empty_destroy_memory_context_func,
-    .host_malloc_fn            = default_host_malloc_func,
-    .host_free_fn              = default_host_free_func,
-    .device_malloc_fn          = default_device_malloc_func,
-    .device_free_fn            = default_device_free_func,
-    .pinned_malloc_fn          = default_pinned_malloc_func,
-    .pinned_free_fn            = default_pinned_free_func,
-    .global_context            = nullptr,
+    .host_malloc_fn   = default_host_malloc_func,
+    .host_free_fn     = default_host_free_func,
+    .device_malloc_fn = default_device_malloc_func,
+    .device_free_fn   = default_device_free_func,
+    .pinned_malloc_fn = default_pinned_malloc_func,
+    .pinned_free_fn   = default_pinned_free_func,
+    .global_context   = nullptr,
   }};
 
 wholememory_env_func_t* get_default_env_func() { return &default_env_func; }
