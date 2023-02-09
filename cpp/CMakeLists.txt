@@ -129,7 +129,9 @@ file(GLOB WHOLEGRAPH_SOURCES
         "src/wholememory/*.cpp"
         "src/wholememory_ops/*.cpp"
         "src/wholememory_ops/*.cu"
-        "src/wholememory_ops/functions/*.cu")
+        "src/wholememory_ops/functions/*.cu"
+        "src/wholegraph_ops/*.cpp"
+        "src/wholegraph_ops/*.cu")
 
 add_library(wholegraph SHARED "")
 add_library(wholegraph::wholegraph ALIAS wholegraph)
@@ -234,6 +236,7 @@ set(WHOLEGRAPH_PUBLIC_HEADERS
         wholememory/wholememory.h
         wholememory/wholememory_tensor.h
         wholememory/wholememory_op.h
+        wholememory/wholegraph_op.h
         )
 
 foreach(file IN LISTS WHOLEGRAPH_PUBLIC_HEADERS)

@@ -87,3 +87,8 @@ ConfigureTest(WHOLEMEMORY_GATHER_TEST wholememory_ops/wholememory_gather_tests.c
 
 # wholememory scatter op tests
 ConfigureTest(WHOLEMEMORY_SCATTER_TEST wholememory_ops/wholememory_scatter_tests.cu wholememory_ops/embedding_test_utils.cu)
+
+#wholegraph unweighted samping op tests
+ConfigureTest(WHOLEGRAPH_CSR_UNWEIGHTED_SAMPLE_WITHOUT_REPLACEMENT_TEST wholegraph_ops/wholegraph_csr_unweighted_sample_without_replacement_tests.cu wholegraph_ops/graph_sampling_test_utils.cu)
+
+
