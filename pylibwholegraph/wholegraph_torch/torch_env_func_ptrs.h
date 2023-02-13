@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cuda_runtime_api.h>
 #include <wholememory/env_func_ptrs.h>
 
 namespace wholegraph_torch {
@@ -11,4 +12,6 @@ namespace wholegraph_torch {
  */
 wholememory_env_func_t* get_pytorch_env_func();
 
-}
+cudaStream_t get_current_stream();
+
+}  // namespace wholegraph_torch

@@ -57,7 +57,7 @@ class output_memory_handle {
   wholememory_output_memory_func_t* output_mem_fns_ = nullptr;
   memory_context_t* memory_context_                 = nullptr;
 
-  void* ptr_                       = nullptr;
+  void* ptr_ = nullptr;
 };
 
 }  // namespace wholememory_ops

@@ -8,7 +8,7 @@ namespace wholegraph_torch {
 
 c10::ScalarType get_c10_scalar_type(wholememory_dtype_t wm_dtype);
 
-wholememory_dtype_t get_wholememory_dtype(caffe2::TypeMeta th_dtype);
+wholememory_dtype_t get_wholememory_dtype(torch::ScalarType ts_dtype);
 
 struct pytorch_memory_context {
   torch::Tensor tensor;

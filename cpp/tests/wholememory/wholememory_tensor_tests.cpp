@@ -64,10 +64,10 @@ TEST(WholeMemoryMatrixTest, SubTensorTest)
     wholememory_tensor_t wholememory_sub_tensor_0, wholememory_sub_tensor_1;
     wholememory_tensor_description_t sub_desc_0, sub_desc_1;
 
-    size_t starts_0[2] = {1, 10};
-    size_t ends_0[2]   = {static_cast<size_t>(-1), 100};
-    size_t starts_1[2] = {2, static_cast<size_t>(-1)};
-    size_t ends_1[2]   = {10000, 80};
+    int64_t starts_0[2] = {1, 10};
+    int64_t ends_0[2]   = {-1, 100};
+    int64_t starts_1[2] = {2, -1};
+    int64_t ends_1[2]   = {10000, 80};
 
     EXPECT_EQ(wholememory_tensor_get_subtensor(
                 &wholememory_sub_tensor_0, wholememory_tensor, starts_0, ends_0),

@@ -97,16 +97,16 @@ void wholememory_tensor_get_tensor_description(wholememory_tensor_description_t*
 wholememory_error_code_t wholememory_tensor_get_subtensor(
   wholememory_tensor_t* p_sub_wholememory_tensor,
   wholememory_tensor_t wholememory_tensor,
-  size_t* starts,
-  size_t* ends)
+  int64_t* starts,
+  int64_t* ends)
 {
   if (p_sub_wholememory_tensor == nullptr || wholememory_tensor == nullptr || starts == nullptr ||
       ends == nullptr) {
     return WHOLEMEMORY_INVALID_INPUT;
   }
   if (wholememory_tensor->tensor_description.dim > 2) { return WHOLEMEMORY_NOT_IMPLEMENTED; }
-  int dim           = wholememory_tensor->tensor_description.dim;
-  size_t offsets[2] = {0, 0};
+  int dim            = wholememory_tensor->tensor_description.dim;
+  int64_t offsets[2] = {0, 0};
   if (dim == 1) {
     offsets[0] = wholememory_tensor->tensor_description.storage_offset;
   } else {
@@ -115,11 +115,11 @@ wholememory_error_code_t wholememory_tensor_get_subtensor(
     offsets[1] = wholememory_tensor->tensor_description.storage_offset %
                  wholememory_tensor->tensor_description.strides[0];
   }
-  size_t new_size[2] = {0, 0};
-  size_t new_offset  = wholememory_tensor->tensor_description.storage_offset;
+  int64_t new_size[2] = {0, 0};
+  int64_t new_offset  = wholememory_tensor->tensor_description.storage_offset;
   for (int i = 0; i < dim; i++) {
-    size_t starts_i = starts[i];
-    size_t ends_i   = ends[i];
+    int64_t starts_i = starts[i];
+    int64_t ends_i   = ends[i];
     if (starts[i] == -1) starts_i = 0;
     if (ends[i] == -1) ends_i = wholememory_tensor->tensor_description.sizes[i];
     if (ends_i <= starts_i) return WHOLEMEMORY_INVALID_INPUT;
@@ -134,8 +134,13 @@ wholememory_error_code_t wholememory_tensor_get_subtensor(
   *sub_wholememory_tensor                                   = *wholememory_tensor;
   sub_wholememory_tensor->own_handle                        = false;
   sub_wholememory_tensor->tensor_description.storage_offset = new_offset;
+  sub_wholememory_tensor->tensor_description.dim            = dim;
+  sub_wholememory_tensor->tensor_description.dtype =
+    sub_wholememory_tensor->tensor_description.dtype;
   for (int i = 0; i < dim; i++) {
     sub_wholememory_tensor->tensor_description.sizes[i] = new_size[i];
+    sub_wholememory_tensor->tensor_description.strides[i] =
+      wholememory_tensor->tensor_description.strides[i];
   }
   *p_sub_wholememory_tensor = sub_wholememory_tensor;
 

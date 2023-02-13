@@ -59,8 +59,8 @@ void wholememory_tensor_get_tensor_description(wholememory_tensor_description_t*
 wholememory_error_code_t wholememory_tensor_get_subtensor(
   wholememory_tensor_t* sub_wholememory_tensor,
   wholememory_tensor_t wholememory_tensor,
-  size_t* starts,
-  size_t* ends);
+  int64_t* starts,
+  int64_t* ends);
 
 #ifdef __cplusplus
 }

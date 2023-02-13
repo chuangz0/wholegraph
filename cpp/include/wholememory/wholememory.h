@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdio.h>
 #include <unistd.h>
 
 #include <wholememory/global_reference.h>

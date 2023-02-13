@@ -67,6 +67,16 @@ void wholememory_initialize_tensor_desc(wholememory_tensor_description_t* p_tens
   p_tensor_description->dtype          = WHOLEMEMORY_DT_UNKNOWN;
 }
 
+void wholememory_copy_array_desc_to_matrix(wholememory_matrix_description_t* p_matrix_description,
+                                           wholememory_array_description_t* p_array_description)
+{
+  p_matrix_description->sizes[0]       = p_array_description->size;
+  p_matrix_description->sizes[1]       = 1;
+  p_matrix_description->dtype          = p_array_description->dtype;
+  p_matrix_description->stride         = 1;
+  p_matrix_description->storage_offset = p_array_description->storage_offset;
+}
+
 void wholememory_copy_array_desc_to_tensor(wholememory_tensor_description_t* p_tensor_description,
                                            wholememory_array_description_t* p_array_description)
 {

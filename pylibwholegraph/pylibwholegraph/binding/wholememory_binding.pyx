@@ -32,14 +32,14 @@ import numpy as np
 
 cdef extern from "wholememory/wholememory.h":
     ctypedef enum wholememory_error_code_t:
-        WHOLEMEMORY_SUCCESS                 "WHOLEMEMORY_SUCCESS"               # success
-        WHOLEMEMORY_UNKNOW_ERROR            "WHOLEMEMORY_UNKNOW_ERROR"          # unknown error
-        WHOLEMEMORY_NOT_IMPLEMENTED         "WHOLEMEMORY_NOT_IMPLEMENTED"       # method is not implemented
-        WHOLEMEMORY_LOGIC_ERROR             "WHOLEMEMORY_LOGIC_ERROR"           # logic error
-        WHOLEMEMORY_CUDA_ERROR              "WHOLEMEMORY_CUDA_ERROR"            # CUDA error
-        WHOLEMEMORY_COMMUNICATION_ERROR     "WHOLEMEMORY_COMMUNICATION_ERROR"   # communication error
-        WHOLEMEMORY_INVALID_INPUT           "WHOLEMEMORY_INVALID_INPUT"         # invalid input, e.g. nullptr
-        WHOLEMEMORY_INVALID_VALUE           "WHOLEMEMORY_INVALID_VALUE"         # input value is invalid
+        WHOLEMEMORY_SUCCESS                 "WHOLEMEMORY_SUCCESS"  # success
+        WHOLEMEMORY_UNKNOW_ERROR            "WHOLEMEMORY_UNKNOW_ERROR"  # unknown error
+        WHOLEMEMORY_NOT_IMPLEMENTED         "WHOLEMEMORY_NOT_IMPLEMENTED"  # method is not implemented
+        WHOLEMEMORY_LOGIC_ERROR             "WHOLEMEMORY_LOGIC_ERROR"  # logic error
+        WHOLEMEMORY_CUDA_ERROR              "WHOLEMEMORY_CUDA_ERROR"  # CUDA error
+        WHOLEMEMORY_COMMUNICATION_ERROR     "WHOLEMEMORY_COMMUNICATION_ERROR"  # communication error
+        WHOLEMEMORY_INVALID_INPUT           "WHOLEMEMORY_INVALID_INPUT"  # invalid input, e.g. nullptr
+        WHOLEMEMORY_INVALID_VALUE           "WHOLEMEMORY_INVALID_VALUE"  # input value is invalid
 
     ctypedef enum wholememory_memory_type_t:
         WHOLEMEMORY_MT_NONE                 "WHOLEMEMORY_MT_NONE"
@@ -64,7 +64,7 @@ cdef extern from "wholememory/wholememory.h":
 
     ctypedef wholememory_comm_ * wholememory_comm_t
 
-    cdef wholememory_error_code_t wholememory_create_unique_id(wholememory_unique_id_t* unique_id)
+    cdef wholememory_error_code_t wholememory_create_unique_id(wholememory_unique_id_t * unique_id)
 
     cdef wholememory_error_code_t wholememory_create_communicator(wholememory_comm_t * comm,
                                                                   wholememory_unique_id_t unique_id,
@@ -73,9 +73,9 @@ cdef extern from "wholememory/wholememory.h":
 
     cdef wholememory_error_code_t wholememory_destroy_communicator(wholememory_comm_t comm)
 
-    cdef wholememory_error_code_t wholememory_communicator_get_rank(int* rank, wholememory_comm_t comm)
+    cdef wholememory_error_code_t wholememory_communicator_get_rank(int * rank, wholememory_comm_t comm)
 
-    cdef wholememory_error_code_t wholememory_communicator_get_size(int* size, wholememory_comm_t comm)
+    cdef wholememory_error_code_t wholememory_communicator_get_size(int * size, wholememory_comm_t comm)
 
     cdef wholememory_error_code_t wholememory_communicator_barrier(wholememory_comm_t comm)
 
@@ -141,19 +141,16 @@ cpdef enum WholeMemoryErrorCode:
     InvalidInput = WHOLEMEMORY_INVALID_INPUT
     InvalidValue = WHOLEMEMORY_INVALID_VALUE
 
-
 cpdef enum WholeMemoryMemoryType:
     MtNone = WHOLEMEMORY_MT_NONE
     MtContinuous = WHOLEMEMORY_MT_CONTINUOUS
     MtChunked = WHOLEMEMORY_MT_CHUNKED
     MtDistributed = WHOLEMEMORY_MT_DISTRIBUTED
 
-
 cpdef enum WholeMemoryMemoryLocation:
     MlNone = WHOLEMEMORY_ML_NONE
     MlDevice = WHOLEMEMORY_ML_DEVICE
     MlHost = WHOLEMEMORY_ML_HOST
-
 
 cdef check_wholememory_error_code(wholememory_error_code_t err):
     cdef WholeMemoryErrorCode err_code = int(err)
@@ -174,7 +171,7 @@ cdef check_wholememory_error_code(wholememory_error_code_t err):
     elif err_code == InvalidValue:
         raise ValueError('Invalid value')
     else:
-        raise NotImplementedError('Error code %d not recognized' % (int(err), ))
+        raise NotImplementedError('Error code %d not recognized' % (int(err),))
 
 
 cdef extern from "wholememory/tensor_description.h":
@@ -221,8 +218,8 @@ cdef extern from "wholememory/wholememory_tensor.h":
 
     cdef wholememory_error_code_t wholememory_tensor_get_subtensor(wholememory_tensor_t * sub_wholememory_tensor,
                                                                    wholememory_tensor_t wholememory_tensor,
-                                                                   size_t *starts,
-                                                                   size_t *ends)
+                                                                   int64_t *starts,
+                                                                   int64_t *ends)
 
 
 cpdef enum WholeMemoryDataType:
@@ -236,7 +233,6 @@ cpdef enum WholeMemoryDataType:
     DtInt16 = WHOLEMEMORY_DT_INT16
     DtInt8 = WHOLEMEMORY_DT_INT8
     DtCount = WHOLEMEMORY_DT_COUNT
-
 
 ######################################################################
 # dlpack
@@ -277,20 +273,18 @@ ctypedef struct DLManagedTensor:
     void * manager_ctx
     void (*deleter)(DLManagedTensor *)
 
-
 cdef void pycapsule_deleter(object dltensor):
-    cdef DLManagedTensor* dlm_tensor
+    cdef DLManagedTensor * dlm_tensor
     # Do not invoke the deleter on a used capsule
     if cpython.PyCapsule_IsValid(dltensor, 'dltensor'):
-        dlm_tensor = <DLManagedTensor*>cpython.PyCapsule_GetPointer(
+        dlm_tensor = <DLManagedTensor *> cpython.PyCapsule_GetPointer(
             dltensor, 'dltensor')
         dlm_tensor.deleter(dlm_tensor)
 
-
-cdef void deleter(DLManagedTensor* tensor) with gil:
+cdef void deleter(DLManagedTensor * tensor) with gil:
     if tensor.manager_ctx is NULL:
         return
-    cpython.Py_DECREF(<PyWholeMemoryTensorBuffer>tensor.manager_ctx)
+    cpython.Py_DECREF(<PyWholeMemoryFlattenDlpack> tensor.manager_ctx)
     tensor.manager_ctx = NULL
     stdlib.free(tensor)
 
@@ -358,90 +352,16 @@ cdef class PyWholeMemoryUniqueID:
     def __dlpack_device__(self):
         return (kDLCPU, 0)
 
-
-cdef class PyWholeMemoryComm:
-    cdef wholememory_comm_t comm_id
-
-    def __cinit__(self):
-        self.comm_id = NULL
-
-
 def init(unsigned int flags):
     check_wholememory_error_code(wholememory_init(flags))
 
-
 def finalize():
     check_wholememory_error_code(wholememory_finalize())
-
 
 def create_unique_id():
     py_uid = PyWholeMemoryUniqueID()
     check_wholememory_error_code(wholememory_create_unique_id(&py_uid.wholememory_unique_id))
     return py_uid
-
-
-def create_communicator(PyWholeMemoryUniqueID py_uid, int world_rank, int world_size):
-    py_comm = PyWholeMemoryComm()
-    check_wholememory_error_code(wholememory_create_communicator(&py_comm.comm_id,
-                                                                 py_uid.wholememory_unique_id,
-                                                                 world_rank,
-                                                                 world_size))
-    return py_comm
-
-
-def destroy_communicator(PyWholeMemoryComm py_comm):
-    check_wholememory_error_code(wholememory_destroy_communicator(py_comm.comm_id))
-
-
-def comm_get_rank(PyWholeMemoryComm py_comm):
-    cdef int world_rank = -1
-    check_wholememory_error_code(wholememory_communicator_get_rank(&world_rank, py_comm.comm_id))
-    return world_rank
-
-
-def comm_get_size(PyWholeMemoryComm py_comm):
-    cdef int world_size = -1
-    check_wholememory_error_code(wholememory_communicator_get_size(&world_size, py_comm.comm_id))
-    return world_size
-
-
-def comm_barrier(PyWholeMemoryComm py_comm):
-    check_wholememory_error_code(wholememory_communicator_barrier(py_comm.comm_id))
-
-
-cdef class PyWholeMemoryHandle:
-    cdef wholememory_handle_t wholememory_handle
-
-
-def malloc(cython.size_t total_size,
-                           PyWholeMemoryComm py_comm,
-                           WholeMemoryMemoryType memory_type,
-                           WholeMemoryMemoryLocation memory_location,
-                           cython.size_t data_granularity):
-    handle = PyWholeMemoryHandle()
-    check_wholememory_error_code(wholememory_malloc(&handle.wholememory_handle, total_size, py_comm.comm_id,
-                                                    int(memory_type), int(memory_location),
-                                                    data_granularity))
-    return handle
-
-
-def free(PyWholeMemoryHandle handle):
-    check_wholememory_error_code(wholememory_free(handle.wholememory_handle))
-
-
-def get_communicator_from_handle(PyWholeMemoryHandle handle):
-    py_comm = PyWholeMemoryComm()
-    check_wholememory_error_code(wholememory_get_communicator(&py_comm.comm_id, handle.wholememory_handle))
-    return py_comm
-
-
-def get_memory_type_from_handle(PyWholeMemoryHandle handle):
-    return WholeMemoryMemoryType(wholememory_get_memory_type(handle.wholememory_handle))
-
-
-def get_memory_location_from_handle(PyWholeMemoryHandle handle):
-    return WholeMemoryMemoryLocation(wholememory_get_memory_location(handle.wholememory_handle))
-
 
 cpdef enum WholeMemoryViewType:
     VtNone = 0
@@ -468,10 +388,10 @@ def get_type_string(WholeMemoryDataType data_type):
     elif data_type == DtInt8:
         return '|i1'
     else:
-        raise ValueError('data type %d not valid' % (int(data_type), ))
+        raise ValueError('data type %d not valid' % (int(data_type),))
 
-cdef class PyWholeMemoryTensorBuffer:
-    cdef void* c_ptr
+cdef class PyWholeMemoryFlattenDlpack:
+    cdef void * c_ptr
     cdef WholeMemoryDataType data_type
     cdef Py_ssize_t itemsize
     cdef public object typestr
@@ -603,7 +523,7 @@ cdef class PyWholeMemoryTensorBuffer:
 
     @property
     def ptr(self):
-        return int(<uintptr_t>self.c_ptr)
+        return int(<uintptr_t> self.c_ptr)
 
     @property
     def __cuda_array_interface__(self):
@@ -613,8 +533,8 @@ cdef class PyWholeMemoryTensorBuffer:
         https://numba.pydata.org/numba-doc/dev/cuda/cuda_array_interface.html
         """
         cdef dict intf = {
-            "data" : (self.ptr, False),
-            "shape": (self.shape[0], ),
+            "data": (self.ptr, False),
+            "shape": (self.shape[0],),
             "strides": None,
             "typestr": self.typestr,
             "version": 2
@@ -656,50 +576,311 @@ cdef class PyWholeMemoryTensorBuffer:
         elif self.device_type == MlDevice:
             return (kDLCUDA, self.device_id)
         else:
-            raise ValueError('self.device_type=%d' % (int(self.device_type), ))
+            raise ValueError('self.device_type=%d' % (int(self.device_type),))
+
+cdef class PyWholeMemoryComm:
+    cdef wholememory_comm_t comm_id
+
+    def __cinit__(self):
+        self.comm_id = NULL
+
+    def get_c_handle(self):
+        return <int64_t>self.comm_id
+
+    def get_rank(self):
+        cdef int world_rank = -1
+        check_wholememory_error_code(wholememory_communicator_get_rank(&world_rank, self.comm_id))
+        return world_rank
+    def get_size(self):
+        cdef int world_size = -1
+        check_wholememory_error_code(wholememory_communicator_get_size(&world_size, self.comm_id))
+        return world_size
+    def barrier(self):
+        check_wholememory_error_code(wholememory_communicator_barrier(self.comm_id))
 
 
-def get_global_tensor(PyWholeMemoryHandle handle,
-                      object import_dlpack_fn,
-                      WholeMemoryDataType data_type,
-                      WholeMemoryMemoryLocation view_from_device,
-                      int view_from_device_id):
-    tb = PyWholeMemoryTensorBuffer()
-    tb.set_view_device(view_from_device, view_from_device_id)
-    tsize, toffset = tb.get_view(handle, data_type, VtGlobal, 0)
-    assert toffset == 0
-    return import_dlpack_fn(tb)
+cdef class PyWholeMemoryHandle:
+    cdef wholememory_handle_t wholememory_handle
 
-def get_local_tensor(PyWholeMemoryHandle handle,
-                     object import_dlpack_fn,
-                     WholeMemoryDataType data_type,
-                     WholeMemoryMemoryLocation view_from_device,
-                     int view_from_device_id):
-    tb = PyWholeMemoryTensorBuffer()
-    tb.set_view_device(view_from_device, view_from_device_id)
-    tsize, toffset = tb.get_view(handle, data_type, VtLocal, 0)
-    return import_dlpack_fn(tb), toffset
+    def __cinit__(self):
+        self.wholememory_handle = NULL
 
-def get_all_chunked_tensor(PyWholeMemoryHandle handle,
-                           object import_dlpack_fn,
-                           WholeMemoryDataType data_type,
-                           WholeMemoryMemoryLocation view_from_device,
-                           int view_from_device_id):
-    cdef Whole
-    cdef int world_rank
-    cdef int world_size
-    cdef wholememory_comm_t comm
-    check_wholememory_error_code(wholememory_get_communicator(&comm, handle.wholememory_handle))
-    check_wholememory_error_code(wholememory_communicator_get_rank(&world_rank, comm))
-    check_wholememory_error_code(wholememory_communicator_get_size(&world_size, comm))
-    chunked_tensors = []
-    for r in range(world_size):
-        tb = PyWholeMemoryTensorBuffer()
+    def get_c_handle(self):
+        return <int64_t>self.wholememory_handle
+
+    def get_communicator(self):
+        py_comm = PyWholeMemoryComm()
+        check_wholememory_error_code(wholememory_get_communicator(&py_comm.comm_id, self.wholememory_handle))
+        return py_comm
+
+    def get_memory_type(self):
+        return WholeMemoryMemoryType(wholememory_get_memory_type(self.wholememory_handle))
+
+    def get_memory_location(self):
+        return WholeMemoryMemoryLocation(wholememory_get_memory_location(self.wholememory_handle))
+
+    def get_partition_plan(self):
+        cdef size_t size_per_rank
+        check_wholememory_error_code(wholememory_get_partition_plan(&size_per_rank, self.wholememory_handle))
+        return size_per_rank
+
+    def get_global_flatten_tensor(self,
+                                  object import_dlpack_fn,
+                                  WholeMemoryDataType data_type,
+                                  WholeMemoryMemoryLocation view_from_device,
+                                  int view_from_device_id):
+        tb = PyWholeMemoryFlattenDlpack()
         tb.set_view_device(view_from_device, view_from_device_id)
-        tsize, toffset = tb.get_view(handle, data_type, VtRemote, r)
-        chunked_tensors.append(import_dlpack_fn(tb))
-    return chunked_tensors
+        tsize, toffset = tb.get_view(self, data_type, VtGlobal, 0)
+        assert toffset == 0
+        return import_dlpack_fn(tb), toffset
+
+    def get_local_flatten_tensor(self,
+                                 object import_dlpack_fn,
+                                 WholeMemoryDataType data_type,
+                                 WholeMemoryMemoryLocation view_from_device,
+                                 int view_from_device_id):
+        tb = PyWholeMemoryFlattenDlpack()
+        tb.set_view_device(view_from_device, view_from_device_id)
+        tsize, toffset = tb.get_view(self, data_type, VtLocal, 0)
+        return import_dlpack_fn(tb), toffset
+
+    def get_all_chunked_flatten_tensor(self,
+                                       object import_dlpack_fn,
+                                       WholeMemoryDataType data_type,
+                                       WholeMemoryMemoryLocation view_from_device,
+                                       int view_from_device_id):
+        cdef Whole
+        cdef int world_rank
+        cdef int world_size
+        cdef wholememory_comm_t comm
+        check_wholememory_error_code(wholememory_get_communicator(&comm, self.wholememory_handle))
+        check_wholememory_error_code(wholememory_communicator_get_rank(&world_rank, comm))
+        check_wholememory_error_code(wholememory_communicator_get_size(&world_size, comm))
+        chunked_tensors = []
+        toffsets = []
+        for r in range(world_size):
+            tb = PyWholeMemoryFlattenDlpack()
+            tb.set_view_device(view_from_device, view_from_device_id)
+            tsize, toffset = tb.get_view(self, data_type, VtRemote, r)
+            chunked_tensors.append(import_dlpack_fn(tb))
+            toffsets.append(toffset)
+        return chunked_tensors, toffsets
+
+
+cdef class PyWholeMemoryTensor:
+    cdef wholememory_tensor_t wholememory_tensor
+    cdef wholememory_tensor_description_t tensor_description
+
+    def __cinit__(self):
+        self.wholememory_tensor = NULL
+
+    def get_c_handle(self):
+        return <int64_t>self.wholememory_tensor
+
+    def get_wholememory_handle(self):
+        handle = PyWholeMemoryHandle()
+        handle.wholememory_handle = wholememory_tensor_get_memory_handle(self.wholememory_tensor)
+        return handle
+
+    @property
+    def dtype(self):
+        return WholeMemoryDataType(self.tensor_description.dtype)
+
+    def dim(self):
+        return self.tensor_description.dim
+
+    @property
+    def shape(self):
+        if self.dim() == 1:
+            return (self.tensor_description.sizes[0],)
+        elif self.dim() == 2:
+            return (self.tensor_description.sizes[0], self.tensor_description.sizes[1])
+        else:
+            raise ValueError('self.dim()=%d' % (self.dim(),))
+
+    def stride(self):
+        if self.dim() == 1:
+            return (self.tensor_description.strides[0],)
+        elif self.dim() == 2:
+            return (self.tensor_description.strides[0], self.tensor_description.strides[1])
+        else:
+            raise ValueError('self.dim()=%d' % (self.dim(),))
+
+    def storage_offset(self):
+        return self.tensor_description.storage_offset
+
+    def get_partition_plan(self):
+        mem_size_per_rank = self.get_wholememory_handle().get_partition_plan()
+        element_size = wholememory_dtype_get_element_size(self.tensor_description.dtype)
+        vector_size = element_size * self.stride()[0]
+        assert mem_size_per_rank % vector_size == 0
+        return mem_size_per_rank // vector_size
+
+    def get_sub_tensor(self, starts, ends):
+        cdef int64_t start_array[2]
+        cdef int64_t end_array[2]
+        start_array[0] = starts[0]
+        end_array[0] = ends[0]
+        if self.dim() == 1:
+            pass
+        elif self.dim() == 2:
+            start_array[1] = starts[1]
+            end_array[1] = ends[1]
+        else:
+            raise ValueError('self.dim()=%d' % (self.dim(),))
+        sub_tensor = PyWholeMemoryTensor()
+        check_wholememory_error_code(
+            wholememory_tensor_get_subtensor(&sub_tensor.wholememory_tensor, self.wholememory_tensor, start_array,
+                                             end_array))
+        wholememory_tensor_get_tensor_description(&sub_tensor.tensor_description, sub_tensor.wholememory_tensor)
+        return sub_tensor
+
+    def get_tensor_in_window(self,
+                             flatten_tensor,
+                             int storage_window_offset):
+        if self.tensor_description.dim == 1:
+            start_indice = max(0, self.tensor_description.storage_offset - storage_window_offset)
+            end_indice = min(flatten_tensor.shape[0],
+                             self.tensor_description.storage_offset + self.tensor_description.sizes[
+                                 0] - storage_window_offset)
+            return flatten_tensor[start_indice: end_indice], max(0,
+                                                                 storage_window_offset - self.tensor_description.storage_offset)
+        elif self.tensor_description.dim == 2:
+            embedding_stride = self.tensor_description.strides[0]
+            storage_offset0 = self.tensor_description.storage_offset // embedding_stride
+            storage_offset1 = self.tensor_description.storage_offset % embedding_stride
+            mat_tensor = flatten_tensor.reshape(-1, embedding_stride)
+            assert storage_window_offset % self.tensor_description.strides[0] == 0
+            vector_start_offset = storage_window_offset // self.tensor_description.strides[0]
+            start_indice0 = max(0, storage_offset0 - vector_start_offset)
+            end_indice0 = min(mat_tensor.shape[0],
+                              storage_offset0 + self.tensor_description.sizes[0] - vector_start_offset)
+            start_indice_1 = storage_offset1
+            assert mat_tensor.shape[1] >= storage_offset1 + self.tensor_description.sizes[1]
+            end_indice_1 = storage_offset1 + self.tensor_description.sizes[1]
+            return mat_tensor[start_indice0:end_indice0, start_indice_1:end_indice_1], max(0,
+                                                                                           vector_start_offset - storage_offset0)
+        else:
+            raise ValueError('tensor dim should be 1 or 2')
+
+    def get_local_tensor(self,
+                         object import_dlpack_fn,
+                         WholeMemoryMemoryLocation view_from_device,
+                         int view_from_device_id):
+        flatten_tensor, element_offset = self.get_wholememory_handle().get_local_flatten_tensor(import_dlpack_fn,
+                                                                                                self.tensor_description.dtype,
+                                                                                                view_from_device,
+                                                                                                view_from_device_id)
+        return self.get_tensor_in_window(flatten_tensor, element_offset)
+
+    def get_global_tensor(self,
+                          object import_dlpack_fn,
+                          WholeMemoryMemoryLocation view_from_device,
+                          int view_from_device_id):
+        global_flatten_tensor, _ = self.get_wholememory_handle().get_global_flatten_tensor(import_dlpack_fn,
+                                                                                           self.tensor_description.dtype,
+                                                                                           view_from_device,
+                                                                                           view_from_device_id)
+        return self.get_tensor_in_window(global_flatten_tensor, 0)[0]
+
+    def get_all_chunked_tensor(self,
+                               object import_dlpack_fn,
+                               WholeMemoryMemoryLocation view_from_device,
+                               int view_from_device_id):
+        chunked_flatten_tensors, element_offsets = self.get_wholememory_handle().get_all_chunked_flatten_tensor(
+            import_dlpack_fn,
+            self.tensor_description.dtype,
+            view_from_device,
+            view_from_device_id)
+        chunked_tensors = []
+        for i in range(len(chunked_flatten_tensors)):
+            chunked_tensors.append(self.get_tensor_in_window(chunked_flatten_tensors[i], element_offsets[i])[0])
+        return chunked_tensors
+
+###############################################################################
+
+
+def create_communicator(PyWholeMemoryUniqueID py_uid, int world_rank, int world_size):
+    py_comm = PyWholeMemoryComm()
+    check_wholememory_error_code(wholememory_create_communicator(&py_comm.comm_id,
+                                                                 py_uid.wholememory_unique_id,
+                                                                 world_rank,
+                                                                 world_size))
+    return py_comm
+
+def destroy_communicator(PyWholeMemoryComm py_comm):
+    check_wholememory_error_code(wholememory_destroy_communicator(py_comm.comm_id))
+
+def determine_partition_plan(int64_t entry_count,
+                             int world_size):
+    cdef size_t per_rank_count
+    check_wholememory_error_code(wholememory_determine_entry_partition_plan(&per_rank_count,
+                                                                            entry_count,
+                                                                            world_size))
+    return per_rank_count
+
+def malloc(cython.size_t total_size,
+           PyWholeMemoryComm py_comm,
+           WholeMemoryMemoryType memory_type,
+           WholeMemoryMemoryLocation memory_location,
+           cython.size_t data_granularity):
+    handle = PyWholeMemoryHandle()
+    check_wholememory_error_code(wholememory_malloc(&handle.wholememory_handle, total_size, py_comm.comm_id,
+                                                    int(memory_type), int(memory_location),
+                                                    data_granularity))
+    return handle
+
+def free(PyWholeMemoryHandle handle):
+    check_wholememory_error_code(wholememory_free(handle.wholememory_handle))
+
+def create_wholememory_array(WholeMemoryDataType dtype,
+                             int64_t size,
+                             PyWholeMemoryComm comm,
+                             WholeMemoryMemoryType mem_type,
+                             WholeMemoryMemoryLocation mem_location):
+    wholememory_tensor = PyWholeMemoryTensor()
+    wholememory_tensor.tensor_description.dtype = int(dtype)
+    wholememory_tensor.tensor_description.storage_offset = 0
+    wholememory_tensor.tensor_description.dim = 1
+    wholememory_tensor.tensor_description.strides[0] = 1
+    wholememory_tensor.tensor_description.sizes[0] = size
+    check_wholememory_error_code(wholememory_create_tensor(&wholememory_tensor.wholememory_tensor,
+                                                           &wholememory_tensor.tensor_description,
+                                                           comm.comm_id,
+                                                           int(mem_type),
+                                                           int(mem_location)))
+    return wholememory_tensor
+
+def create_wholememory_matrix(WholeMemoryDataType dtype,
+                              int64_t row,
+                              int64_t column,
+                              int64_t stride,
+                              PyWholeMemoryComm comm,
+                              WholeMemoryMemoryType mem_type,
+                              WholeMemoryMemoryLocation mem_location):
+    wholememory_tensor = PyWholeMemoryTensor()
+    wholememory_tensor.tensor_description.dtype = int(dtype)
+    wholememory_tensor.tensor_description.storage_offset = 0
+    wholememory_tensor.tensor_description.dim = 2
+    if stride == -1:
+        stride = column
+    wholememory_tensor.tensor_description.strides[0] = stride
+    wholememory_tensor.tensor_description.strides[1] = 1
+    wholememory_tensor.tensor_description.sizes[0] = row
+    wholememory_tensor.tensor_description.sizes[1] = column
+    check_wholememory_error_code(wholememory_create_tensor(&wholememory_tensor.wholememory_tensor,
+                                                           &wholememory_tensor.tensor_description,
+                                                           comm.comm_id,
+                                                           int(mem_type),
+                                                           int(mem_location)))
+    return wholememory_tensor
+
+def destroy_wholememory_tensor(PyWholeMemoryTensor wholememory_tensor):
+    check_wholememory_error_code(wholememory_destroy_tensor(wholememory_tensor.wholememory_tensor))
 
 
 def fork_get_gpu_count():
     return fork_get_device_count()
+
+

@@ -1,6 +1,6 @@
 #include "torch_env_func_ptrs.h"
 
-#include <torch/script.h>
+#include <c10/cuda/CUDAStream.h>
 
 #include "torch_utils.h"
 
@@ -52,6 +52,10 @@ static wholememory_env_func_t pytorch_env_func = {
 
 wholememory_env_func_t* get_pytorch_env_func() {
   return &pytorch_env_func;
+}
+
+cudaStream_t get_current_stream() {
+  return at::cuda::getCurrentCUDAStream();
 }
 
 }  // namespace wholegraph_torch

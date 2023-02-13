@@ -30,6 +30,10 @@ wholememory_error_code_t wholememory_scatter_nccl(void* input,
   try {
     if (wholememory_desc.storage_offset < 0 ||
         wholememory_desc.storage_offset + wholememory_desc.sizes[1] > wholememory_desc.stride) {
+      WHOLEMEMORY_ERROR("invalid input offset=%ld, size[1]=%ld, stride=%ld\n",
+                        wholememory_desc.storage_offset,
+                        wholememory_desc.sizes[1],
+                        wholememory_desc.stride);
       return WHOLEMEMORY_INVALID_INPUT;
     }
 
@@ -180,6 +184,7 @@ wholememory_error_code_t wholememory_scatter_nccl(void* input,
     WHOLEMEMORY_ERROR("LOGIC Error %s\n", wle.what());
     return WHOLEMEMORY_LOGIC_ERROR;
   } catch (...) {
+    WHOLEMEMORY_ERROR("Unknown Error\n");
     return WHOLEMEMORY_UNKNOW_ERROR;
   }
 

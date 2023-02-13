@@ -115,6 +115,14 @@ wholememory_matrix_description_t wholememory_create_matrix_desc(int64_t sizes[2]
  */
 void wholememory_initialize_tensor_desc(wholememory_tensor_description_t* p_tensor_description);
 
+/**
+ * Copy array description to tensor description
+ * @param p_matrix_description : pointer to wholememory_matrix_description_t.
+ * @param p_array_description : pointer to wholememory_array_description_t.
+ */
+void wholememory_copy_array_desc_to_matrix(wholememory_matrix_description_t* p_matrix_description,
+                                           wholememory_array_description_t* p_array_description);
+
 /*!
  * Copy array description to tensor description
  * @param p_tensor_description : pointer to wholememory_tensor_description_t.

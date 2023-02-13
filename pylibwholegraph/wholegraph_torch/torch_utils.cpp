@@ -18,8 +18,8 @@ c10::ScalarType get_c10_scalar_type(wholememory_dtype_t wm_dtype) {
   }
 }
 
-wholememory_dtype_t get_wholememory_dtype(caffe2::TypeMeta th_dtype) {
-  switch (th_dtype.toScalarType()) {
+wholememory_dtype_t get_wholememory_dtype(torch::ScalarType ts_dtype) {
+  switch (ts_dtype) {
     case c10::ScalarType::Float: return WHOLEMEMORY_DT_FLOAT;
     case c10::ScalarType::Half: return WHOLEMEMORY_DT_HALF;
     case c10::ScalarType::Double: return WHOLEMEMORY_DT_DOUBLE;
@@ -67,7 +67,12 @@ void *torch_common_malloc_func(wholememory_tensor_description_t *tensor_descript
     pytorch_context->options = pytorch_context->options.device(c10::Device(c10::kCPU));
     pytorch_context->options = pytorch_context->options.pinned_memory(pinned);
   }
-  pytorch_context->tensor = torch::empty(shape, pytorch_context->options);
+  try {
+    pytorch_context->tensor = torch::empty(shape, pytorch_context->options);
+  } catch (c10::Error& err) {
+    fprintf(stderr, "torch_common_malloc_func allocation failed. Reasion=%s", err.what());
+    throw err;
+  }
   return pytorch_context->tensor.data_ptr();
 }
 
@@ -80,7 +85,7 @@ void torch_common_free_func(memory_context_t* memory_context, void* /*global_con
 
 void get_tensor_desc_from_torch_tensor(wholememory_tensor_description_t* tensor_desc, const torch::Tensor& t) {
   tensor_desc->dim = t.dim();
-  tensor_desc->dtype = get_wholememory_dtype(t.dtype());
+  tensor_desc->dtype = get_wholememory_dtype(t.dtype().toScalarType());
   TORCH_CHECK(tensor_desc->dtype != WHOLEMEMORY_DT_UNKNOWN);
   tensor_desc->storage_offset = t.storage_offset();
   for (int i = 0; i < tensor_desc->dim; i++) {
@@ -91,7 +96,7 @@ void get_tensor_desc_from_torch_tensor(wholememory_tensor_description_t* tensor_
 
 void get_array_desc_from_torch_tensor(wholememory_array_description_t* array_desc, const torch::Tensor& t) {
   TORCH_CHECK(t.dim() == 1, "get_array_desc_from_torch_tensor: should be 1-dim tensor");
-  array_desc->dtype = get_wholememory_dtype(t.dtype());
+  array_desc->dtype = get_wholememory_dtype(t.dtype().toScalarType());
   TORCH_CHECK(array_desc->dtype != WHOLEMEMORY_DT_UNKNOWN);
   array_desc->size = t.size(0);
   array_desc->storage_offset = t.storage_offset();
@@ -99,11 +104,11 @@ void get_array_desc_from_torch_tensor(wholememory_array_description_t* array_des
 
 void get_matrix_desc_from_torch_tensor(wholememory_matrix_description_t* matrix_desc, const torch::Tensor& t) {
   TORCH_CHECK(t.dim() == 2, "get_matrix_desc_from_torch_tensor: should be 2-dim tensor");
-  matrix_desc->dtype = get_wholememory_dtype(t.dtype());
+  matrix_desc->dtype = get_wholememory_dtype(t.dtype().toScalarType());
   TORCH_CHECK(matrix_desc->dtype != WHOLEMEMORY_DT_UNKNOWN);
   matrix_desc->sizes[0] = t.size(0);
   matrix_desc->sizes[1] = t.size(1);
-  matrix_desc->stride = t.stride(1);
+  matrix_desc->stride = t.stride(0);
   matrix_desc->storage_offset = t.storage_offset();
 }
 

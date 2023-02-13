@@ -46,6 +46,10 @@ option(DETECT_CONDA_ENV "Enable detection of conda environment for dependencies"
 ##############################################################################
 # - Base Rapids Options  -----------------------------------------------------
 
+set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CMAKE_COMMAND} -E time")
+set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK "${CMAKE_COMMAND} -E time")
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # default build type
 rapids_cmake_build_type(Release)
 
@@ -142,7 +146,7 @@ set(WHOLEGRAPH_CPP_TARGET "wholegraph::wholegraph" CACHE STRING "libwholegraph t
 add_subdirectory(pylibwholegraph/binding)
 
 # when used without setup.py, command is like:
-# export wholegraph_DIR=`pwd`/../../cpp/build
-# cmake ../ -DSKBUILD=ON -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/python3 -DCMAKE_MODULE_PATH=/usr/local/lib/python3.8/dist-packages/skbuild/resources/cmake
+# export LIBWHOLEGRAPH_DIR=`pwd`/../../cpp/build/install
+# cmake ../ -DSKBUILD=ON
 
 add_subdirectory(wholegraph_torch)

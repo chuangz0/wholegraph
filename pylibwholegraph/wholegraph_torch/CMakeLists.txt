@@ -42,7 +42,7 @@ set_property(TARGET torch PROPERTY INTERFACE_COMPILE_OPTIONS "-D_GLIBCXX_USE_CXX
 target_include_directories(wholegraph_torch_cxx11abi
         PRIVATE
         "${wholegraph_ROOT}/include")
-target_link_libraries(wholegraph_torch_cxx11abi "${TORCH_LIBRARIES}")
+target_link_libraries(wholegraph_torch_cxx11abi "${TORCH_LIBRARIES}" "${WHOLEGRAPH_CPP_TARGET}")
 
 add_library(wholegraph_torch_precxx11abi SHARED "")
 target_sources(wholegraph_torch_precxx11abi PRIVATE ${WHOLEGRAPH_PYTORCH_SOURCES})
@@ -50,7 +50,7 @@ set_property(TARGET torch PROPERTY INTERFACE_COMPILE_OPTIONS "-D_GLIBCXX_USE_CXX
 target_include_directories(wholegraph_torch_precxx11abi
         PRIVATE
         "${wholegraph_ROOT}/include")
-target_link_libraries(wholegraph_torch_precxx11abi "${TORCH_LIBRARIES}")
+target_link_libraries(wholegraph_torch_precxx11abi "${TORCH_LIBRARIES}" "${WHOLEGRAPH_CPP_TARGET}")
 
 set_property(TARGET torch PROPERTY INTERFACE_COMPILE_OPTIONS ${TORCH_CXX_FLAGS})
 
