@@ -24,9 +24,9 @@ namespace wholegraph_ops {
 template <typename WeightType>
 __device__ __forceinline__ float gen_key_from_weight(const WeightType weight, PCGenerator& rng)
 {
-  float u               = -rng.next_float(1.0f, 0.5f);
+  float u             = -rng.next_float(1.0f, 0.5f);
   int64_t random_num2 = 0;
-  int seed_count        = -1;
+  int seed_count      = -1;
   do {
     rng.next(random_num2);
     seed_count++;
@@ -83,8 +83,8 @@ __launch_bounds__(BLOCK_SIZE) __global__ void weighted_sample_without_replacemen
   int offset                            = sample_offset[input_idx];
   if (neighbor_count <= max_sample_count) {
     for (int sample_id = threadIdx.x; sample_id < neighbor_count; sample_id += BLOCK_SIZE) {
-      int neighbor_idx = sample_id;
-      int original_neighbor_idx = neighbor_idx;
+      int neighbor_idx           = sample_id;
+      int original_neighbor_idx  = neighbor_idx;
       IdType gid                 = csr_col_ptr_gen[start + original_neighbor_idx];
       output[offset + sample_id] = gid;
       if (src_lid) src_lid[offset + sample_id] = (LocalIdType)input_idx;
@@ -134,9 +134,9 @@ __launch_bounds__(BLOCK_SIZE) __global__ void weighted_sample_without_replacemen
       bool has_topk     = Ascending ? (key <= topk_val) : (key >= topk_val);
 
       if (has_topk) {
-        int write_index = atomicAdd(&cnt, 1);
+        int write_index                = atomicAdd(&cnt, 1);
         LocalIdType local_original_idx = neighbor_idx;
-        output[offset + write_index] = csr_col_ptr_gen[start + local_original_idx];
+        output[offset + write_index]   = csr_col_ptr_gen[start + local_original_idx];
         if (out_edge_gid)
           out_edge_gid[offset + write_index] = static_cast<IdType>(start + local_original_idx);
       }
@@ -148,9 +148,9 @@ __launch_bounds__(BLOCK_SIZE) __global__ void weighted_sample_without_replacemen
       bool has_topk     = Ascending ? (key < topk_val) : (key > topk_val);
 
       if (has_topk) {
-        int write_index = atomicAdd(&cnt, 1);
+        int write_index                = atomicAdd(&cnt, 1);
         LocalIdType local_original_idx = neighbor_idx;
-        output[offset + write_index] = csr_col_ptr_gen[start + local_original_idx];
+        output[offset + write_index]   = csr_col_ptr_gen[start + local_original_idx];
         if (out_edge_gid)
           out_edge_gid[offset + write_index] = static_cast<IdType>(start + local_original_idx);
       }
@@ -188,8 +188,8 @@ __global__ void get_sample_count_and_neighbor_count_without_replacement_kernel(
   if (input_idx >= input_node_count) return;
   IdType nid = input_nodes[input_idx];
   wholememory::device_reference<WMOffsetType> wm_csr_row_ptr_dev_ref(wm_csr_row_ptr);
-  int64_t start = wm_csr_row_ptr_dev_ref[nid];
-  int64_t end   = wm_csr_row_ptr_dev_ref[nid + 1];
+  int64_t start      = wm_csr_row_ptr_dev_ref[nid];
+  int64_t end        = wm_csr_row_ptr_dev_ref[nid + 1];
   int neighbor_count = (int)(end - start);
   // sample_count <= 0 means sample all.
   int sample_count = neighbor_count;
@@ -247,8 +247,8 @@ __launch_bounds__(BLOCK_SIZE) __global__ void weighted_sample_without_replacemen
   int offset         = sample_offset[input_idx];
   if (neighbor_count <= max_sample_count) {
     for (int sample_id = threadIdx.x; sample_id < neighbor_count; sample_id += BLOCK_SIZE) {
-      int neighbor_idx = sample_id;
-      int original_neighbor_idx = neighbor_idx;
+      int neighbor_idx           = sample_id;
+      int original_neighbor_idx  = neighbor_idx;
       IdType gid                 = csr_col_ptr_gen[start + original_neighbor_idx];
       output[offset + sample_id] = gid;
       if (src_lid) src_lid[offset + sample_id] = (LocalIdType)input_idx;
@@ -258,7 +258,7 @@ __launch_bounds__(BLOCK_SIZE) __global__ void weighted_sample_without_replacemen
     return;
   } else {
     PCGenerator rng(random_seed, (uint64_t)gidx, (uint64_t)0);
-  
+
     float weight_keys[ITEMS_PER_THREAD];
     int neighbor_idxs[ITEMS_PER_THREAD];
 
@@ -275,7 +275,8 @@ __launch_bounds__(BLOCK_SIZE) __global__ void weighted_sample_without_replacemen
       int idx = BLOCK_SIZE * i + tx;
       if (idx < neighbor_count) {
         WeightType thread_weight = csr_weight_ptr_gen[start + idx];
-        weight_keys[i]   = NeedRandom ? gen_key_from_weight(thread_weight, rng) : (float)thread_weight;
+        weight_keys[i] =
+          NeedRandom ? gen_key_from_weight(thread_weight, rng) : (float)thread_weight;
         neighbor_idxs[i] = idx;
       }
     }
@@ -296,7 +297,8 @@ __launch_bounds__(BLOCK_SIZE) __global__ void weighted_sample_without_replacemen
         int target_idx = idx_offset + local_idx;
         if (local_idx >= 0 && target_idx < neighbor_count) {
           WeightType thread_weight = csr_weight_ptr_gen[start + target_idx];
-          weight_keys[i] = NeedRandom ? gen_key_from_weight(thread_weight, rng) : (float)thread_weight;
+          weight_keys[i] =
+            NeedRandom ? gen_key_from_weight(thread_weight, rng) : (float)thread_weight;
           neighbor_idxs[i] = target_idx;
         }
       }
@@ -313,7 +315,7 @@ __launch_bounds__(BLOCK_SIZE) __global__ void weighted_sample_without_replacemen
       if (idx < max_sample_count) {
         if (src_lid) src_lid[offset + idx] = (LocalIdType)input_idx;
         LocalIdType local_original_idx = neighbor_idxs[i];
-        output[offset + idx] = csr_col_ptr_gen[start + local_original_idx];
+        output[offset + idx]           = csr_col_ptr_gen[start + local_original_idx];
         if (out_edge_gid)
           out_edge_gid[offset + idx] = static_cast<int64_t>(start + local_original_idx);
       }
@@ -321,26 +323,25 @@ __launch_bounds__(BLOCK_SIZE) __global__ void weighted_sample_without_replacemen
   }
 }
 
-
-template <typename IdType, typename WMIdType,typename WeightType > 
+template <typename IdType, typename WMIdType, typename WeightType>
 void wholegraph_csr_weighted_sample_without_replacement_func(
-                          wholememory_gref_t wm_csr_row_ptr,
-                          wholememory_array_description_t wm_csr_row_ptr_desc,
-                          wholememory_gref_t wm_csr_col_ptr,
-                          wholememory_array_description_t wm_csr_col_ptr_desc,
-                          wholememory_gref_t wm_csr_weight_ptr,
-                          wholememory_array_description_t wm_csr_weight_ptr_desc,
-                          void* center_nodes,
-                          wholememory_array_description_t center_nodes_desc,
-                          int max_sample_count,
-                          void* output_sample_offset,
-                          wholememory_array_description_t output_sample_offset_desc,
-                          memory_context_t* output_dest_memory_context,
-                          memory_context_t* output_center_localid_memory_context,
-                          memory_context_t* output_edge_gid_memory_context,
-                          unsigned long long random_seed,
-                          wholememory_env_func_t* p_env_fns,
-                          cudaStream_t stream)
+  wholememory_gref_t wm_csr_row_ptr,
+  wholememory_array_description_t wm_csr_row_ptr_desc,
+  wholememory_gref_t wm_csr_col_ptr,
+  wholememory_array_description_t wm_csr_col_ptr_desc,
+  wholememory_gref_t wm_csr_weight_ptr,
+  wholememory_array_description_t wm_csr_weight_ptr_desc,
+  void* center_nodes,
+  wholememory_array_description_t center_nodes_desc,
+  int max_sample_count,
+  void* output_sample_offset,
+  wholememory_array_description_t output_sample_offset_desc,
+  memory_context_t* output_dest_memory_context,
+  memory_context_t* output_center_localid_memory_context,
+  memory_context_t* output_edge_gid_memory_context,
+  unsigned long long random_seed,
+  wholememory_env_func_t* p_env_fns,
+  cudaStream_t stream)
 {
   int center_node_count = center_nodes_desc.size;
 
@@ -380,8 +381,7 @@ void wholegraph_csr_weighted_sample_without_replacement_func(
                                              tmp_sample_count_mem_pointer,
                                              tmp_neighbor_counts_mem_pointer,
                                              max_sample_count);
-  }
-  else {
+  } else {
     get_sample_count_and_neighbor_count_without_replacement_kernel<IdType, int64_t, false>
       <<<block_count, thread_x, 0, stream>>>(wm_csr_row_ptr,
                                              wm_csr_row_ptr_desc,
@@ -392,7 +392,7 @@ void wholegraph_csr_weighted_sample_without_replacement_func(
                                              max_sample_count);
   }
 
-  //prefix sum
+  // prefix sum
   wholememory_ops::wm_thrust_allocator thrust_allocator(p_env_fns);
   thrust::exclusive_scan(thrust::cuda::par(thrust_allocator).on(stream),
                          tmp_sample_count_mem_pointer,
@@ -471,7 +471,7 @@ void wholegraph_csr_weighted_sample_without_replacement_func(
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaStreamSynchronize(stream));
     return;
-  }  
+  }
 
   if (max_sample_count <= 0) {
     sample_all_kernel<IdType, int, WMIdType, int64_t>

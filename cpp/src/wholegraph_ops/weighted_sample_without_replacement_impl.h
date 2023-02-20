@@ -7,7 +7,7 @@
 
 namespace wholegraph_ops {
 
-  wholememory_error_code_t wholegraph_csr_weighted_sample_without_replacement_mapped(
+wholememory_error_code_t wholegraph_csr_weighted_sample_without_replacement_mapped(
   wholememory_gref_t wm_csr_row_ptr,
   wholememory_array_description_t wm_csr_row_ptr_desc,
   wholememory_gref_t wm_csr_col_ptr,
@@ -26,4 +26,4 @@ namespace wholegraph_ops {
   wholememory_env_func_t* p_env_fns,
   cudaStream_t stream);
 
-} // namespace wholegraph_ops
+}  // namespace wholegraph_ops

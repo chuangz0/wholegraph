@@ -42,4 +42,4 @@ __global__ void sample_all_kernel(wholememory_gref_t wm_csr_row_ptr,
     }
   }
 }
-} // namespace wholegraph_ops
+}  // namespace wholegraph_ops

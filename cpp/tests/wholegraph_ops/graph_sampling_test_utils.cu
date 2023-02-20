@@ -3,8 +3,8 @@
 #include <experimental/random>
 #include <gtest/gtest.h>
 #include <iterator>
-#include <random>
 #include <queue>
+#include <random>
 #include <vector>
 
 #include "wholememory_ops/raft_random.cuh"
@@ -102,13 +102,13 @@ void host_get_csr_weight_graph(void* host_csr_weight_ptr,
 }
 
 void gen_csr_graph(int64_t graph_node_count,
-            int64_t graph_edge_count,
-            void* host_csr_row_ptr,
-            wholememory_array_description_t graph_csr_row_ptr_desc,
-            void* host_csr_col_ptr,
-            wholememory_array_description_t graph_csr_col_ptr_desc,
-            void* host_csr_weight_ptr,
-            wholememory_array_description_t graph_csr_weight_ptr_desc)
+                   int64_t graph_edge_count,
+                   void* host_csr_row_ptr,
+                   wholememory_array_description_t graph_csr_row_ptr_desc,
+                   void* host_csr_col_ptr,
+                   wholememory_array_description_t graph_csr_col_ptr_desc,
+                   void* host_csr_weight_ptr,
+                   wholememory_array_description_t graph_csr_weight_ptr_desc)
 {
   EXPECT_TRUE(graph_csr_row_ptr_desc.dtype == WHOLEMEMORY_DT_INT64);
 
@@ -532,14 +532,12 @@ void host_check_two_array_same(void* host_array,
 inline int count_one(unsigned long long num)
 {
   int c = 0;
-  while (num)
-  {
+  while (num) {
     num >>= 1;
     c++;
   }
- return 64 - c;
+  return 64 - c;
 }
-
 
 template <typename WeightType>
 float host_gen_key_from_weight(const WeightType weight, PCGenerator& rng)
@@ -592,9 +590,9 @@ void host_weighted_sample_without_replacement(
 
   int64_t center_nodes_count = center_node_desc.size;
 
-  const int block_sizes[4] = {128, 256, 256, 512};
+  const int block_sizes[4]       = {128, 256, 256, 512};
   const int items_per_threads[4] = {4, 4, 8, 8};
-  auto choose_fun_idx           = [](int max_sample_count) {
+  auto choose_fun_idx            = [](int max_sample_count) {
     if (max_sample_count <= 128) {
       // return (max_sample_count - 1) / 32;
       return 0;
@@ -605,7 +603,7 @@ void host_weighted_sample_without_replacement(
   };
   int func_idx = choose_fun_idx(max_sample_count);
 
-  int block_size = block_sizes[func_idx];
+  int block_size       = block_sizes[func_idx];
   int items_per_thread = items_per_threads[func_idx];
 
   for (int64_t i = 0; i < center_nodes_count; i++) {
@@ -626,17 +624,15 @@ void host_weighted_sample_without_replacement(
         output_global_edge_id_ptr[output_id + output_local_id]        = j;
         output_local_id++;
       }
-    }
-    else {
+    } else {
       int process_count = 0;
       struct cmp {
-        bool operator()(std::pair<int, WeightType> left, std::pair<int, WeightType> right) {
+        bool operator()(std::pair<int, WeightType> left, std::pair<int, WeightType> right)
+        {
           return (left.second) > (right.second);
         }
       };
-      std::priority_queue<std::pair<int, WeightType>,
-                          std::vector<std::pair<int, WeightType>>,
-                          cmp>
+      std::priority_queue<std::pair<int, WeightType>, std::vector<std::pair<int, WeightType>>, cmp>
         small_heap;
       for (int j = 0; j < block_size; j++) {
         int local_gidx = gidx + j;
@@ -647,10 +643,11 @@ void host_weighted_sample_without_replacement(
             WeightType edge_weight = csr_weight_ptr[start + id];
             WeightType weight      = host_gen_key_from_weight(edge_weight, rng);
             process_count++;
-            if (process_count < max_sample_count) { small_heap.push(std::make_pair(id, weight)); }
-            else {
+            if (process_count < max_sample_count) {
+              small_heap.push(std::make_pair(id, weight));
+            } else {
               std::pair<int, WeightType> small_heap_top_ele = small_heap.top();
-              if (small_heap_top_ele.second < weight) { 
+              if (small_heap_top_ele.second < weight) {
                 small_heap.pop();
                 small_heap.push(std::make_pair(id, weight));
               }
@@ -660,115 +657,108 @@ void host_weighted_sample_without_replacement(
       }
 
       for (int sample_id = 0; sample_id < max_sample_count; sample_id++) {
-        output_dest_nodes_ptr[output_id + sample_id] =
-          csr_col_ptr[start + small_heap.top().first];
+        output_dest_nodes_ptr[output_id + sample_id] = csr_col_ptr[start + small_heap.top().first];
         output_center_nodes_local_id_ptr[output_id + sample_id] = i;
         output_global_edge_id_ptr[output_id + sample_id]        = start + small_heap.top().first;
         small_heap.pop();
       }
     }
-  
   }
 }
 
-  REGISTER_DISPATCH_THREE_TYPES(HOSTWEIGHTEDSAMPLEWITHOUTREPLACEMENT,
-                                host_weighted_sample_without_replacement,
-                                SINT3264,
-                                SINT3264,
-                                FLOAT_DOUBLE)
+REGISTER_DISPATCH_THREE_TYPES(HOSTWEIGHTEDSAMPLEWITHOUTREPLACEMENT,
+                              host_weighted_sample_without_replacement,
+                              SINT3264,
+                              SINT3264,
+                              FLOAT_DOUBLE)
 
-  void wholegraph_csr_weighted_sample_without_replacement_cpu(
-    void* host_csr_row_ptr,
-    wholememory_array_description_t csr_row_ptr_desc,
-    void* host_csr_col_ptr,
-    wholememory_array_description_t csr_col_ptr_desc,
-    void* host_csr_weight_ptr,
-    wholememory_array_description_t csr_weight_ptr_desc,
-    void* host_center_nodes,
-    wholememory_array_description_t center_node_desc,
-    int max_sample_count,
-    void** host_ref_output_sample_offset,
-    wholememory_array_description_t output_sample_offset_desc,
-    void** host_ref_output_dest_nodes,
-    void** host_ref_output_center_nodes_local_id,
-    void** host_ref_output_global_edge_id,
-    int* output_sample_dest_nodes_count,
-    unsigned long long random_seed)
-  {
-    EXPECT_EQ(csr_row_ptr_desc.dtype, WHOLEMEMORY_DT_INT64);
-    EXPECT_EQ(output_sample_offset_desc.dtype, WHOLEMEMORY_DT_INT);
-    EXPECT_EQ(output_sample_offset_desc.size, center_node_desc.size + 1);
-    *host_ref_output_sample_offset =
-      (void*)malloc(wholememory_get_memory_size_from_array(&output_sample_offset_desc));
-    if (center_node_desc.dtype == WHOLEMEMORY_DT_INT64) {
-      host_get_sample_offset<int64_t>(host_csr_row_ptr,
-                                      csr_row_ptr_desc,
-                                      host_center_nodes,
-                                      center_node_desc,
-                                      max_sample_count,
-                                      *host_ref_output_sample_offset,
-                                      output_sample_offset_desc);
-    } else if (center_node_desc.dtype == WHOLEMEMORY_DT_INT) {
-      host_get_sample_offset<int>(host_csr_row_ptr,
-                                  csr_row_ptr_desc,
-                                  host_center_nodes,
-                                  center_node_desc,
-                                  max_sample_count,
-                                  *host_ref_output_sample_offset,
-                                  output_sample_offset_desc);
-    }
-    host_prefix_sum_array(*host_ref_output_sample_offset, output_sample_offset_desc);
-    *output_sample_dest_nodes_count =
-      static_cast<int*>(*host_ref_output_sample_offset)[center_node_desc.size];
+void wholegraph_csr_weighted_sample_without_replacement_cpu(
+  void* host_csr_row_ptr,
+  wholememory_array_description_t csr_row_ptr_desc,
+  void* host_csr_col_ptr,
+  wholememory_array_description_t csr_col_ptr_desc,
+  void* host_csr_weight_ptr,
+  wholememory_array_description_t csr_weight_ptr_desc,
+  void* host_center_nodes,
+  wholememory_array_description_t center_node_desc,
+  int max_sample_count,
+  void** host_ref_output_sample_offset,
+  wholememory_array_description_t output_sample_offset_desc,
+  void** host_ref_output_dest_nodes,
+  void** host_ref_output_center_nodes_local_id,
+  void** host_ref_output_global_edge_id,
+  int* output_sample_dest_nodes_count,
+  unsigned long long random_seed)
+{
+  EXPECT_EQ(csr_row_ptr_desc.dtype, WHOLEMEMORY_DT_INT64);
+  EXPECT_EQ(output_sample_offset_desc.dtype, WHOLEMEMORY_DT_INT);
+  EXPECT_EQ(output_sample_offset_desc.size, center_node_desc.size + 1);
+  *host_ref_output_sample_offset =
+    (void*)malloc(wholememory_get_memory_size_from_array(&output_sample_offset_desc));
+  if (center_node_desc.dtype == WHOLEMEMORY_DT_INT64) {
+    host_get_sample_offset<int64_t>(host_csr_row_ptr,
+                                    csr_row_ptr_desc,
+                                    host_center_nodes,
+                                    center_node_desc,
+                                    max_sample_count,
+                                    *host_ref_output_sample_offset,
+                                    output_sample_offset_desc);
+  } else if (center_node_desc.dtype == WHOLEMEMORY_DT_INT) {
+    host_get_sample_offset<int>(host_csr_row_ptr,
+                                csr_row_ptr_desc,
+                                host_center_nodes,
+                                center_node_desc,
+                                max_sample_count,
+                                *host_ref_output_sample_offset,
+                                output_sample_offset_desc);
+  }
+  host_prefix_sum_array(*host_ref_output_sample_offset, output_sample_offset_desc);
+  *output_sample_dest_nodes_count =
+    static_cast<int*>(*host_ref_output_sample_offset)[center_node_desc.size];
 
-    *host_ref_output_dest_nodes =
-      malloc((*output_sample_dest_nodes_count) *
-             wholememory_dtype_get_element_size(csr_col_ptr_desc.dtype));
-    *host_ref_output_center_nodes_local_id =
-      malloc((*output_sample_dest_nodes_count) * sizeof(int));
-    *host_ref_output_global_edge_id = malloc((*output_sample_dest_nodes_count) * sizeof(int64_t));
-    if (max_sample_count <= 0) {
-      DISPATCH_TWO_TYPES(center_node_desc.dtype,
-                         csr_col_ptr_desc.dtype,
-                         HOSTSAMPLEALL,
-                         host_csr_row_ptr,
-                         csr_row_ptr_desc,
-                         host_csr_col_ptr,
-                         csr_col_ptr_desc,
-                         host_center_nodes,
-                         center_node_desc,
-                         max_sample_count,
-                         *host_ref_output_sample_offset,
-                         output_sample_offset_desc,
-                         *host_ref_output_dest_nodes,
-                         *host_ref_output_center_nodes_local_id,
-                         *host_ref_output_global_edge_id);
-      return;
-    }
+  *host_ref_output_dest_nodes            = malloc((*output_sample_dest_nodes_count) *
+                                       wholememory_dtype_get_element_size(csr_col_ptr_desc.dtype));
+  *host_ref_output_center_nodes_local_id = malloc((*output_sample_dest_nodes_count) * sizeof(int));
+  *host_ref_output_global_edge_id = malloc((*output_sample_dest_nodes_count) * sizeof(int64_t));
+  if (max_sample_count <= 0) {
+    DISPATCH_TWO_TYPES(center_node_desc.dtype,
+                       csr_col_ptr_desc.dtype,
+                       HOSTSAMPLEALL,
+                       host_csr_row_ptr,
+                       csr_row_ptr_desc,
+                       host_csr_col_ptr,
+                       csr_col_ptr_desc,
+                       host_center_nodes,
+                       center_node_desc,
+                       max_sample_count,
+                       *host_ref_output_sample_offset,
+                       output_sample_offset_desc,
+                       *host_ref_output_dest_nodes,
+                       *host_ref_output_center_nodes_local_id,
+                       *host_ref_output_global_edge_id);
+    return;
+  }
 
-    if (max_sample_count > 1024) { 
-      
-      return; 
-    }
-    DISPATCH_THREE_TYPES(center_node_desc.dtype,
-                         csr_col_ptr_desc.dtype,
-                         csr_weight_ptr_desc.dtype,
-                         HOSTWEIGHTEDSAMPLEWITHOUTREPLACEMENT,
-                         host_csr_row_ptr,
-                         csr_row_ptr_desc,
-                         host_csr_col_ptr,
-                         csr_col_ptr_desc,
-                         host_csr_weight_ptr,
-                         csr_weight_ptr_desc,
-                         host_center_nodes,
-                         center_node_desc,
-                         max_sample_count,
-                         *host_ref_output_sample_offset,
-                         output_sample_offset_desc,
-                         *host_ref_output_dest_nodes,
-                         *host_ref_output_center_nodes_local_id,
-                         *host_ref_output_global_edge_id,
-                         random_seed);
+  if (max_sample_count > 1024) { return; }
+  DISPATCH_THREE_TYPES(center_node_desc.dtype,
+                       csr_col_ptr_desc.dtype,
+                       csr_weight_ptr_desc.dtype,
+                       HOSTWEIGHTEDSAMPLEWITHOUTREPLACEMENT,
+                       host_csr_row_ptr,
+                       csr_row_ptr_desc,
+                       host_csr_col_ptr,
+                       csr_col_ptr_desc,
+                       host_csr_weight_ptr,
+                       csr_weight_ptr_desc,
+                       host_center_nodes,
+                       center_node_desc,
+                       max_sample_count,
+                       *host_ref_output_sample_offset,
+                       output_sample_offset_desc,
+                       *host_ref_output_dest_nodes,
+                       *host_ref_output_center_nodes_local_id,
+                       *host_ref_output_global_edge_id,
+                       random_seed);
 }
 
 template <typename DataType>
@@ -779,43 +769,43 @@ void host_get_segment_sort(void* host_output_sample_offset,
                            void* host_output_global_edge_id,
                            wholememory_array_description_t output_global_edge_id_desc)
 {
-  int* output_sample_offset_ptr = static_cast<int*>(host_output_sample_offset);
-  DataType* output_dest_nodes_ptr = static_cast<DataType*>(host_output_dest_nodes);
+  int* output_sample_offset_ptr      = static_cast<int*>(host_output_sample_offset);
+  DataType* output_dest_nodes_ptr    = static_cast<DataType*>(host_output_dest_nodes);
   int64_t* output_global_edge_id_ptr = static_cast<int64_t*>(host_output_global_edge_id);
 
   for (int64_t i = 0; i < output_sample_offset_desc.size - 1; i++) {
     int start = output_sample_offset_ptr[i];
-    int end = output_sample_offset_ptr[i + 1];
+    int end   = output_sample_offset_ptr[i + 1];
     std::sort(output_dest_nodes_ptr + start, output_dest_nodes_ptr + end);
     std::sort(output_global_edge_id_ptr + start, output_global_edge_id_ptr + end);
   }
 }
 
 void segment_sort_output(void* host_output_sample_offset,
-                      wholememory_array_description_t output_sample_offset_desc,
-                      void* host_output_dest_nodes,
-                      wholememory_array_description_t output_dest_nodes_desc,
-                      void* host_output_global_edge_id,
-                      wholememory_array_description_t output_global_edge_id_desc)
+                         wholememory_array_description_t output_sample_offset_desc,
+                         void* host_output_dest_nodes,
+                         wholememory_array_description_t output_dest_nodes_desc,
+                         void* host_output_global_edge_id,
+                         wholememory_array_description_t output_global_edge_id_desc)
 {
-    EXPECT_EQ(output_sample_offset_desc.dtype, WHOLEMEMORY_DT_INT);
-    EXPECT_EQ(output_global_edge_id_desc.dtype, WHOLEMEMORY_DT_INT64);
+  EXPECT_EQ(output_sample_offset_desc.dtype, WHOLEMEMORY_DT_INT);
+  EXPECT_EQ(output_global_edge_id_desc.dtype, WHOLEMEMORY_DT_INT64);
 
-    if (output_dest_nodes_desc.dtype == WHOLEMEMORY_DT_INT) {
+  if (output_dest_nodes_desc.dtype == WHOLEMEMORY_DT_INT) {
     host_get_segment_sort<int>(host_output_sample_offset,
                                output_sample_offset_desc,
                                host_output_dest_nodes,
                                output_dest_nodes_desc,
                                host_output_global_edge_id,
                                output_global_edge_id_desc);
-    } else if (output_dest_nodes_desc.dtype == WHOLEMEMORY_DT_INT64) {
+  } else if (output_dest_nodes_desc.dtype == WHOLEMEMORY_DT_INT64) {
     host_get_segment_sort<int64_t>(host_output_sample_offset,
-                               output_sample_offset_desc,
-                               host_output_dest_nodes,
-                               output_dest_nodes_desc,
-                               host_output_global_edge_id,
-                               output_global_edge_id_desc);
-    }
+                                   output_sample_offset_desc,
+                                   host_output_dest_nodes,
+                                   output_dest_nodes_desc,
+                                   host_output_global_edge_id,
+                                   output_global_edge_id_desc);
+  }
 }
 
 }  // namespace wholegraph_ops::testing

@@ -9,10 +9,10 @@
 namespace wholegraph_ops {
 
 REGISTER_DISPATCH_THREE_TYPES(WeightedSampleWithoutReplacementCSR,
-                            wholegraph_csr_weighted_sample_without_replacement_func,
-                            SINT3264,
-                            SINT3264,
-                            FLOAT_DOUBLE)
+                              wholegraph_csr_weighted_sample_without_replacement_func,
+                              SINT3264,
+                              SINT3264,
+                              FLOAT_DOUBLE)
 
 wholememory_error_code_t wholegraph_csr_weighted_sample_without_replacement_mapped(
   wholememory_gref_t wm_csr_row_ptr,
@@ -31,7 +31,8 @@ wholememory_error_code_t wholegraph_csr_weighted_sample_without_replacement_mapp
   memory_context_t* output_edge_gid_memory_context,
   unsigned long long random_seed,
   wholememory_env_func_t* p_env_fns,
-  cudaStream_t stream) {
+  cudaStream_t stream)
+{
   try {
     DISPATCH_THREE_TYPES(center_nodes_desc.dtype,
                          wm_csr_col_ptr_desc.dtype,
@@ -64,6 +65,6 @@ wholememory_error_code_t wholegraph_csr_weighted_sample_without_replacement_mapp
     return WHOLEMEMORY_LOGIC_ERROR;
   }
   return WHOLEMEMORY_SUCCESS;
-  }
+}
 
-  }  // namespace wholegraph_ops
+}  // namespace wholegraph_ops

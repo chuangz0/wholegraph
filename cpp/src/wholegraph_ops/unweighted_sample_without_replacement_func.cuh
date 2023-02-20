@@ -42,7 +42,6 @@ __global__ void get_sample_count_without_replacement_kernel(
   tmp_sample_count_mem_pointer[input_idx] = neighbor_count;
 }
 
-
 template <typename IdType, typename LocalIdType, typename WMIdType, typename WMOffsetType>
 __global__ void large_sample_kernel(wholememory_gref_t wm_csr_row_ptr,
                                     wholememory_array_description_t wm_csr_row_ptr_desc,

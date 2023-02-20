@@ -115,10 +115,10 @@ TEST_P(WholeGraphCSRWeightedSampleWithoutReplacementParameterTests, WeightedSamp
   EXPECT_GE(dev_count, 1);
   std::vector<std::array<int, 2>> pipes;
   CreatePipes(&pipes, dev_count);
-  auto graph_node_count       = params.get_graph_node_count();
-  auto graph_edge_count       = params.get_graph_edge_count();
-  auto graph_csr_row_ptr_desc = params.get_csr_row_ptr_desc();
-  auto graph_csr_col_ptr_desc = params.get_csr_col_ptr_desc();
+  auto graph_node_count          = params.get_graph_node_count();
+  auto graph_edge_count          = params.get_graph_edge_count();
+  auto graph_csr_row_ptr_desc    = params.get_csr_row_ptr_desc();
+  auto graph_csr_col_ptr_desc    = params.get_csr_col_ptr_desc();
   auto graph_csr_weight_ptr_desc = params.get_csr_weight_ptr_desc();
 
   void* host_csr_row_ptr =
@@ -132,7 +132,7 @@ TEST_P(WholeGraphCSRWeightedSampleWithoutReplacementParameterTests, WeightedSamp
                                          host_csr_row_ptr,
                                          graph_csr_row_ptr_desc,
                                          host_csr_col_ptr,
-                                         graph_csr_col_ptr_desc, 
+                                         graph_csr_col_ptr_desc,
                                          host_csr_weight_ptr,
                                          graph_csr_weight_ptr_desc);
 
@@ -334,7 +334,6 @@ TEST_P(WholeGraphCSRWeightedSampleWithoutReplacementParameterTests, WeightedSamp
         &host_total_sample_count,
         random_seed);
 
-
       EXPECT_EQ(total_sample_count, host_total_sample_count);
 
       wholegraph_ops::testing::host_check_two_array_same(host_output_sample_offset,
@@ -381,26 +380,26 @@ TEST_P(WholeGraphCSRWeightedSampleWithoutReplacementParameterTests, WeightedSamp
       EXPECT_EQ(wholememory::destroy_all_communicators(), WHOLEMEMORY_SUCCESS);
       EXPECT_EQ(wholememory_finalize(), WHOLEMEMORY_SUCCESS);
       WHOLEMEMORY_CHECK(::testing::Test::HasFailure() == false);
-    }, true);
+    },
+    true);
 
   if (host_csr_row_ptr != nullptr) free(host_csr_row_ptr);
   if (host_csr_col_ptr != nullptr) free(host_csr_col_ptr);
   if (host_csr_weight_ptr != nullptr) free(host_csr_weight_ptr);
 }
 
-INSTANTIATE_TEST_SUITE_P(
-  WholeGraphCSRWeightedSampleWithoutReplacementOpTests,
-  WholeGraphCSRWeightedSampleWithoutReplacementParameterTests,
-  ::testing::Values(WholeGraphCSRWeightedSampleWithoutReplacementTestParam().set_memory_type(
-                      WHOLEMEMORY_MT_CONTINUOUS),
-                    WholeGraphCSRWeightedSampleWithoutReplacementTestParam().set_memory_type(
-                      WHOLEMEMORY_MT_CHUNKED),
-                    WholeGraphCSRWeightedSampleWithoutReplacementTestParam()
-                      .set_memory_type(WHOLEMEMORY_MT_CONTINUOUS)
-                      .set_max_sample_count(10)
-                      .set_center_node_count(35)
-                      .set_graph_node_count(23289)
-                      .set_graph_edge_couont(689403),
-                    WholeGraphCSRWeightedSampleWithoutReplacementTestParam()
-                      .set_memory_type(WHOLEMEMORY_MT_CHUNKED)
-                      .set_center_node_type(WHOLEMEMORY_DT_INT64)));
+INSTANTIATE_TEST_SUITE_P(WholeGraphCSRWeightedSampleWithoutReplacementOpTests,
+                         WholeGraphCSRWeightedSampleWithoutReplacementParameterTests,
+                         ::testing::Values(WholeGraphCSRWeightedSampleWithoutReplacementTestParam()
+                                             .set_memory_type(WHOLEMEMORY_MT_CONTINUOUS),
+                                           WholeGraphCSRWeightedSampleWithoutReplacementTestParam()
+                                             .set_memory_type(WHOLEMEMORY_MT_CHUNKED),
+                                           WholeGraphCSRWeightedSampleWithoutReplacementTestParam()
+                                             .set_memory_type(WHOLEMEMORY_MT_CONTINUOUS)
+                                             .set_max_sample_count(10)
+                                             .set_center_node_count(35)
+                                             .set_graph_node_count(23289)
+                                             .set_graph_edge_couont(689403),
+                                           WholeGraphCSRWeightedSampleWithoutReplacementTestParam()
+                                             .set_memory_type(WHOLEMEMORY_MT_CHUNKED)
+                                             .set_center_node_type(WHOLEMEMORY_DT_INT64)));
