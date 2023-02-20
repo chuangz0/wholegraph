@@ -94,6 +94,16 @@ struct PCGenerator {
     return ret;
   }
 
+  __host__ __device__ __forceinline__ float next_float(float max, float min)
+  {
+    float ret;
+    uint32_t val = next_u32() >> 8;
+    ret          = static_cast<float>(val) / (1U << 24);
+    ret *= (max - min);
+    ret += min;
+    return ret;
+  }
+
   __host__ __device__ __forceinline__ double next_double()
   {
     double ret;

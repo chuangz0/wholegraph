@@ -13,7 +13,7 @@
 #include "../wholememory/wholememory_test_utils.hpp"
 #include "graph_sampling_test_utils.hpp"
 
-typedef struct WholeGraphCSRUnweightedSampleWithoutReplacementTestParam {
+typedef struct WholeGraphCSRWeightedSampleWithoutReplacementTestParam {
   wholememory_array_description_t get_csr_row_ptr_desc() const
   {
     return wholememory_create_array_desc(graph_node_count + 1, 0, csr_row_ptr_dtype);
@@ -22,6 +22,11 @@ typedef struct WholeGraphCSRUnweightedSampleWithoutReplacementTestParam {
   wholememory_array_description_t get_csr_col_ptr_desc() const
   {
     return wholememory_create_array_desc(graph_edge_count, 0, csr_col_ptr_dtype);
+  }
+
+  wholememory_array_description_t get_csr_weight_ptr_desc() const
+  {
+    return wholememory_create_array_desc(graph_edge_count, 0, csr_weight_ptr_dtype);
   }
 
   wholememory_array_description_t get_center_node_desc() const
@@ -38,46 +43,45 @@ typedef struct WholeGraphCSRUnweightedSampleWithoutReplacementTestParam {
   int64_t get_graph_edge_count() const { return graph_edge_count; }
   int64_t get_max_sample_count() const { return max_sample_count; }
 
-  WholeGraphCSRUnweightedSampleWithoutReplacementTestParam& set_memory_type(
+  WholeGraphCSRWeightedSampleWithoutReplacementTestParam& set_memory_type(
     wholememory_memory_type_t new_memory_type)
   {
     memory_type = new_memory_type;
     return *this;
   };
-  WholeGraphCSRUnweightedSampleWithoutReplacementTestParam& set_memory_location(
+  WholeGraphCSRWeightedSampleWithoutReplacementTestParam& set_memory_location(
     wholememory_memory_location_t new_memory_location)
   {
     memory_location = new_memory_location;
     return *this;
   };
 
-  WholeGraphCSRUnweightedSampleWithoutReplacementTestParam& set_max_sample_count(
-    int new_sample_count)
+  WholeGraphCSRWeightedSampleWithoutReplacementTestParam& set_max_sample_count(int new_sample_count)
   {
     max_sample_count = new_sample_count;
     return *this;
   }
 
-  WholeGraphCSRUnweightedSampleWithoutReplacementTestParam& set_center_node_count(
+  WholeGraphCSRWeightedSampleWithoutReplacementTestParam& set_center_node_count(
     int new_center_node_count)
   {
     center_node_count = new_center_node_count;
     return *this;
   }
-  WholeGraphCSRUnweightedSampleWithoutReplacementTestParam& set_graph_node_count(
+  WholeGraphCSRWeightedSampleWithoutReplacementTestParam& set_graph_node_count(
     int new_graph_node_count)
   {
     graph_node_count = new_graph_node_count;
     return *this;
   }
-  WholeGraphCSRUnweightedSampleWithoutReplacementTestParam& set_graph_edge_couont(
+  WholeGraphCSRWeightedSampleWithoutReplacementTestParam& set_graph_edge_couont(
     int new_graph_edge_count)
   {
     graph_edge_count = new_graph_edge_count;
     return *this;
   }
 
-  WholeGraphCSRUnweightedSampleWithoutReplacementTestParam& set_center_node_type(
+  WholeGraphCSRWeightedSampleWithoutReplacementTestParam& set_center_node_type(
     wholememory_dtype_t new_center_node_dtype)
   {
     center_node_dtype = new_center_node_dtype;
@@ -92,44 +96,50 @@ typedef struct WholeGraphCSRUnweightedSampleWithoutReplacementTestParam {
   int64_t graph_edge_count                              = 104323L;
   wholememory_dtype_t csr_row_ptr_dtype                 = WHOLEMEMORY_DT_INT64;
   wholememory_dtype_t csr_col_ptr_dtype                 = WHOLEMEMORY_DT_INT;
+  wholememory_dtype_t csr_weight_ptr_dtype              = WHOLEMEMORY_DT_FLOAT;
   wholememory_dtype_t center_node_dtype                 = WHOLEMEMORY_DT_INT;
   wholememory_dtype_t output_sample_offset_dtype        = WHOLEMEMORY_DT_INT;
   wholememory_dtype_t output_dest_node_dtype            = center_node_dtype;
   wholememory_dtype_t output_center_node_local_id_dtype = WHOLEMEMORY_DT_INT;
   wholememory_dtype_t output_globla_edge_id_dtype       = WHOLEMEMORY_DT_INT64;
 
-} WholeGraphCSRUnweightedSampleWithoutReplacementTestParam;
+} WholeGraphCSRWeightedSampleWithoutReplacementTestParam;
 
-class WholeGraphCSRUnweightedSampleWithoutReplacementParameterTests
-  : public ::testing::TestWithParam<WholeGraphCSRUnweightedSampleWithoutReplacementTestParam> {};
+class WholeGraphCSRWeightedSampleWithoutReplacementParameterTests
+  : public ::testing::TestWithParam<WholeGraphCSRWeightedSampleWithoutReplacementTestParam> {};
 
-TEST_P(WholeGraphCSRUnweightedSampleWithoutReplacementParameterTests, UnWeightedSampleTest)
+TEST_P(WholeGraphCSRWeightedSampleWithoutReplacementParameterTests, WeightedSampleTest)
 {
   auto params   = GetParam();
   int dev_count = ForkGetDeviceCount();
   EXPECT_GE(dev_count, 1);
   std::vector<std::array<int, 2>> pipes;
   CreatePipes(&pipes, dev_count);
-  auto graph_node_count       = params.get_graph_node_count();
-  auto graph_edge_count       = params.get_graph_edge_count();
-  auto graph_csr_row_ptr_desc = params.get_csr_row_ptr_desc();
-  auto graph_csr_col_ptr_desc = params.get_csr_col_ptr_desc();
+  auto graph_node_count          = params.get_graph_node_count();
+  auto graph_edge_count          = params.get_graph_edge_count();
+  auto graph_csr_row_ptr_desc    = params.get_csr_row_ptr_desc();
+  auto graph_csr_col_ptr_desc    = params.get_csr_col_ptr_desc();
+  auto graph_csr_weight_ptr_desc = params.get_csr_weight_ptr_desc();
 
   void* host_csr_row_ptr =
     (void*)malloc(wholememory_get_memory_size_from_array(&graph_csr_row_ptr_desc));
   void* host_csr_col_ptr =
     (void*)malloc(wholememory_get_memory_size_from_array(&graph_csr_col_ptr_desc));
-
+  void* host_csr_weight_ptr =
+    (void*)malloc(wholememory_get_memory_size_from_array(&graph_csr_weight_ptr_desc));
   wholegraph_ops::testing::gen_csr_graph(graph_node_count,
                                          graph_edge_count,
                                          host_csr_row_ptr,
                                          graph_csr_row_ptr_desc,
                                          host_csr_col_ptr,
-                                         graph_csr_col_ptr_desc);
+                                         graph_csr_col_ptr_desc,
+                                         host_csr_weight_ptr,
+                                         graph_csr_weight_ptr_desc);
 
   MultiProcessRun(
     dev_count,
-    [&params, &pipes, host_csr_row_ptr, host_csr_col_ptr](int world_rank, int world_size) {
+    [&params, &pipes, host_csr_row_ptr, host_csr_col_ptr, host_csr_weight_ptr](int world_rank,
+                                                                               int world_size) {
       thread_local std::random_device rd;
       thread_local std::mt19937 gen(rd());
       thread_local std::uniform_int_distribution<unsigned long long> distrib;
@@ -143,6 +153,7 @@ TEST_P(WholeGraphCSRUnweightedSampleWithoutReplacementParameterTests, UnWeighted
 
       auto csr_row_ptr_desc          = params.get_csr_row_ptr_desc();
       auto csr_col_ptr_desc          = params.get_csr_col_ptr_desc();
+      auto csr_weight_ptr_desc       = params.get_csr_weight_ptr_desc();
       auto center_node_desc          = params.get_center_node_desc();
       auto output_sample_offset_desc = params.get_output_sample_offset_desc();
       auto max_sample_count          = params.get_max_sample_count();
@@ -165,8 +176,10 @@ TEST_P(WholeGraphCSRUnweightedSampleWithoutReplacementParameterTests, UnWeighted
 
       wholememory_handle_t csr_row_ptr_memory_handle;
       wholememory_handle_t csr_col_ptr_memory_handle;
+      wholememory_handle_t csr_weight_ptr_memory_handle;
       wholememory_gref_t wm_csr_row_ptr_gref;
       wholememory_gref_t wm_csr_col_ptr_gref;
+      wholememory_gref_t wm_csr_weight_ptr_gref;
 
       EXPECT_EQ(wholememory_malloc(&csr_row_ptr_memory_handle,
                                    wholememory_get_memory_size_from_array(&csr_row_ptr_desc),
@@ -182,11 +195,20 @@ TEST_P(WholeGraphCSRUnweightedSampleWithoutReplacementParameterTests, UnWeighted
                                    params.memory_location,
                                    wholememory_dtype_get_element_size(csr_col_ptr_desc.dtype)),
                 WHOLEMEMORY_SUCCESS);
+      EXPECT_EQ(wholememory_malloc(&csr_weight_ptr_memory_handle,
+                                   wholememory_get_memory_size_from_array(&csr_weight_ptr_desc),
+                                   wm_comm,
+                                   params.memory_type,
+                                   params.memory_location,
+                                   wholememory_dtype_get_element_size(csr_weight_ptr_desc.dtype)),
+                WHOLEMEMORY_SUCCESS);
 
       wholegraph_ops::testing::copy_host_array_to_wholememory(
         host_csr_row_ptr, csr_row_ptr_memory_handle, csr_row_ptr_desc, stream);
       wholegraph_ops::testing::copy_host_array_to_wholememory(
         host_csr_col_ptr, csr_col_ptr_memory_handle, csr_col_ptr_desc, stream);
+      wholegraph_ops::testing::copy_host_array_to_wholememory(
+        host_csr_weight_ptr, csr_weight_ptr_memory_handle, csr_weight_ptr_desc, stream);
 
       EXPECT_EQ(cudaStreamSynchronize(stream), cudaSuccess);
       wholememory_communicator_barrier(wm_comm);
@@ -209,25 +231,28 @@ TEST_P(WholeGraphCSRUnweightedSampleWithoutReplacementParameterTests, UnWeighted
 
       wholememory_get_global_reference(&wm_csr_row_ptr_gref, csr_row_ptr_memory_handle);
       wholememory_get_global_reference(&wm_csr_col_ptr_gref, csr_col_ptr_memory_handle);
+      wholememory_get_global_reference(&wm_csr_weight_ptr_gref, csr_weight_ptr_memory_handle);
 
       wholememory_env_func_t* default_env_func = wholememory::get_default_env_func();
       memory_context_t output_dest_mem_ctx, output_center_localid_mem_ctx, output_edge_gid_mem_ctx;
 
-      EXPECT_EQ(wholegraph_csr_unweighted_sample_without_replacement(wm_csr_row_ptr_gref,
-                                                                     csr_row_ptr_desc,
-                                                                     wm_csr_col_ptr_gref,
-                                                                     csr_col_ptr_desc,
-                                                                     dev_center_nodes,
-                                                                     center_node_desc,
-                                                                     max_sample_count,
-                                                                     dev_output_sample_offset,
-                                                                     output_sample_offset_desc,
-                                                                     &output_dest_mem_ctx,
-                                                                     &output_center_localid_mem_ctx,
-                                                                     &output_edge_gid_mem_ctx,
-                                                                     random_seed,
-                                                                     default_env_func,
-                                                                     stream),
+      EXPECT_EQ(wholegraph_csr_weighted_sample_without_replacement(wm_csr_row_ptr_gref,
+                                                                   csr_row_ptr_desc,
+                                                                   wm_csr_col_ptr_gref,
+                                                                   csr_col_ptr_desc,
+                                                                   wm_csr_weight_ptr_gref,
+                                                                   csr_weight_ptr_desc,
+                                                                   dev_center_nodes,
+                                                                   center_node_desc,
+                                                                   max_sample_count,
+                                                                   dev_output_sample_offset,
+                                                                   output_sample_offset_desc,
+                                                                   &output_dest_mem_ctx,
+                                                                   &output_center_localid_mem_ctx,
+                                                                   &output_edge_gid_mem_ctx,
+                                                                   random_seed,
+                                                                   default_env_func,
+                                                                   stream),
                 WHOLEMEMORY_SUCCESS);
 
       EXPECT_EQ(cudaGetLastError(), cudaSuccess);
@@ -281,12 +306,23 @@ TEST_P(WholeGraphCSRUnweightedSampleWithoutReplacementParameterTests, UnWeighted
       EXPECT_EQ(cudaStreamSynchronize(stream), cudaSuccess);
       wholememory_communicator_barrier(wm_comm);
 
+      wholegraph_ops::testing::segment_sort_output(
+        host_output_sample_offset,
+        output_sample_offset_desc,
+        host_output_dest_nodes,
+        wholememory_create_array_desc(total_sample_count, 0, csr_col_ptr_desc.dtype),
+        host_output_global_edge_id,
+        wholememory_create_array_desc(total_sample_count, 0, WHOLEMEMORY_DT_INT64));
+
       int host_total_sample_count;
-      wholegraph_ops::testing::wholegraph_csr_unweighted_sample_without_replacement_cpu(
+
+      wholegraph_ops::testing::wholegraph_csr_weighted_sample_without_replacement_cpu(
         host_csr_row_ptr,
         csr_row_ptr_desc,
         host_csr_col_ptr,
         csr_col_ptr_desc,
+        host_csr_weight_ptr,
+        csr_weight_ptr_desc,
         host_center_nodes,
         center_node_desc,
         max_sample_count,
@@ -326,9 +362,6 @@ TEST_P(WholeGraphCSRUnweightedSampleWithoutReplacementParameterTests, UnWeighted
       (default_env_func->output_fns).device_free_fn(&output_center_localid_mem_ctx, nullptr);
       (default_env_func->output_fns).device_free_fn(&output_edge_gid_mem_ctx, nullptr);
 
-      EXPECT_EQ(wholememory_free(csr_row_ptr_memory_handle), WHOLEMEMORY_SUCCESS);
-      EXPECT_EQ(wholememory_free(csr_col_ptr_memory_handle), WHOLEMEMORY_SUCCESS);
-
       if (host_ref_output_sample_offset != nullptr) free(host_ref_output_sample_offset);
       if (host_ref_output_dest_nodes != nullptr) free(host_ref_output_dest_nodes);
       if (host_ref_output_center_nodes_local_id != nullptr)
@@ -339,8 +372,12 @@ TEST_P(WholeGraphCSRUnweightedSampleWithoutReplacementParameterTests, UnWeighted
       EXPECT_EQ(cudaFreeHost(host_output_sample_offset), cudaSuccess);
       EXPECT_EQ(cudaFree(dev_center_nodes), cudaSuccess);
       EXPECT_EQ(cudaFree(dev_output_sample_offset), cudaSuccess);
-      EXPECT_EQ(wholememory::destroy_all_communicators(), WHOLEMEMORY_SUCCESS);
 
+      EXPECT_EQ(wholememory_free(csr_row_ptr_memory_handle), WHOLEMEMORY_SUCCESS);
+      EXPECT_EQ(wholememory_free(csr_col_ptr_memory_handle), WHOLEMEMORY_SUCCESS);
+      EXPECT_EQ(wholememory_free(csr_weight_ptr_memory_handle), WHOLEMEMORY_SUCCESS);
+
+      EXPECT_EQ(wholememory::destroy_all_communicators(), WHOLEMEMORY_SUCCESS);
       EXPECT_EQ(wholememory_finalize(), WHOLEMEMORY_SUCCESS);
       WHOLEMEMORY_CHECK(::testing::Test::HasFailure() == false);
     },
@@ -348,21 +385,21 @@ TEST_P(WholeGraphCSRUnweightedSampleWithoutReplacementParameterTests, UnWeighted
 
   if (host_csr_row_ptr != nullptr) free(host_csr_row_ptr);
   if (host_csr_col_ptr != nullptr) free(host_csr_col_ptr);
+  if (host_csr_weight_ptr != nullptr) free(host_csr_weight_ptr);
 }
 
-INSTANTIATE_TEST_SUITE_P(
-  WholeGraphCSRUnweightedSampleWithoutReplacementOpTests,
-  WholeGraphCSRUnweightedSampleWithoutReplacementParameterTests,
-  ::testing::Values(WholeGraphCSRUnweightedSampleWithoutReplacementTestParam().set_memory_type(
-                      WHOLEMEMORY_MT_CONTINUOUS),
-                    WholeGraphCSRUnweightedSampleWithoutReplacementTestParam().set_memory_type(
-                      WHOLEMEMORY_MT_CHUNKED),
-                    WholeGraphCSRUnweightedSampleWithoutReplacementTestParam()
-                      .set_memory_type(WHOLEMEMORY_MT_CONTINUOUS)
-                      .set_max_sample_count(10)
-                      .set_center_node_count(35)
-                      .set_graph_node_count(23289)
-                      .set_graph_edge_couont(689403),
-                    WholeGraphCSRUnweightedSampleWithoutReplacementTestParam()
-                      .set_memory_type(WHOLEMEMORY_MT_CHUNKED)
-                      .set_center_node_type(WHOLEMEMORY_DT_INT64)));
+INSTANTIATE_TEST_SUITE_P(WholeGraphCSRWeightedSampleWithoutReplacementOpTests,
+                         WholeGraphCSRWeightedSampleWithoutReplacementParameterTests,
+                         ::testing::Values(WholeGraphCSRWeightedSampleWithoutReplacementTestParam()
+                                             .set_memory_type(WHOLEMEMORY_MT_CONTINUOUS),
+                                           WholeGraphCSRWeightedSampleWithoutReplacementTestParam()
+                                             .set_memory_type(WHOLEMEMORY_MT_CHUNKED),
+                                           WholeGraphCSRWeightedSampleWithoutReplacementTestParam()
+                                             .set_memory_type(WHOLEMEMORY_MT_CONTINUOUS)
+                                             .set_max_sample_count(10)
+                                             .set_center_node_count(35)
+                                             .set_graph_node_count(23289)
+                                             .set_graph_edge_couont(689403),
+                                           WholeGraphCSRWeightedSampleWithoutReplacementTestParam()
+                                             .set_memory_type(WHOLEMEMORY_MT_CHUNKED)
+                                             .set_center_node_type(WHOLEMEMORY_DT_INT64)));

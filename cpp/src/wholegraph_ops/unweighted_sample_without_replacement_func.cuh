@@ -16,6 +16,7 @@
 #include "wholememory_ops/thrust_allocator.hpp"
 
 #include "error.hpp"
+#include "sample_comm.cuh"
 
 namespace wholegraph_ops {
 
@@ -39,43 +40,6 @@ __global__ void get_sample_count_without_replacement_kernel(
   // sample_count <= 0 means sample all.
   if (max_sample_count > 0) { neighbor_count = min(neighbor_count, max_sample_count); }
   tmp_sample_count_mem_pointer[input_idx] = neighbor_count;
-}
-
-template <typename IdType, typename LocalIdType, typename WMIdType, typename WMOffsetType>
-__global__ void sample_all_kernel(wholememory_gref_t wm_csr_row_ptr,
-                                  wholememory_array_description_t wm_csr_row_ptr_desc,
-                                  wholememory_gref_t wm_csr_col_ptr,
-                                  wholememory_array_description_t wm_csr_col_ptr_desc,
-                                  const IdType* input_nodes,
-                                  const int input_node_count,
-                                  const int* output_sample_offset,
-                                  wholememory_array_description_t output_sample_offset_desc,
-                                  WMIdType* output_dest_node_ptr,
-                                  int* output_center_localid_ptr,
-                                  int64_t* output_edge_gid_ptr)
-{
-  int input_idx = blockIdx.x;
-  if (input_idx >= input_node_count) return;
-
-  wholememory::device_reference<WMOffsetType> wm_csr_row_ptr_dev_ref(wm_csr_row_ptr);
-  wholememory::device_reference<WMIdType> wm_csr_col_ptr_ref(wm_csr_col_ptr);
-
-  IdType nid         = input_nodes[input_idx];
-  int64_t start      = wm_csr_row_ptr_dev_ref[nid];
-  int64_t end        = wm_csr_row_ptr_dev_ref[nid + 1];
-  int neighbor_count = (int)(end - start);
-  if (neighbor_count <= 0) return;
-  int offset = output_sample_offset[input_idx];
-  for (int sample_id = threadIdx.x; sample_id < neighbor_count; sample_id += blockDim.x) {
-    int neighbor_idx                         = sample_id;
-    IdType gid                               = wm_csr_col_ptr_ref[start + neighbor_idx];
-    output_dest_node_ptr[offset + sample_id] = gid;
-    if (output_center_localid_ptr)
-      output_center_localid_ptr[offset + sample_id] = (LocalIdType)input_idx;
-    if (output_edge_gid_ptr) {
-      output_edge_gid_ptr[offset + sample_id] = (int64_t)(start + neighbor_idx);
-    }
-  }
 }
 
 template <typename IdType, typename LocalIdType, typename WMIdType, typename WMOffsetType>
@@ -395,6 +359,7 @@ void wholegraph_csr_unweighted_sample_without_replacement_func(
                                              (int64_t*)output_edge_gid_ptr);
 
     CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaStreamSynchronize(stream));
     return;
   }
 
@@ -413,6 +378,9 @@ void wholegraph_csr_unweighted_sample_without_replacement_func(
                                              (WMIdType*)output_dest_node_ptr,
                                              (int*)output_center_localid_ptr,
                                              (int64_t*)output_edge_gid_ptr);
+    CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaStreamSynchronize(stream));
+    return;
   }
 
   typedef void (*unweighted_sample_func_type)(wholememory_gref_t wm_csr_row_ptr,
