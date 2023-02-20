@@ -54,7 +54,7 @@ wholememory_error_code_t wholegraph_csr_unweighted_sample_without_replacement(
  * @param wm_csr_col_ptr : wholememory gref to graph csr_col_ptr
  * @param wm_csr_col_ptr_desc: array descriptor to graph csr_col_ptr
  * @param wm_csr_weight_ptr : wholememory gref to graph edge weight
- * @param wm_csr_weight_ptr_desc : wwhoememory descriptor to graph edge weight
+ * @param wm_csr_weight_ptr_desc : wholememory descriptor to graph edge weight
  * @param center_nodes : center node list to sample
  * @param center_nodes_desc: array descriptor to center nodes
  * @param max_sample_count : maximum sample count
