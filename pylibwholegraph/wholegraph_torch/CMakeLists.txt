@@ -6,7 +6,7 @@ execute_process(COMMAND ${PY_EXE} -c "import torch.utils; print(torch.utils.cmak
 message("TORCH_CMAKE_PREFIX=${TORCH_CMAKE_PREFIX}")
 set(Torch_ROOT "${TORCH_CMAKE_PREFIX}/Torch")
 set(TORCH_CUDA_ARCH_LIST "7.0;8.0;8.6")
-find_package(Torch "1.9.0" "REQUIRED")
+find_package(Torch "1.8.0" "REQUIRED")
 #execute_process(COMMAND ${PY_EXE} -c "from torch.utils.cpp_extension import CUDAExtension as ext; e = ext('', []); print(';'.join(e.library_dirs))"
 #        OUTPUT_VARIABLE Torch_LIBRARY_DIRS OUTPUT_STRIP_TRAILING_WHITESPACE)
 #message(STATUS "Torch_LIBRARY_DIRS=${Torch_LIBRARY_DIRS}")

@@ -6,6 +6,9 @@ from pylibwholegraph.torch.dlpack_utils import torch_import_from_dlpack
 import torch
 
 
+# PYTHONPATH=../:$PYTHONPATH python3 -m pytest ../tests/wholegraph_torch/ops/test_wholegraph_gather_scatter.py -s
+
+
 def gen_int_embedding(indice_tensor, embedding_dim, output_type):
     indice_count = indice_tensor.shape[0]
     indice_part = indice_tensor.type(torch.int).reshape(indice_count, 1).repeat(1, embedding_dim)

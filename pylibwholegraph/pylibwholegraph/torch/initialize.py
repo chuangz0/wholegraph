@@ -1,6 +1,7 @@
 import os
 import torch
 import torch.distributed as dist
+import torch.utils.dlpack
 import pylibwholegraph.binding.wholememory_binding as wmb
 
 
@@ -18,7 +19,7 @@ def init_torch_env_and_create_wm_comm(world_rank: int, world_size: int):
         wm_uid = wmb.create_unique_id()
     else:
         wm_uid = wmb.PyWholeMemoryUniqueID()
-    uid_th = torch.from_dlpack(wm_uid)
+    uid_th = torch.utils.dlpack.from_dlpack(wm_uid.__dlpack__())
     uid_th_cuda = uid_th.cuda()
     dist.broadcast(uid_th_cuda, 0)
     uid_th.copy_(uid_th_cuda.cpu())
@@ -34,3 +35,7 @@ def load_wholegraph_op_libraries():
     else:
         lib_path = 'wholegraph_torch/libwholegraph_torch_precxx11abi.so'
     torch.ops.load_library(lib_path)
+
+
+def jit_load_wholegraph_op_libraries():
+    pass
