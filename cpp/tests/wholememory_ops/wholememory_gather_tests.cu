@@ -154,8 +154,14 @@ TEST_P(WholeMemoryGatherParameterTests, GatherTest)
     EXPECT_EQ(cudaStreamSynchronize(stream), cudaSuccess);
     wholememory_communicator_barrier(wm_comm);
 
-    EXPECT_EQ(wholememory_gather(embedding_handle,
-                                 embedding_desc,
+    wholememory_tensor_t embedding_tensor;
+    wholememory_tensor_description_t embedding_tensor_desc;
+    wholememory_copy_matrix_desc_to_tensor(&embedding_tensor_desc, &embedding_desc);
+    EXPECT_EQ(wholememory_make_tensor_from_handle(
+                &embedding_tensor, embedding_handle, &embedding_tensor_desc),
+              WHOLEMEMORY_SUCCESS);
+
+    EXPECT_EQ(wholememory_gather(embedding_tensor,
                                  dev_indices,
                                  indices_desc,
                                  dev_gather_buffer,
@@ -198,6 +204,8 @@ TEST_P(WholeMemoryGatherParameterTests, GatherTest)
     EXPECT_EQ(cudaFree(dev_reference_buffer), cudaSuccess);
     EXPECT_EQ(cudaFreeHost(host_gather_buffer), cudaSuccess);
     EXPECT_EQ(cudaFreeHost(host_reference_buffer), cudaSuccess);
+
+    EXPECT_EQ(wholememory_destroy_tensor(embedding_tensor), WHOLEMEMORY_SUCCESS);
 
     EXPECT_EQ(wholememory_free(embedding_handle), WHOLEMEMORY_SUCCESS);
 

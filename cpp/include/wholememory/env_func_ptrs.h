@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cuda_runtime_api.h>
 #include <wholememory/tensor_description.h>
 
 /**
@@ -9,6 +10,10 @@
  * tensor with fixed size should be the same as Input tensor. Output tensor with shape determined by
  * Op should has void* memory_context input and allocated by wholememory_malloc_func_t functions.
  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct memory_context_t {
   wholememory_tensor_description_t desc;
@@ -55,3 +60,9 @@ struct wholememory_env_func_t {
   wholememory_temp_memory_func_t temporary_fns; /* function pointers to create temporary memory */
   wholememory_output_memory_func_t output_fns;  /* function pointers to create Op output memory */
 };
+
+cudaDeviceProp* get_device_prop(int dev_id);
+
+#ifdef __cplusplus
+}
+#endif

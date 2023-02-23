@@ -73,7 +73,7 @@ wholememory_error_code_t wholememory_gather_nccl(wholememory_handle_t wholememor
                                                     dev_rank_id_count_ptr,
                                                     embedding_entry_count_per_rank,
                                                     world_size,
-                                                    &wholememory_handle->device_prop,
+                                                    get_device_prop(-1),
                                                     stream));
 
     WM_CUDA_CHECK(cudaGetLastError());

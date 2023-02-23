@@ -1,11 +1,12 @@
 #pragma once
 
+#include <wholememory/global_reference.h>
 #include <wholememory/wholememory.h>
 
 namespace wholememory_ops {
 
 wholememory_error_code_t wholememory_gather_mapped(
-  wholememory_handle_t wholememory_handle,
+  wholememory_gref_t wholememory_gref,
   wholememory_matrix_description_t wholememory_desc,
   void* indices,
   wholememory_array_description_t indice_desc,

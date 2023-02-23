@@ -1183,10 +1183,6 @@ wholememory_error_code_t create_wholememory(wholememory_handle_t* wholememory_ha
     std::unique_lock<std::mutex> mlock(comm->mu);
     auto* whole_memory_handle = new wholememory_handle_();
 
-    int dev_id = -1;
-    WM_CUDA_CHECK(cudaGetDevice(&dev_id));
-    WM_CUDA_CHECK(cudaGetDeviceProperties(&whole_memory_handle->device_prop, dev_id));
-
     whole_memory_handle->handle_id = negotiate_handle_id_with_comm_locked(comm);
     WM_COMM_CHECK_ALL_SAME(comm, WM_MEM_OP_CREATE);
     wholememory_create_param wcp(total_size, memory_type, memory_location, data_granularity);

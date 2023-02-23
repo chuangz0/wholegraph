@@ -211,6 +211,14 @@ cdef extern from "wholememory/wholememory_tensor.h":
 
     cdef wholememory_error_code_t wholememory_destroy_tensor(wholememory_tensor_t wholememory_tensor)
 
+    cdef wholememory_error_code_t wholememory_make_tensor_from_pointer(wholememory_tensor_t *wholememory_tensor,
+                                                                       void *data_ptr,
+                                                                       wholememory_tensor_description_t *tensor_description)
+
+    cdef wholememory_error_code_t wholememory_make_tensor_from_handle(wholememory_tensor_t *wholememory_tensor,
+                                                                      wholememory_handle_t wholememory_handle,
+                                                                      wholememory_tensor_description_t *tensor_description)
+
     cdef wholememory_handle_t wholememory_tensor_get_memory_handle(wholememory_tensor_t wholememory_tensor)
 
     cdef void wholememory_tensor_get_tensor_description(wholememory_tensor_description_t * tensor_description,
@@ -668,6 +676,45 @@ cdef class PyWholeMemoryHandle:
         return chunked_tensors, toffsets
 
 
+cdef class PyWholeMemoryTensorDescription:
+    cdef wholememory_tensor_description_t tensor_description
+
+    def set_dtype(self, WholeMemoryDataType dtype):
+        self.tensor_description.dtype = int(dtype)
+
+    def set_shape(self, shape):
+        assert 0 < len(shape) < 8
+        dim = len(shape)
+        self.tensor_description.dim = dim
+        for i in range(dim):
+            self.tensor_description.sizes[i] = shape[i]
+
+    def set_stride(self, strides):
+        assert len(strides) == self.tensor_description.dim
+        for i in range(self.tensor_description.dim):
+            self.tensor_description.strides[i] = strides[i]
+
+    def set_storage_offset(self, storage_offset):
+        self.tensor_description.storage_offset = storage_offset
+
+    @property
+    def dtype(self):
+        return WholeMemoryDataType(self.tensor_description.dtype)
+
+    def dim(self):
+        return self.tensor_description.dim
+
+    @property
+    def shape(self):
+        return tuple([self.tensor_description.sizes[i] for i in range(self.dim())])
+
+    def stride(self):
+        return tuple([self.tensor_description.strides[i] for i in range(self.dim())])
+
+    def storage_offset(self):
+        return self.tensor_description.storage_offset
+
+
 cdef class PyWholeMemoryTensor:
     cdef wholememory_tensor_t wholememory_tensor
     cdef wholememory_tensor_description_t tensor_description
@@ -875,6 +922,48 @@ def create_wholememory_matrix(WholeMemoryDataType dtype,
                                                            int(mem_type),
                                                            int(mem_location)))
     return wholememory_tensor
+
+
+def create_wholememory_tensor(PyWholeMemoryTensorDescription tensor_description,
+                              PyWholeMemoryComm comm,
+                              WholeMemoryMemoryType mem_type,
+                              WholeMemoryMemoryLocation mem_location):
+    if tensor_description.dim() != 1 and tensor_description.dim() != 2:
+        raise NotImplementedError('WholeMemory currently only support 1D or 2D tensor')
+    if tensor_description.stride()[tensor_description.dim() - 1] != 1:
+        raise ValueError('last stride should be 1')
+    if tensor_description.storage_offset() != 0:
+        raise ValueError('storage_offset be 0 when created')
+    wholememory_tensor = PyWholeMemoryTensor()
+    check_wholememory_error_code(wholememory_create_tensor(&wholememory_tensor.wholememory_tensor,
+                                                           &wholememory_tensor.tensor_description,
+                                                           comm.comm_id,
+                                                           int(mem_type),
+                                                           int(mem_location)))
+    return wholememory_tensor
+
+
+def make_tensor_as_wholememory(PyWholeMemoryTensorDescription tensor_description,
+                               int64_t data_ptr):
+    if tensor_description.stride()[tensor_description.dim() - 1] != 1:
+        raise ValueError('last stride should be 1')
+    wholememory_tensor = PyWholeMemoryTensor()
+    check_wholememory_error_code(wholememory_make_tensor_from_pointer(&wholememory_tensor.wholememory_tensor,
+                                                                      <void *> data_ptr,
+                                                                      &tensor_description.tensor_description))
+    return wholememory_tensor
+
+
+def make_handle_as_wholememory(PyWholeMemoryTensorDescription tensor_description,
+                               PyWholeMemoryHandle handle):
+    if tensor_description.stride()[tensor_description.dim() - 1] != 1:
+        raise ValueError('last stride should be 1')
+    wholememory_tensor = PyWholeMemoryTensor()
+    check_wholememory_error_code(wholememory_make_tensor_from_handle(&wholememory_tensor.wholememory_tensor,
+                                                                     handle.wholememory_handle,
+                                                                     &tensor_description.tensor_description))
+    return wholememory_tensor
+
 
 def destroy_wholememory_tensor(PyWholeMemoryTensor wholememory_tensor):
     check_wholememory_error_code(wholememory_destroy_tensor(wholememory_tensor.wholememory_tensor))

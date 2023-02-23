@@ -125,18 +125,6 @@ wholememory_error_code_t wholememory_load_from_file(wholememory_handle_t wholeme
                                                     const char** file_prefix,
                                                     int file_count);
 
-wholememory_error_code_t wholememory_load_hdfs_support();
-
-wholememory_error_code_t wholememory_load_from_hdfs_file(wholememory_handle_t wholememory_handle,
-                                                         size_t memory_offset,
-                                                         size_t memory_entry_size,
-                                                         size_t file_entry_size,
-                                                         const char* hdfs_host,
-                                                         int hdfs_port,
-                                                         const char* hdfs_user,
-                                                         const char* hdfs_path,
-                                                         const char* hdfs_prefix);
-
 #ifdef __cplusplus
 }
 #endif

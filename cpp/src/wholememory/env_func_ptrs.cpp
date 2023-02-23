@@ -4,6 +4,7 @@
 
 #include "cuda_macros.hpp"
 #include "error.hpp"
+#include "initialize.hpp"
 
 namespace wholememory {
 
@@ -138,3 +139,13 @@ wholememory_env_func_t* get_cached_env_func() { WHOLEMEMORY_FAIL_NOTHROW("Not im
 void drop_env_func_cache() { WHOLEMEMORY_FAIL_NOTHROW("Not implemented."); }
 
 }  // namespace wholememory
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+cudaDeviceProp* get_device_prop(int dev_id) { return wholememory::get_device_prop(dev_id); }
+
+#ifdef __cplusplus
+}
+#endif

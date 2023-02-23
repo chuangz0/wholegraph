@@ -123,13 +123,18 @@ bool wholememory_convert_tensor_desc_to_matrix(
   if (p_tensor_description->dtype <= WHOLEMEMORY_DT_UNKNOWN ||
       p_tensor_description->dtype >= WHOLEMEMORY_DT_COUNT)
     return false;
-  if (p_tensor_description->dim != 2) return false;
-  if (p_tensor_description->strides[1] != 1) return false;
+  if (p_tensor_description->dim > 2 || p_tensor_description->dim <= 0) return false;
+  if (p_tensor_description->dim == 2 && p_tensor_description->strides[1] != 1) return false;
   p_matrix_description->dtype          = p_tensor_description->dtype;
   p_matrix_description->storage_offset = p_tensor_description->storage_offset;
   p_matrix_description->sizes[0]       = p_tensor_description->sizes[0];
-  p_matrix_description->sizes[1]       = p_tensor_description->sizes[1];
-  p_matrix_description->stride         = p_tensor_description->strides[0];
+  if (p_tensor_description->dim == 2) {
+    p_matrix_description->sizes[1] = p_tensor_description->sizes[1];
+    p_matrix_description->stride   = p_tensor_description->strides[0];
+  } else {
+    p_matrix_description->sizes[1] = 1;
+    p_matrix_description->stride   = 1;
+  }
   return true;
 }
 

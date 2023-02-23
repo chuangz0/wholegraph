@@ -14,7 +14,6 @@ class wholememory_impl;
 
 struct wholememory_handle_ {
   int handle_id;
-  cudaDeviceProp device_prop;
   wholememory::wholememory_impl* impl = nullptr;
   ~wholememory_handle_();
 };

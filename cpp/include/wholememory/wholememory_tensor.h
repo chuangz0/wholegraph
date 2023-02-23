@@ -34,6 +34,38 @@ wholememory_error_code_t wholememory_create_tensor(
 wholememory_error_code_t wholememory_destroy_tensor(wholememory_tensor_t wholememory_tensor);
 
 /**
+ * Make WholeMemory Tensor from local memory
+ * @param wholememory_tensor : returned WholeMemory Tensor handle
+ * @param data_ptr : pointer to memory
+ * @param tensor_description : description of the WholeMemory Tensor, should be 1-D or 2-D
+ * @return : wholememory_error_code_t
+ */
+wholememory_error_code_t wholememory_make_tensor_from_pointer(
+  wholememory_tensor_t* wholememory_tensor,
+  void* data_ptr,
+  wholememory_tensor_description_t* tensor_description);
+
+/**
+ * Make WholeMemory Tensor from local memory
+ * @param wholememory_tensor : returned WholeMemory Tensor handle
+ * @param wholememory_handle : WholeMemory Handle
+ * @param tensor_description : description of the WholeMemory Tensor, should be 1-D or 2-D
+ * @return : wholememory_error_code_t
+ */
+wholememory_error_code_t wholememory_make_tensor_from_handle(
+  wholememory_tensor_t* wholememory_tensor,
+  wholememory_handle_t wholememory_handle,
+  wholememory_tensor_description_t* tensor_description);
+
+/**
+ * Check if has WholeMemory Handle, WholeMemory Tensor created by wholememory_make_tensor has no
+ * Handle
+ * @param wholememory_tensor : WholeMemory Tensor
+ * @return : if has WholeMemory Handle
+ */
+bool wholememory_tensor_has_handle(wholememory_tensor_t wholememory_tensor);
+
+/**
  * Get WholeMemory handle from WholeMemory Tensor
  * @param wholememory_tensor : WholeMemory Tensor
  * @return : WholeMemory handle
@@ -47,6 +79,15 @@ wholememory_handle_t wholememory_tensor_get_memory_handle(wholememory_tensor_t w
  */
 void wholememory_tensor_get_tensor_description(wholememory_tensor_description_t* tensor_description,
                                                wholememory_tensor_t wholememory_tensor);
+
+/**
+ * Get global reference from WholeMemory Tensor
+ * @param wholememory_gref : global reference
+ * @param wholememory_tensor : WholeMemory Tensor
+ * @return : wholememory_error_code_t
+ */
+wholememory_error_code_t wholememory_tensor_get_global_reference(
+  wholememory_gref_t* wholememory_gref, wholememory_tensor_t wholememory_tensor);
 
 /**
  * Get sub tensor of a WholeMemory Tensor

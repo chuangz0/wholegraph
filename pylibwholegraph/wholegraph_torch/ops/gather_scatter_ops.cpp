@@ -17,7 +17,6 @@ torch::Tensor gather(int64_t wholememory_tensor_handle,
   TORCH_CHECK(indices.dtype() == torch::kInt32 || indices.dtype() == torch::kInt64,
               "indices should be IntTensor or LongTensor.")
   auto wt = reinterpret_cast<wholememory_tensor_t>(wholememory_tensor_handle);
-  auto wh = wholememory_tensor_get_memory_handle(wt);
   wholememory_tensor_description_t wm_tensor_desc;
   wholememory_tensor_get_tensor_description(&wm_tensor_desc, wt);
   TORCH_CHECK(wm_tensor_desc.dim == 1 || wm_tensor_desc.dim == 2,
@@ -60,8 +59,7 @@ torch::Tensor gather(int64_t wholememory_tensor_handle,
   auto output_tensor = static_cast<pytorch_memory_context*>(output_context.context)->tensor;
   destroy_torch_memory_context_func(&output_context, nullptr);
 
-  TORCH_CHECK(wholememory_gather(wh,
-                                 wm_desc,
+  TORCH_CHECK(wholememory_gather(wt,
                                  indices.data_ptr(),
                                  indices_desc,
                                  output_tensor.data_ptr(),
@@ -79,7 +77,6 @@ void scatter(const torch::Tensor &input,
   TORCH_CHECK(indices.dtype() == torch::kInt32 || indices.dtype() == torch::kInt64,
               "indices should be IntTensor or LongTensor.")
   auto wt = reinterpret_cast<wholememory_tensor_t>(wholememory_tensor_handle);
-  auto wh = wholememory_tensor_get_memory_handle(wt);
   wholememory_tensor_description_t wm_tensor_desc;
   wholememory_tensor_get_tensor_description(&wm_tensor_desc, wt);
   TORCH_CHECK(wm_tensor_desc.dim == input.dim(), "input and wholememory_tensor_hand should be same dim.")
@@ -111,8 +108,7 @@ void scatter(const torch::Tensor &input,
                                   input_desc,
                                   indices.data_ptr(),
                                   indices_desc,
-                                  wh,
-                                  wm_desc,
+                                  wt,
                                   wholegraph_torch::get_pytorch_env_func(),
                                   wholegraph_torch::get_current_stream()) == WHOLEMEMORY_SUCCESS)
 }
