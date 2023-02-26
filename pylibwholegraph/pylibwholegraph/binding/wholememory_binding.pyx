@@ -25,6 +25,7 @@ import functools
 import cython
 from libc.stdint cimport *
 from libcpp.cast cimport *
+from libcpp cimport bool
 from cpython cimport Py_buffer
 from cpython cimport array
 import array
@@ -219,15 +220,17 @@ cdef extern from "wholememory/wholememory_tensor.h":
                                                                       wholememory_handle_t wholememory_handle,
                                                                       wholememory_tensor_description_t *tensor_description)
 
+    cdef bool wholememory_tensor_has_handle(wholememory_tensor_t wholememory_tensor)
+
     cdef wholememory_handle_t wholememory_tensor_get_memory_handle(wholememory_tensor_t wholememory_tensor)
 
-    cdef void wholememory_tensor_get_tensor_description(wholememory_tensor_description_t * tensor_description,
-                                                        wholememory_tensor_t wholememory_tensor)
+    cdef wholememory_tensor_description_t * wholememory_tensor_get_tensor_description(
+            wholememory_tensor_t wholememory_tensor)
 
-    cdef wholememory_error_code_t wholememory_tensor_get_subtensor(wholememory_tensor_t * sub_wholememory_tensor,
-                                                                   wholememory_tensor_t wholememory_tensor,
+    cdef wholememory_error_code_t wholememory_tensor_get_subtensor(wholememory_tensor_t wholememory_tensor,
                                                                    int64_t *starts,
-                                                                   int64_t *ends)
+                                                                   int64_t *ends,
+                                                                   wholememory_tensor_t *sub_wholememory_tensor)
 
 
 cpdef enum WholeMemoryDataType:
@@ -778,9 +781,9 @@ cdef class PyWholeMemoryTensor:
             raise ValueError('self.dim()=%d' % (self.dim(),))
         sub_tensor = PyWholeMemoryTensor()
         check_wholememory_error_code(
-            wholememory_tensor_get_subtensor(&sub_tensor.wholememory_tensor, self.wholememory_tensor, start_array,
-                                             end_array))
-        wholememory_tensor_get_tensor_description(&sub_tensor.tensor_description, sub_tensor.wholememory_tensor)
+            wholememory_tensor_get_subtensor(self.wholememory_tensor, start_array, end_array,
+                                             &sub_tensor.wholememory_tensor))
+        sub_tensor.tensor_description = wholememory_tensor_get_tensor_description(sub_tensor.wholememory_tensor)[0]
         return sub_tensor
 
     def get_tensor_in_window(self,

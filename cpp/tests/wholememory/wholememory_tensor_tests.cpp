@@ -70,9 +70,9 @@ TEST(WholeMemoryMatrixTest, SubTensorTest)
     int64_t ends_1[2]   = {10000, 80};
 
     EXPECT_EQ(wholememory_tensor_get_subtensor(
-                &wholememory_sub_tensor_0, wholememory_tensor, starts_0, ends_0),
+                wholememory_tensor, starts_0, ends_0, &wholememory_sub_tensor_0),
               WHOLEMEMORY_SUCCESS);
-    wholememory_tensor_get_tensor_description(&sub_desc_0, wholememory_sub_tensor_0);
+    sub_desc_0 = *wholememory_tensor_get_tensor_description(wholememory_sub_tensor_0);
     EXPECT_EQ(sub_desc_0.dim, 2);
     EXPECT_EQ(sub_desc_0.dtype, WHOLEMEMORY_DT_INT);
     EXPECT_EQ(sub_desc_0.storage_offset, params.col * 1 + 10);
@@ -81,9 +81,9 @@ TEST(WholeMemoryMatrixTest, SubTensorTest)
     EXPECT_EQ(sub_desc_0.strides[0], 256);
     EXPECT_EQ(sub_desc_0.strides[1], 1);
     EXPECT_EQ(wholememory_tensor_get_subtensor(
-                &wholememory_sub_tensor_1, wholememory_sub_tensor_0, starts_1, ends_1),
+                wholememory_sub_tensor_0, starts_1, ends_1, &wholememory_sub_tensor_1),
               WHOLEMEMORY_SUCCESS);
-    wholememory_tensor_get_tensor_description(&sub_desc_1, wholememory_sub_tensor_1);
+    sub_desc_1 = *wholememory_tensor_get_tensor_description(wholememory_sub_tensor_1);
     EXPECT_EQ(sub_desc_1.dim, 2);
     EXPECT_EQ(sub_desc_1.dtype, WHOLEMEMORY_DT_INT);
     EXPECT_EQ(sub_desc_1.storage_offset, params.col * 3 + 10);

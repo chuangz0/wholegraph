@@ -13,37 +13,29 @@ extern "C" {
 /**
  * Gather Op
  * @param wholememory_tensor : WholeMemory Tensor of embedding table.
- * @param indices : indices to gather
- * @param indices_desc : array descriptor of indices
- * @param output : pointer to output memory
- * @param output_desc : matrix descriptor of output
+ * @param indices_tensor : indices to gather from, should NOT be WholeMemory Tensor
+ * @param output_tensor : output tensor to gather to, should NOT be WholeMemoryTensor
  * @param p_env_fns : pointers to environment functions.
  * @param stream : cudaStream_t to use.
  * @return : wholememory_error_code_t
  */
 wholememory_error_code_t wholememory_gather(wholememory_tensor_t wholememory_tensor,
-                                            void* indices,
-                                            wholememory_array_description_t indices_desc,
-                                            void* output,
-                                            wholememory_matrix_description_t output_desc,
+                                            wholememory_tensor_t indices_tensor,
+                                            wholememory_tensor_t output_tensor,
                                             wholememory_env_func_t* p_env_fns,
                                             cudaStream_t stream);
 
 /**
  * Scatter Op
- * @param input : pointer to input matrix to be scattered to WholeMemory
- * @param input_desc : matrix descriptor of input
- * @param indices : indices to scatter to
- * @param indices_desc : array descriptor of indices
+ * @param input_tensor : input tensor tor scatter from, should NOT be WholeMemory Tensor
+ * @param indices_tensor : indices to scatter to, should NOT be WholeMemory Tensor
  * @param wholememory_tensor : WholeMemory Tensor of embedding table.
  * @param p_env_fns : pointers to environment functions.
  * @param stream : cudaStream_t to use.
  * @return : wholememory_error_code_t
  */
-wholememory_error_code_t wholememory_scatter(void* input,
-                                             wholememory_matrix_description_t input_desc,
-                                             void* indices,
-                                             wholememory_array_description_t indices_desc,
+wholememory_error_code_t wholememory_scatter(wholememory_tensor_t input_tensor,
+                                             wholememory_tensor_t indices_tensor,
                                              wholememory_tensor_t wholememory_tensor,
                                              wholememory_env_func_t* p_env_fns,
                                              cudaStream_t stream);

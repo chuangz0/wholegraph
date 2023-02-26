@@ -11,7 +11,7 @@ extern "C" {
 struct wholememory_tensor_ {
   union {
     wholememory_handle_t wholememory_handle;
-    void* data_ptr;
+    void* storage_ptr;
   };
   wholememory_tensor_description_t tensor_description;
   bool is_wholememory;
@@ -85,7 +85,7 @@ wholememory_error_code_t wholememory_destroy_tensor(wholememory_tensor_t wholeme
     if (wholememory_tensor->is_wholememory) {
       WHOLEMEMORY_RETURN_ON_FAIL(wholememory_free(wholememory_tensor->wholememory_handle));
     } else {
-      free(wholememory_tensor->data_ptr);
+      free(wholememory_tensor->storage_ptr);
     }
   }
   free(wholememory_tensor);
@@ -94,10 +94,10 @@ wholememory_error_code_t wholememory_destroy_tensor(wholememory_tensor_t wholeme
 
 wholememory_error_code_t wholememory_make_tensor_from_pointer(
   wholememory_tensor_t* p_wholememory_tensor,
-  void* data_ptr,
+  void* storage_ptr,
   wholememory_tensor_description_t* tensor_description)
 {
-  if (data_ptr == nullptr || p_wholememory_tensor == nullptr || tensor_description == nullptr) {
+  if (storage_ptr == nullptr || p_wholememory_tensor == nullptr || tensor_description == nullptr) {
     return WHOLEMEMORY_INVALID_INPUT;
   }
   if (tensor_description->dim <= 0 || tensor_description->dim > 2) {
@@ -115,7 +115,7 @@ wholememory_error_code_t wholememory_make_tensor_from_pointer(
     return WHOLEMEMORY_INVALID_INPUT;
   }
   auto* wholememory_tensor = static_cast<wholememory_tensor_*>(malloc(sizeof(wholememory_tensor_)));
-  wholememory_tensor->data_ptr           = data_ptr;
+  wholememory_tensor->storage_ptr        = storage_ptr;
   wholememory_tensor->tensor_description = *tensor_description;
   wholememory_tensor->own_handle         = false;
   wholememory_tensor->is_wholememory     = false;
@@ -166,14 +166,14 @@ wholememory_handle_t wholememory_tensor_get_memory_handle(wholememory_tensor_t w
   return nullptr;
 }
 
-void wholememory_tensor_get_tensor_description(wholememory_tensor_description_t* tensor_description,
-                                               wholememory_tensor_t wholememory_tensor)
+wholememory_tensor_description_t* wholememory_tensor_get_tensor_description(
+  wholememory_tensor_t wholememory_tensor)
 {
-  *tensor_description = wholememory_tensor->tensor_description;
+  return &wholememory_tensor->tensor_description;
 }
 
 wholememory_error_code_t wholememory_tensor_get_global_reference(
-  wholememory_gref_t* wholememory_gref, wholememory_tensor_t wholememory_tensor)
+  wholememory_tensor_t wholememory_tensor, wholememory_gref_t* wholememory_gref)
 {
   if (wholememory_gref == nullptr || wholememory_tensor == nullptr) {
     return WHOLEMEMORY_INVALID_INPUT;
@@ -182,15 +182,38 @@ wholememory_error_code_t wholememory_tensor_get_global_reference(
     return wholememory_get_global_reference(wholememory_gref,
                                             wholememory_tensor->wholememory_handle);
   }
-  *wholememory_gref = wholememory_create_continuous_global_reference(wholememory_tensor->data_ptr);
+  *wholememory_gref =
+    wholememory_create_continuous_global_reference(wholememory_tensor->storage_ptr);
   return WHOLEMEMORY_SUCCESS;
 }
 
+void* wholememory_tensor_get_data_pointer(wholememory_tensor_t wholememory_tensor)
+{
+  char* data_ptr = nullptr;
+  if (wholememory_tensor->is_wholememory &&
+      wholememory_get_memory_type(wholememory_tensor->wholememory_handle) !=
+        WHOLEMEMORY_MT_CONTINUOUS) {
+    return nullptr;
+  }
+  if (!wholememory_tensor->is_wholememory) {
+    data_ptr = static_cast<char*>(wholememory_tensor->storage_ptr);
+  } else {
+    if (wholememory_get_global_pointer(reinterpret_cast<void**>(&data_ptr),
+                                       wholememory_tensor->wholememory_handle) !=
+        WHOLEMEMORY_SUCCESS) {
+      return nullptr;
+    }
+  }
+  return data_ptr +
+         wholememory_dtype_get_element_size(wholememory_tensor->tensor_description.dtype) *
+           wholememory_tensor->tensor_description.storage_offset;
+}
+
 wholememory_error_code_t wholememory_tensor_get_subtensor(
-  wholememory_tensor_t* p_sub_wholememory_tensor,
   wholememory_tensor_t wholememory_tensor,
   int64_t* starts,
-  int64_t* ends)
+  int64_t* ends,
+  wholememory_tensor_t* p_sub_wholememory_tensor)
 {
   if (p_sub_wholememory_tensor == nullptr || wholememory_tensor == nullptr || starts == nullptr ||
       ends == nullptr) {

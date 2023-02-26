@@ -205,6 +205,23 @@ int64_t wholememory_get_memory_element_count_from_tensor(
  */
 int64_t wholememory_get_memory_size_from_tensor(
   wholememory_tensor_description_t* p_tensor_description);
+
+/**
+ * Squeeze tensor
+ * @param p_tensor_description : pointer to wholememory_tensor_description_t
+ * @param dim : which dim to squeeze
+ * @return : true if success else false
+ */
+bool wholememory_squeeze_tensor(wholememory_tensor_description_t* p_tensor_description, int dim);
+
+/**
+ * Unsqueeze tensor
+ * @param p_tensor_description : pointer to wholememory_tensor_description_t
+ * @param dim : unsqueeze at which dim
+ * @return : true if success else false
+ */
+bool wholememory_unsqueeze_tensor(wholememory_tensor_description_t* p_tensor_description, int dim);
+
 #ifdef __cplusplus
 }
 #endif

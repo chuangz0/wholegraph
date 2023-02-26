@@ -112,4 +112,71 @@ void get_matrix_desc_from_torch_tensor(wholememory_matrix_description_t* matrix_
   matrix_desc->storage_offset = t.storage_offset();
 }
 
+wrapped_torch_tensor::wrapped_torch_tensor(const torch::Tensor& torch_tensor) {
+  wholememory_tensor_description_t tensor_description;
+  get_tensor_desc_from_torch_tensor(&tensor_description, torch_tensor);
+  wholememory_make_tensor_from_pointer(&wholememory_tensor_, torch_tensor.storage().data(), &tensor_description);
+}
+
+wrapped_torch_tensor::~wrapped_torch_tensor() {
+  wholememory_destroy_tensor(wholememory_tensor_);
+  wholememory_tensor_ = nullptr;
+}
+
+wholememory_tensor_t wrapped_torch_tensor::get_wholememory_tensor() const {
+  return wholememory_tensor_;
+}
+
+void wrapped_torch_tensor::unsqueeze(int dim) {
+  auto* tensor_desc = wholememory_tensor_get_tensor_description(wholememory_tensor_);
+  TORCH_CHECK(dim >= - tensor_desc->dim - 1 && dim <= tensor_desc->dim,
+              "dim = ", dim, " but t.dim()=", tensor_desc->dim, ", should in range [",
+              - tensor_desc->dim - 1, ", ", tensor_desc->dim, "]")
+  if (dim < 0) {
+    dim += tensor_desc->dim + 1;
+  }
+  TORCH_CHECK(wholememory_unsqueeze_tensor(tensor_desc, dim), "unsqueeze failed.")
+}
+
+void wrapped_torch_tensor::squeeze(int dim) {
+  auto* tensor_desc = wholememory_tensor_get_tensor_description(wholememory_tensor_);
+  TORCH_CHECK(dim >= - tensor_desc->dim && dim < tensor_desc->dim,
+              "dim = ", dim, " but t.dim()=", tensor_desc->dim, ", should in range [",
+              - tensor_desc->dim, ", ", tensor_desc->dim, ")")
+  if (dim < 0) {
+    dim += tensor_desc->dim;
+  }
+  TORCH_CHECK(tensor_desc->sizes[dim] == 1, "dim size should be 1")
+  TORCH_CHECK(dim == tensor_desc->dim - 1 || tensor_desc->strides[dim] == tensor_desc->strides[dim + 1],
+              "stride should be same as next dim")
+  TORCH_CHECK(wholememory_squeeze_tensor(tensor_desc, dim))
+}
+
+void torch_tensor_check_dim_in_range(const torch::Tensor& t, int min_dim, int max_dim, const char* info) {
+  TORCH_CHECK(t.dim() >= min_dim && t.dim() <= max_dim,
+              std::string(info), " dim=", t.dim(), ", should in range [", min_dim, ", ", max_dim, "]")
+}
+
+void torch_tensor_check_dtype(const torch::Tensor& t, torch::Dtype dtype, const char* info) {
+  TORCH_CHECK(t.dtype() == dtype, std::string(info), " should be ", dtype, " but got ", t.dtype());
+}
+
+void torch_tensor_check_dtype_is_int(const torch::Tensor& t, const char* info) {
+  TORCH_CHECK(t.dtype() == torch::kInt8 || t.dtype() == torch::kInt16 || t.dtype() == torch::kInt32
+                  || t.dtype() == torch::kInt64,
+                  std::string(info), " should be integer.")
+}
+
+// int32 or int64
+void torch_tensor_check_dtype_is_index(const torch::Tensor& t, const char* info) {
+  TORCH_CHECK(t.dtype() == torch::kInt32 || t.dtype() == torch::kInt64,
+              std::string(info), " should be int32 or int64.")
+}
+
+void torch_tensor_check_dtype_is_float(const torch::Tensor& t, const char* info) {
+  TORCH_CHECK(t.dtype() == torch::kFloat16 || t.dtype() == torch::kBFloat16 || t.dtype() == torch::kFloat32
+                  || t.dtype() == torch::kFloat64,
+              std::string(info), " should be float tensor.")
+}
+
 }  // namespace wholegraph_torch

@@ -166,10 +166,19 @@ TEST_P(WholeMemoryScatterParameterTests, ScatterTest)
                 &embedding_tensor, embedding_handle, &embedding_tensor_desc),
               WHOLEMEMORY_SUCCESS);
 
-    EXPECT_EQ(wholememory_scatter(dev_input_buffer,
-                                  input_desc,
-                                  dev_indices,
-                                  indices_desc,
+    wholememory_tensor_t indices_tensor, input_tensor;
+    wholememory_tensor_description_t indices_tensor_desc, input_tensor_desc;
+    wholememory_copy_array_desc_to_tensor(&indices_tensor_desc, &indices_desc);
+    wholememory_copy_matrix_desc_to_tensor(&input_tensor_desc, &input_desc);
+    EXPECT_EQ(
+      wholememory_make_tensor_from_pointer(&indices_tensor, dev_indices, &indices_tensor_desc),
+      WHOLEMEMORY_SUCCESS);
+    EXPECT_EQ(
+      wholememory_make_tensor_from_pointer(&input_tensor, dev_input_buffer, &input_tensor_desc),
+      WHOLEMEMORY_SUCCESS);
+
+    EXPECT_EQ(wholememory_scatter(input_tensor,
+                                  indices_tensor,
                                   embedding_tensor,
                                   wholememory::get_default_env_func(),
                                   stream),
@@ -177,13 +186,17 @@ TEST_P(WholeMemoryScatterParameterTests, ScatterTest)
 
     EXPECT_EQ(cudaGetLastError(), cudaSuccess);
     EXPECT_EQ(cudaStreamSynchronize(stream), cudaSuccess);
+    EXPECT_EQ(wholememory_destroy_tensor(input_tensor), WHOLEMEMORY_SUCCESS);
+
     wholememory_communicator_barrier(wm_comm);
 
+    wholememory_tensor_t gathered_tensor;
+    EXPECT_EQ(
+      wholememory_make_tensor_from_pointer(&gathered_tensor, dev_gather_buffer, &input_tensor_desc),
+      WHOLEMEMORY_SUCCESS);
     EXPECT_EQ(wholememory_gather(embedding_tensor,
-                                 dev_indices,
-                                 indices_desc,
-                                 dev_gather_buffer,
-                                 input_desc,
+                                 indices_tensor,
+                                 gathered_tensor,
                                  wholememory::get_default_env_func(),
                                  stream),
               WHOLEMEMORY_SUCCESS);
@@ -202,6 +215,8 @@ TEST_P(WholeMemoryScatterParameterTests, ScatterTest)
               cudaSuccess);
     EXPECT_EQ(cudaGetLastError(), cudaSuccess);
     EXPECT_EQ(cudaStreamSynchronize(stream), cudaSuccess);
+    EXPECT_EQ(wholememory_destroy_tensor(gathered_tensor), WHOLEMEMORY_SUCCESS);
+    EXPECT_EQ(wholememory_destroy_tensor(indices_tensor), WHOLEMEMORY_SUCCESS);
 
     wholememory_ops::testing::host_check_embedding_same(
       host_gather_buffer, input_desc, host_input_buffer, input_desc);

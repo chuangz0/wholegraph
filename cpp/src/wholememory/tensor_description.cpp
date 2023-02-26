@@ -1,5 +1,9 @@
 #include <wholememory/tensor_description.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 size_t wholememory_dtype_get_element_size(wholememory_dtype_t dtype)
 {
   switch (dtype) {
@@ -178,3 +182,40 @@ int64_t wholememory_get_memory_size_from_tensor(
   return wholememory_get_memory_element_count_from_tensor(p_tensor_description) *
          wholememory_dtype_get_element_size(p_tensor_description->dtype);
 }
+
+bool wholememory_squeeze_tensor(wholememory_tensor_description_t* p_tensor_description, int dim)
+{
+  if (p_tensor_description == nullptr) return false;
+  if (dim < 0 || dim >= p_tensor_description->dim) return false;
+  if (p_tensor_description->sizes[dim] != 1) return false;
+  if (dim != p_tensor_description->dim - 1 &&
+      p_tensor_description->strides[dim] != p_tensor_description->strides[dim + 1]) {
+    return false;
+  }
+  for (int idx = dim; idx < p_tensor_description->dim - 1; idx++) {
+    p_tensor_description->sizes[idx]   = p_tensor_description->sizes[idx + 1];
+    p_tensor_description->strides[idx] = p_tensor_description->strides[idx + 1];
+  }
+  p_tensor_description->dim--;
+  return true;
+}
+
+bool wholememory_unsqueeze_tensor(wholememory_tensor_description_t* p_tensor_description, int dim)
+{
+  if (p_tensor_description == nullptr) return false;
+  if (dim < 0 || dim > p_tensor_description->dim) return false;
+  int idx             = p_tensor_description->dim;
+  int64_t last_stride = p_tensor_description->strides[p_tensor_description->dim - 1];
+  for (; idx > dim; idx--) {
+    p_tensor_description->sizes[idx] = p_tensor_description->sizes[idx - 1];
+    last_stride = p_tensor_description->strides[idx] = p_tensor_description->strides[idx - 1];
+  }
+  p_tensor_description->sizes[dim]   = 1;
+  p_tensor_description->strides[dim] = last_stride;
+  p_tensor_description->dim++;
+  return true;
+}
+
+#ifdef __cplusplus
+}
+#endif

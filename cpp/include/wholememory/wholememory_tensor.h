@@ -36,13 +36,14 @@ wholememory_error_code_t wholememory_destroy_tensor(wholememory_tensor_t wholeme
 /**
  * Make WholeMemory Tensor from local memory
  * @param wholememory_tensor : returned WholeMemory Tensor handle
- * @param data_ptr : pointer to memory
+ * @param storage_ptr : pointer to underlying storage memory. Note: storage pointer may be not same
+ * as data pointer.
  * @param tensor_description : description of the WholeMemory Tensor, should be 1-D or 2-D
  * @return : wholememory_error_code_t
  */
 wholememory_error_code_t wholememory_make_tensor_from_pointer(
   wholememory_tensor_t* wholememory_tensor,
-  void* data_ptr,
+  void* storage_ptr,
   wholememory_tensor_description_t* tensor_description);
 
 /**
@@ -74,34 +75,41 @@ wholememory_handle_t wholememory_tensor_get_memory_handle(wholememory_tensor_t w
 
 /**
  * Get tensor description from WholeMemory Tensor
- * @param tensor_description : pointer to returned tensor_description
  * @param wholememory_tensor : WholeMemory Tensor
+ * @return : pointer to the underlying wholememory_tensor_description_t
  */
-void wholememory_tensor_get_tensor_description(wholememory_tensor_description_t* tensor_description,
-                                               wholememory_tensor_t wholememory_tensor);
+wholememory_tensor_description_t* wholememory_tensor_get_tensor_description(
+  wholememory_tensor_t wholememory_tensor);
 
 /**
  * Get global reference from WholeMemory Tensor
- * @param wholememory_gref : global reference
  * @param wholememory_tensor : WholeMemory Tensor
+ * @param wholememory_gref : global reference
  * @return : wholememory_error_code_t
  */
 wholememory_error_code_t wholememory_tensor_get_global_reference(
-  wholememory_gref_t* wholememory_gref, wholememory_tensor_t wholememory_tensor);
+  wholememory_tensor_t wholememory_tensor, wholememory_gref_t* wholememory_gref);
+
+/**
+ * Get data pointer from WholeMemory Tensor
+ * @param wholememory_tensor : WholeMemory Tensor
+ * @return : Pointer to first data for CONTINUOUS WholeMemory or not WholeMemory.
+ */
+void* wholememory_tensor_get_data_pointer(wholememory_tensor_t wholememory_tensor);
 
 /**
  * Get sub tensor of a WholeMemory Tensor
- * @param sub_wholememory_tensor : pointer to returned sub tensor
  * @param wholememory_tensor : WholeMemory Tensor
  * @param starts : starts of each dim, length should be the dim of wholememory_tensor.
  * @param ends : ends of each dim, length should be the dim of wholememory_tensor
+ * @param sub_wholememory_tensor : pointer to returned sub tensor
  * @return : wholememory_error_code_t
  */
 wholememory_error_code_t wholememory_tensor_get_subtensor(
-  wholememory_tensor_t* sub_wholememory_tensor,
   wholememory_tensor_t wholememory_tensor,
   int64_t* starts,
-  int64_t* ends);
+  int64_t* ends,
+  wholememory_tensor_t* sub_wholememory_tensor);
 
 #ifdef __cplusplus
 }
