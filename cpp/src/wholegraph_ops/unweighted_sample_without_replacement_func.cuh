@@ -16,6 +16,7 @@
 #include "wholememory_ops/thrust_allocator.hpp"
 
 #include "error.hpp"
+#include "cuda_macros.hpp"
 #include "sample_comm.cuh"
 
 namespace wholegraph_ops {
@@ -311,7 +312,7 @@ void wholegraph_csr_unweighted_sample_without_replacement_func(
                                            center_node_count,
                                            tmp_sample_count_mem_pointer,
                                            max_sample_count);
-  CUDA_CHECK(cudaGetLastError());
+  WM_CUDA_CHECK(cudaGetLastError());
 
   // prefix sum
   wholememory_ops::wm_thrust_allocator thrust_allocator(p_env_fns);
@@ -321,12 +322,12 @@ void wholegraph_csr_unweighted_sample_without_replacement_func(
                          (int*)output_sample_offset);
 
   int count;
-  CUDA_CHECK(cudaMemcpyAsync(&count,
+  WM_CUDA_CHECK(cudaMemcpyAsync(&count,
                              ((int*)output_sample_offset) + center_node_count,
                              sizeof(int),
                              cudaMemcpyDeviceToHost,
                              stream));
-  CUDA_CHECK(cudaStreamSynchronize(stream));
+  WM_CUDA_CHECK(cudaStreamSynchronize(stream));
 
   wholememory_ops::output_memory_handle gen_output_dest_buffer_mh(p_env_fns,
                                                                   output_dest_memory_context);
@@ -358,8 +359,8 @@ void wholegraph_csr_unweighted_sample_without_replacement_func(
                                              (int*)output_center_localid_ptr,
                                              (int64_t*)output_edge_gid_ptr);
 
-    CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaStreamSynchronize(stream));
+    WM_CUDA_CHECK(cudaGetLastError());
+    WM_CUDA_CHECK(cudaStreamSynchronize(stream));
     return;
   }
 
@@ -378,8 +379,8 @@ void wholegraph_csr_unweighted_sample_without_replacement_func(
                                              (WMIdType*)output_dest_node_ptr,
                                              (int*)output_center_localid_ptr,
                                              (int64_t*)output_edge_gid_ptr);
-    CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaStreamSynchronize(stream));
+    WM_CUDA_CHECK(cudaGetLastError());
+    WM_CUDA_CHECK(cudaStreamSynchronize(stream));
     return;
   }
 
@@ -446,7 +447,7 @@ void wholegraph_csr_unweighted_sample_without_replacement_func(
     (WMIdType*)output_dest_node_ptr,
     (int*)output_center_localid_ptr,
     (int64_t*)output_edge_gid_ptr);
-  CUDA_CHECK(cudaGetLastError());
-  CUDA_CHECK(cudaStreamSynchronize(stream));
+  WM_CUDA_CHECK(cudaGetLastError());
+  WM_CUDA_CHECK(cudaStreamSynchronize(stream));
 }
 }  // namespace wholegraph_ops
