@@ -12,7 +12,7 @@ extern "C" {
 
 /**
  * Unweighted sample without replacement kernel op
- * @param wm_csr_row_ptr_tensor : Wholememory Tensor of graph csr_row_ptr 
+ * @param wm_csr_row_ptr_tensor : Wholememory Tensor of graph csr_row_ptr
  * @param wm_csr_col_ptr_tensor : Wholememory Tensor of graph csr_col_ptr
  * @param center_nodes_tensor : None Wholememory Tensor of center node to sample
  * @param max_sample_count : maximum sample count
@@ -41,7 +41,7 @@ wholememory_error_code_t wholegraph_csr_unweighted_sample_without_replacement(
 
 /**
  * Unweighted sample without replacement kernel op
- * @param wm_csr_row_ptr_tensor : Wholememory Tensor of graph csr_row_ptr 
+ * @param wm_csr_row_ptr_tensor : Wholememory Tensor of graph csr_row_ptr
  * @param wm_csr_col_ptr_tensor : Wholememory Tensor of graph csr_col_ptr
  * @param wm_csr_weight_ptr_tensor : Wholememory Tensor of graph edge weight
  * @param center_nodes_tensor : None Wholememory Tensor of center node to sample

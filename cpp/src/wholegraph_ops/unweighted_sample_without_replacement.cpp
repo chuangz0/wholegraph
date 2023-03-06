@@ -20,40 +20,53 @@ wholememory_error_code_t wholegraph_csr_unweighted_sample_without_replacement(
 {
   bool const csr_row_ptr_has_handle = wholememory_tensor_has_handle(wm_csr_row_ptr_tensor);
   wholememory_memory_type_t csr_row_ptr_memory_type = WHOLEMEMORY_MT_NONE;
-  if (csr_row_ptr_has_handle) { csr_row_ptr_memory_type = wholememory_get_memory_type(wholememory_tensor_get_memory_handle(wm_csr_row_ptr_tensor)); }
-  WHOLEMEMORY_EXPECTS_NOTHROW(!csr_row_ptr_has_handle || csr_row_ptr_memory_type == WHOLEMEMORY_MT_CHUNKED ||
+  if (csr_row_ptr_has_handle) {
+    csr_row_ptr_memory_type =
+      wholememory_get_memory_type(wholememory_tensor_get_memory_handle(wm_csr_row_ptr_tensor));
+  }
+  WHOLEMEMORY_EXPECTS_NOTHROW(!csr_row_ptr_has_handle ||
+                                csr_row_ptr_memory_type == WHOLEMEMORY_MT_CHUNKED ||
                                 csr_row_ptr_memory_type == WHOLEMEMORY_MT_CONTINUOUS,
                               "Memory type not supported.");
   bool const csr_col_ptr_has_handle = wholememory_tensor_has_handle(wm_csr_col_ptr_tensor);
   wholememory_memory_type_t csr_col_ptr_memory_type = WHOLEMEMORY_MT_NONE;
-  if (csr_col_ptr_has_handle) { csr_col_ptr_memory_type = wholememory_get_memory_type(wholememory_tensor_get_memory_handle(wm_csr_col_ptr_tensor)); }
-  WHOLEMEMORY_EXPECTS_NOTHROW(!csr_col_ptr_has_handle || csr_col_ptr_memory_type == WHOLEMEMORY_MT_CHUNKED ||
+  if (csr_col_ptr_has_handle) {
+    csr_col_ptr_memory_type =
+      wholememory_get_memory_type(wholememory_tensor_get_memory_handle(wm_csr_col_ptr_tensor));
+  }
+  WHOLEMEMORY_EXPECTS_NOTHROW(!csr_col_ptr_has_handle ||
+                                csr_col_ptr_memory_type == WHOLEMEMORY_MT_CHUNKED ||
                                 csr_col_ptr_memory_type == WHOLEMEMORY_MT_CONTINUOUS,
                               "Memory type not supported.");
 
-  auto csr_row_ptr_tensor_description  = *wholememory_tensor_get_tensor_description(wm_csr_row_ptr_tensor);
-  auto csr_col_ptr_tensor_description                 = *wholememory_tensor_get_tensor_description(wm_csr_col_ptr_tensor);
+  auto csr_row_ptr_tensor_description =
+    *wholememory_tensor_get_tensor_description(wm_csr_row_ptr_tensor);
+  auto csr_col_ptr_tensor_description =
+    *wholememory_tensor_get_tensor_description(wm_csr_col_ptr_tensor);
 
   if (csr_row_ptr_tensor_description.dim != 1) {
     WHOLEMEMORY_ERROR("wm_csr_row_ptr_tensor should be 1D tensor.");
     return WHOLEMEMORY_INVALID_INPUT;
   }
   if (csr_col_ptr_tensor_description.dim != 1) {
-     WHOLEMEMORY_ERROR("wm_csr_col_ptr_tensor should be 1D tensor.");
+    WHOLEMEMORY_ERROR("wm_csr_col_ptr_tensor should be 1D tensor.");
     return WHOLEMEMORY_INVALID_INPUT;
   }
 
   wholememory_array_description_t wm_csr_row_ptr_desc, wm_csr_col_ptr_desc;
-  if (!wholememory_convert_tensor_desc_to_array(&wm_csr_row_ptr_desc, &csr_row_ptr_tensor_description)) {
+  if (!wholememory_convert_tensor_desc_to_array(&wm_csr_row_ptr_desc,
+                                                &csr_row_ptr_tensor_description)) {
     WHOLEMEMORY_ERROR("Input wm_csr_row_ptr_tensor convert to array failed.");
     return WHOLEMEMORY_LOGIC_ERROR;
   }
-  if (!wholememory_convert_tensor_desc_to_array(&wm_csr_col_ptr_desc, &csr_col_ptr_tensor_description)) {
+  if (!wholememory_convert_tensor_desc_to_array(&wm_csr_col_ptr_desc,
+                                                &csr_col_ptr_tensor_description)) {
     WHOLEMEMORY_ERROR("Input wm_csr_col_ptr_tensor convert to array failed.");
     return WHOLEMEMORY_LOGIC_ERROR;
   }
 
-  wholememory_tensor_description_t center_nodes_tensor_desc = *wholememory_tensor_get_tensor_description(center_nodes_tensor);
+  wholememory_tensor_description_t center_nodes_tensor_desc =
+    *wholememory_tensor_get_tensor_description(center_nodes_tensor);
   if (center_nodes_tensor_desc.dim != 1) {
     WHOLEMEMORY_ERROR("Input center_nodes_tensor should be 1D tensor");
     return WHOLEMEMORY_INVALID_INPUT;
@@ -64,23 +77,27 @@ wholememory_error_code_t wholegraph_csr_unweighted_sample_without_replacement(
     return WHOLEMEMORY_LOGIC_ERROR;
   }
 
-  wholememory_tensor_description_t output_sample_offset_tensor_desc = *wholememory_tensor_get_tensor_description(output_sample_offset_tensor);
+  wholememory_tensor_description_t output_sample_offset_tensor_desc =
+    *wholememory_tensor_get_tensor_description(output_sample_offset_tensor);
   if (output_sample_offset_tensor_desc.dim != 1) {
     WHOLEMEMORY_ERROR("Output output_sample_offset_tensor should be 1D tensor.");
     return WHOLEMEMORY_INVALID_INPUT;
   }
   wholememory_array_description_t output_sample_offset_desc;
-  if (!wholememory_convert_tensor_desc_to_array(&output_sample_offset_desc, &output_sample_offset_tensor_desc)) {
+  if (!wholememory_convert_tensor_desc_to_array(&output_sample_offset_desc,
+                                                &output_sample_offset_tensor_desc)) {
     WHOLEMEMORY_ERROR("Output output_sample_offset_tensor convert to array failed.");
     return WHOLEMEMORY_LOGIC_ERROR;
   }
 
-  void* center_nodes = wholememory_tensor_get_data_pointer(center_nodes_tensor);
+  void* center_nodes         = wholememory_tensor_get_data_pointer(center_nodes_tensor);
   void* output_sample_offset = wholememory_tensor_get_data_pointer(output_sample_offset_tensor);
 
   wholememory_gref_t wm_csr_row_ptr_gref, wm_csr_col_ptr_gref;
-  WHOLEMEMORY_RETURN_ON_FAIL(wholememory_tensor_get_global_reference(wm_csr_row_ptr_tensor, &wm_csr_row_ptr_gref));
-  WHOLEMEMORY_RETURN_ON_FAIL(wholememory_tensor_get_global_reference(wm_csr_col_ptr_tensor, &wm_csr_col_ptr_gref));
+  WHOLEMEMORY_RETURN_ON_FAIL(
+    wholememory_tensor_get_global_reference(wm_csr_row_ptr_tensor, &wm_csr_row_ptr_gref));
+  WHOLEMEMORY_RETURN_ON_FAIL(
+    wholememory_tensor_get_global_reference(wm_csr_col_ptr_tensor, &wm_csr_col_ptr_gref));
 
   return wholegraph_ops::wholegraph_csr_unweighted_sample_without_replacement_mapped(
     wm_csr_row_ptr_gref,

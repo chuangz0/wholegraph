@@ -227,7 +227,8 @@ TEST_P(WholeGraphCSRWeightedSampleWithoutReplacementParameterTests, WeightedSamp
                 cudaSuccess);
 
       wholememory_tensor_t wm_csr_row_ptr_tensor, wm_csr_col_ptr_tensor, wm_csr_weight_ptr_tensor;
-      wholememory_tensor_description_t wm_csr_row_ptr_tensor_desc, wm_csr_col_ptr_tensor_desc, wm_csr_weight_ptr_tensor_desc;
+      wholememory_tensor_description_t wm_csr_row_ptr_tensor_desc, wm_csr_col_ptr_tensor_desc,
+        wm_csr_weight_ptr_tensor_desc;
       wholememory_copy_array_desc_to_tensor(&wm_csr_row_ptr_tensor_desc, &csr_row_ptr_desc);
       wholememory_copy_array_desc_to_tensor(&wm_csr_col_ptr_tensor_desc, &csr_col_ptr_desc);
       wholememory_copy_array_desc_to_tensor(&wm_csr_weight_ptr_tensor_desc, &csr_weight_ptr_desc);
@@ -237,9 +238,10 @@ TEST_P(WholeGraphCSRWeightedSampleWithoutReplacementParameterTests, WeightedSamp
       EXPECT_EQ(wholememory_make_tensor_from_handle(
                   &wm_csr_col_ptr_tensor, csr_col_ptr_memory_handle, &wm_csr_col_ptr_tensor_desc),
                 WHOLEMEMORY_SUCCESS);
-      EXPECT_EQ(wholememory_make_tensor_from_handle(
-                  &wm_csr_weight_ptr_tensor, csr_weight_ptr_memory_handle, &wm_csr_weight_ptr_tensor_desc),
-                WHOLEMEMORY_SUCCESS);
+      EXPECT_EQ(
+        wholememory_make_tensor_from_handle(
+          &wm_csr_weight_ptr_tensor, csr_weight_ptr_memory_handle, &wm_csr_weight_ptr_tensor_desc),
+        WHOLEMEMORY_SUCCESS);
 
       wholememory_tensor_t center_nodes_tensor, output_sample_offset_tensor;
       wholememory_tensor_description_t center_nodes_tensor_desc, output_sample_offset_tensor_desc;
@@ -253,7 +255,6 @@ TEST_P(WholeGraphCSRWeightedSampleWithoutReplacementParameterTests, WeightedSamp
                                                      dev_output_sample_offset,
                                                      &output_sample_offset_tensor_desc),
                 WHOLEMEMORY_SUCCESS);
-
 
       wholememory_env_func_t* default_env_func = wholememory::get_default_env_func();
       memory_context_t output_dest_mem_ctx, output_center_localid_mem_ctx, output_edge_gid_mem_ctx;

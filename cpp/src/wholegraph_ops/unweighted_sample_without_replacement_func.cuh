@@ -15,8 +15,8 @@
 #include "wholememory_ops/temp_memory_handle.hpp"
 #include "wholememory_ops/thrust_allocator.hpp"
 
-#include "error.hpp"
 #include "cuda_macros.hpp"
+#include "error.hpp"
 #include "sample_comm.cuh"
 
 namespace wholegraph_ops {
@@ -323,10 +323,10 @@ void wholegraph_csr_unweighted_sample_without_replacement_func(
 
   int count;
   WM_CUDA_CHECK(cudaMemcpyAsync(&count,
-                             ((int*)output_sample_offset) + center_node_count,
-                             sizeof(int),
-                             cudaMemcpyDeviceToHost,
-                             stream));
+                                ((int*)output_sample_offset) + center_node_count,
+                                sizeof(int),
+                                cudaMemcpyDeviceToHost,
+                                stream));
   WM_CUDA_CHECK(cudaStreamSynchronize(stream));
 
   wholememory_ops::output_memory_handle gen_output_dest_buffer_mh(p_env_fns,

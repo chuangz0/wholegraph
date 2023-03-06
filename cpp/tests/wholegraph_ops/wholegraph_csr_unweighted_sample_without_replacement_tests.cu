@@ -219,10 +219,11 @@ TEST_P(WholeGraphCSRUnweightedSampleWithoutReplacementParameterTests, UnWeighted
       wholememory_tensor_t center_nodes_tensor, output_sample_offset_tensor;
       wholememory_tensor_description_t center_nodes_tensor_desc, output_sample_offset_tensor_desc;
       wholememory_copy_array_desc_to_tensor(&center_nodes_tensor_desc, &center_node_desc);
-      wholememory_copy_array_desc_to_tensor(&output_sample_offset_tensor_desc, &output_sample_offset_desc);
-      EXPECT_EQ(
-        wholememory_make_tensor_from_pointer(&center_nodes_tensor, dev_center_nodes, &center_nodes_tensor_desc),
-        WHOLEMEMORY_SUCCESS);
+      wholememory_copy_array_desc_to_tensor(&output_sample_offset_tensor_desc,
+                                            &output_sample_offset_desc);
+      EXPECT_EQ(wholememory_make_tensor_from_pointer(
+                  &center_nodes_tensor, dev_center_nodes, &center_nodes_tensor_desc),
+                WHOLEMEMORY_SUCCESS);
       EXPECT_EQ(wholememory_make_tensor_from_pointer(&output_sample_offset_tensor,
                                                      dev_output_sample_offset,
                                                      &output_sample_offset_tensor_desc),
