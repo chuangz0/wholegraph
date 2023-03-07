@@ -5,7 +5,7 @@ from pylibwholegraph.torch.initialize import init_torch_env_and_create_wm_comm, 
 from pylibwholegraph.torch.dlpack_utils import torch_import_from_dlpack
 import torch
 from functools import partial
-from test_comm import gen_csr_graph, copy_host_1D_tensor_to_wholememory, host_get_sample_offset_tensor, host_sample_all_neighbors, int_to_wholememory_datatype, int_to_wholememory_location, int_to_wholememory_type
+from pylibwholegraph.test_utils.test_comm import gen_csr_graph, copy_host_1D_tensor_to_wholememory, host_get_sample_offset_tensor, host_sample_all_neighbors, int_to_wholememory_datatype, int_to_wholememory_location, int_to_wholememory_type
 
 import random
 
