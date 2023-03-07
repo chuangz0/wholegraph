@@ -6,7 +6,7 @@ from pylibwholegraph.torch.dlpack_utils import torch_import_from_dlpack
 import torch
 import random 
 from functools import partial
-from test_comm import gen_csr_graph, copy_host_1D_tensor_to_wholememory, host_get_sample_offset_tensor, host_sample_all_neighbors
+from test_comm import gen_csr_graph, copy_host_1D_tensor_to_wholememory, host_get_sample_offset_tensor, host_sample_all_neighbors, int_to_wholememory_datatype, int_to_wholememory_location, int_to_wholememory_type
 
 def  host_weighted_sample_without_replacement_func(host_csr_row_ptr, host_csr_col_ptr, host_csr_weight_ptr, center_nodes, output_sample_offset_tensor, col_id_dtype, csr_weight_dtype, total_sample_count, max_sample_count, random_seed):
     output_dest_tensor = torch.empty((total_sample_count,), dtype = col_id_dtype)
@@ -90,13 +90,19 @@ def routine_func(world_rank: int, world_size: int, **kwargs):
     max_sample_count = kwargs['max_sample_count']
     center_node_count = kwargs['center_node_count']
     center_node_dtype = kwargs['center_node_dtype']
-    col_id_dtype = kwargs['col_id_dtype']
-    csr_weight_dtype = kwargs['csr_weight_dtype']
-    wholememory_location = kwargs['wholememory_location']
-    wholememory_type = kwargs['wholememory_type']
+    int_col_id_dtype = kwargs['col_id_dtype']
+    int_csr_weight_dtype = kwargs['csr_weight_dtype']
+    int_wholememory_location = kwargs['wholememory_location']
+    int_wholememory_type = kwargs['wholememory_type']
 
     world_rank = wm_comm.get_rank()
     world_size = wm_comm.get_size()
+
+    col_id_dtype = int_to_wholememory_datatype(int_col_id_dtype)
+    csr_weight_dtype = int_to_wholememory_datatype(int_csr_weight_dtype)
+    wholememory_location = int_to_wholememory_location(int_wholememory_location)
+    wholememory_type = int_to_wholememory_type(int_wholememory_type)
+
 
     wm_csr_row_ptr = wmb.create_wholememory_array(wmb.WholeMemoryDataType.DtInt64, graph_node_count + 1, wm_comm, wholememory_type, wholememory_location)
     wm_csr_col_ptr = wmb.create_wholememory_array(col_id_dtype, graph_edge_count, wm_comm, wholememory_type, wholememory_location)
@@ -152,16 +158,16 @@ def routine_func(world_rank: int, world_size: int, **kwargs):
 @pytest.mark.parametrize('graph_edge_count', [104327])
 @pytest.mark.parametrize('max_sample_count', [47])
 @pytest.mark.parametrize('center_node_count', [523])
-@pytest.mark.parametrize('center_node_dtype', [torch.int32])
-@pytest.mark.parametrize('col_id_dtype', [wmb.WholeMemoryDataType.DtInt])
-@pytest.mark.parametrize('csr_weight_dtype', [wmb.WholeMemoryDataType.DtFloat, wmb.WholeMemoryDataType.DtDouble])
-@pytest.mark.parametrize('wholememory_location', ([wmb.WholeMemoryMemoryLocation.MlHost, wmb.WholeMemoryMemoryLocation.MlDevice]))
-@pytest.mark.parametrize('wholememory_type', ([wmb.WholeMemoryMemoryType.MtContinuous, wmb.WholeMemoryMemoryType.MtChunked]))
-def test_wholegraph_weighted_sample(graph_node_count, graph_edge_count, max_sample_count, center_node_count, center_node_dtype, col_id_dtype,csr_weight_dtype, wholememory_location, wholememory_type):
+@pytest.mark.parametrize('center_node_dtype', [torch.int32, torch.int64])
+@pytest.mark.parametrize('col_id_dtype', [0, 1])
+@pytest.mark.parametrize('csr_weight_dtype', [2, 3])
+@pytest.mark.parametrize('wholememory_location', ([0, 1]))
+@pytest.mark.parametrize('wholememory_type', ([0, 1]))
+def test_wholegraph_weighted_sample(graph_node_count, graph_edge_count, max_sample_count, center_node_count, center_node_dtype, col_id_dtype, csr_weight_dtype, wholememory_location, wholememory_type):
     gpu_count = wmb.fork_get_gpu_count()
     assert gpu_count > 0
     csr_col_dtype = torch.int32
-    if (col_id_dtype == wmb.WholeMemoryDataType.DtInt64):
+    if (col_id_dtype == 1):
         csr_col_dtype = torch.int64 
     host_csr_row_ptr, host_csr_col_ptr, host_csr_weight_ptr = gen_csr_graph(graph_node_count, graph_edge_count, csr_col_dtype=csr_col_dtype)
     routine_func_partial = partial(routine_func, host_csr_row_ptr = host_csr_row_ptr, host_csr_col_ptr = host_csr_col_ptr, host_csr_weight_ptr = host_csr_weight_ptr, graph_node_count = graph_node_count, graph_edge_count = graph_edge_count, 

@@ -69,3 +69,32 @@ def host_get_sample_offset_tensor(host_csr_row_ptr, center_nodes, max_sample_cou
             output_sample_offset_tensor[i+1] = min(max_sample_count, neighbor_count)
     output_sample_offset_tensor = torch.cumsum(output_sample_offset_tensor, dim=0, dtype = torch.int32)
     return output_sample_offset_tensor
+
+def int_to_wholememory_datatype(value:int):
+    if value == 0:
+        return wmb.WholeMemoryDataType.DtInt
+    if value == 1:
+        return  wmb.WholeMemoryDataType.DtInt64
+    if value == 2:
+        return wmb.WholeMemoryDataType.DtFloat
+    if value == 3:
+        return wmb.WholeMemoryDataType.DtDouble
+    else:
+        raise ValueError("invalid int_to_wholememory_datatype value")
+
+def int_to_wholememory_location(value:int):
+    if value == 0:
+        return wmb.WholeMemoryMemoryLocation.MlHost
+    if value == 1:
+        return wmb.WholeMemoryMemoryLocation.MlDevice
+    else:
+        raise ValueError("invalid int_to_wholememory_localtion value")
+
+
+def int_to_wholememory_type(value:int):
+    if value == 0:
+        return wmb.WholeMemoryMemoryType.MtContinuous
+    if value == 1:
+        return wmb.WholeMemoryMemoryType.MtChunked
+    else:
+        raise ValueError("invalid int_to_wholememory_type value")
