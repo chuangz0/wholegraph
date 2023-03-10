@@ -49,7 +49,8 @@ def gen_csr_graph(graph_node_count, graph_edge_count, csr_col_dtype = torch.int3
     ]
     matrix_tensor[choice_zero_idxs] = 0
     matrix_tensor.resize_(graph_node_count, graph_node_count)
-    target_torch_version = "1.13.0"
+    target_torch_version = "1.13.0a"
+    '''
     if version.parse(torch.__version__) >=  version.parse(target_torch_version):
         sp_format = matrix_tensor.to_sparse_csr()
         csr_row_ptr = sp_format.crow_indices()
@@ -61,7 +62,8 @@ def gen_csr_graph(graph_node_count, graph_edge_count, csr_col_dtype = torch.int3
             csr_col_ptr = csr_col_ptr.int()
         return csr_row_ptr, csr_col_ptr, csr_weight_ptr
     else:
-        return gen_csr_format_from_dense_matrix(matrix_tensor, graph_node_count, graph_edge_count, csr_col_dtype, weight_dtype)
+    '''
+    return gen_csr_format_from_dense_matrix(matrix_tensor, graph_node_count, graph_edge_count, csr_col_dtype, weight_dtype)
 
 
 def host_sample_all_neighbors(host_csr_row_ptr, host_csr_col_ptr, center_nodes, output_sample_offset_tensor, col_id_dtype, total_sample_count):

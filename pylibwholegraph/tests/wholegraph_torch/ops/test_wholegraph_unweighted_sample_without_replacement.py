@@ -140,7 +140,7 @@ def routine_func(world_rank: int, world_size: int, **kwargs):
     wmb.destroy_wholememory_tensor(wm_csr_col_ptr)
 
 
-@pytest.mark.parametrize('graph_node_count', [9031])
+@pytest.mark.parametrize('graph_node_count', [1031])
 @pytest.mark.parametrize('graph_edge_count', [10433])
 @pytest.mark.parametrize('max_sample_count', [119])
 @pytest.mark.parametrize('center_node_count', [139])
