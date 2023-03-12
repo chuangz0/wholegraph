@@ -108,9 +108,9 @@ def routine_func(world_rank: int, world_size: int, **kwargs):
     wm_csr_col_ptr = wmb.create_wholememory_array(col_id_dtype, graph_edge_count, wm_comm, wholememory_type, wholememory_location)
     wm_csr_weight_ptr = wmb.create_wholememory_array(csr_weight_dtype, graph_edge_count, wm_comm, wholememory_type, wholememory_location)
 
-    copy_host_1D_tensor_to_wholememory(wm_csr_row_ptr, host_csr_row_ptr, world_rank, world_size)
-    copy_host_1D_tensor_to_wholememory(wm_csr_col_ptr, host_csr_col_ptr, world_rank, world_size)
-    copy_host_1D_tensor_to_wholememory(wm_csr_weight_ptr, host_csr_weight_ptr, world_rank, world_size)
+    copy_host_1D_tensor_to_wholememory(wm_csr_row_ptr, host_csr_row_ptr, world_rank, world_size, wm_comm)
+    copy_host_1D_tensor_to_wholememory(wm_csr_col_ptr, host_csr_col_ptr, world_rank, world_size, wm_comm)
+    copy_host_1D_tensor_to_wholememory(wm_csr_weight_ptr, host_csr_weight_ptr, world_rank, world_size, wm_comm)
 
     wm_comm.barrier()
 
