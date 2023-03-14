@@ -11,7 +11,7 @@ def gen_csr_format_from_dense_matrix(matrix_tensor, graph_node_count, graph_edge
     assert row_num == col_num
     csr_row_ptr = torch.zeros((graph_node_count + 1, ), dtype = torch.int64)
     for i in range(row_num):
-        csr_row_ptr[i + 1] = torch.count_nonzero(matrix_tensor[i]).item(
+        csr_row_ptr[i + 1] = torch.count_nonzero(matrix_tensor[i]).item()
     csr_row_ptr = torch.cumsum(csr_row_ptr, dim = 0, dtype = torch.int64)
     assert csr_row_ptr[graph_node_count] == graph_edge_count
     csr_col_ptr = torch.nonzero(matrix_tensor, as_tuple=True)[1]
