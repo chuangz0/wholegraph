@@ -16,6 +16,7 @@
 #include "wholememory_ops/thrust_allocator.hpp"
 
 #include "block_radix_topk.cuh"
+#include "cuda_macros.hpp"
 #include "error.hpp"
 #include "sample_comm.cuh"
 
@@ -400,12 +401,12 @@ void wholegraph_csr_weighted_sample_without_replacement_func(
                          (int*)output_sample_offset);
 
   int count;
-  CUDA_CHECK(cudaMemcpyAsync(&count,
-                             ((int*)output_sample_offset) + center_node_count,
-                             sizeof(int),
-                             cudaMemcpyDeviceToHost,
-                             stream));
-  CUDA_CHECK(cudaStreamSynchronize(stream));
+  WM_CUDA_CHECK(cudaMemcpyAsync(&count,
+                                ((int*)output_sample_offset) + center_node_count,
+                                sizeof(int),
+                                cudaMemcpyDeviceToHost,
+                                stream));
+  WM_CUDA_CHECK(cudaStreamSynchronize(stream));
 
   wholememory_ops::output_memory_handle gen_output_dest_buffer_mh(p_env_fns,
                                                                   output_dest_memory_context);
@@ -430,12 +431,12 @@ void wholegraph_csr_weighted_sample_without_replacement_func(
                            tmp_neighbor_counts_mem_pointer);
     int* tmp_neighbor_counts_offset = tmp_neighbor_counts_mem_pointer;
     int target_neighbor_counts;
-    CUDA_CHECK(cudaMemcpyAsync(&target_neighbor_counts,
-                               ((int*)tmp_neighbor_counts_mem_pointer) + center_node_count,
-                               sizeof(int),
-                               cudaMemcpyDeviceToHost,
-                               stream));
-    CUDA_CHECK(cudaStreamSynchronize(stream));
+    WM_CUDA_CHECK(cudaMemcpyAsync(&target_neighbor_counts,
+                                  ((int*)tmp_neighbor_counts_mem_pointer) + center_node_count,
+                                  sizeof(int),
+                                  cudaMemcpyDeviceToHost,
+                                  stream));
+    WM_CUDA_CHECK(cudaStreamSynchronize(stream));
 
     wholememory_ops::temp_memory_handle gen_weights_buffer_tmh(p_env_fns);
     WeightType* tmp_weights_buffer_mem_pointer = (WeightType*)gen_weights_buffer_tmh.device_malloc(
@@ -468,8 +469,8 @@ void wholegraph_csr_weighted_sample_without_replacement_func(
                                                      (int64_t*)output_edge_gid_ptr,
                                                      tmp_weights_buffer_mem_pointer);
 
-    CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaStreamSynchronize(stream));
+    WM_CUDA_CHECK(cudaGetLastError());
+    WM_CUDA_CHECK(cudaStreamSynchronize(stream));
     return;
   }
 
@@ -487,8 +488,8 @@ void wholegraph_csr_weighted_sample_without_replacement_func(
                                              (int*)output_center_localid_ptr,
                                              (int64_t*)output_edge_gid_ptr);
 
-    CUDA_CHECK(cudaGetLastError());
-    CUDA_CHECK(cudaStreamSynchronize(stream));
+    WM_CUDA_CHECK(cudaGetLastError());
+    WM_CUDA_CHECK(cudaStreamSynchronize(stream));
     return;
   }
 
@@ -578,8 +579,8 @@ void wholegraph_csr_weighted_sample_without_replacement_func(
     (int*)output_center_localid_ptr,
     (int64_t*)output_edge_gid_ptr);
 
-  CUDA_CHECK(cudaGetLastError());
-  CUDA_CHECK(cudaStreamSynchronize(stream));
+  WM_CUDA_CHECK(cudaGetLastError());
+  WM_CUDA_CHECK(cudaStreamSynchronize(stream));
 }
 
 }  // namespace wholegraph_ops

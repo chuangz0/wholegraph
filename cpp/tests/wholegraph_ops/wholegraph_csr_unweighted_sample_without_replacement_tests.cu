@@ -165,8 +165,6 @@ TEST_P(WholeGraphCSRUnweightedSampleWithoutReplacementParameterTests, UnWeighted
 
       wholememory_handle_t csr_row_ptr_memory_handle;
       wholememory_handle_t csr_col_ptr_memory_handle;
-      wholememory_gref_t wm_csr_row_ptr_gref;
-      wholememory_gref_t wm_csr_col_ptr_gref;
 
       EXPECT_EQ(wholememory_malloc(&csr_row_ptr_memory_handle,
                                    wholememory_get_memory_size_from_array(&csr_row_ptr_desc),
@@ -207,21 +205,38 @@ TEST_P(WholeGraphCSRUnweightedSampleWithoutReplacementParameterTests, UnWeighted
                                 stream),
                 cudaSuccess);
 
-      wholememory_get_global_reference(&wm_csr_row_ptr_gref, csr_row_ptr_memory_handle);
-      wholememory_get_global_reference(&wm_csr_col_ptr_gref, csr_col_ptr_memory_handle);
+      wholememory_tensor_t wm_csr_row_ptr_tensor, wm_csr_col_ptr_tensor;
+      wholememory_tensor_description_t wm_csr_row_ptr_tensor_desc, wm_csr_col_ptr_tensor_desc;
+      wholememory_copy_array_desc_to_tensor(&wm_csr_row_ptr_tensor_desc, &csr_row_ptr_desc);
+      wholememory_copy_array_desc_to_tensor(&wm_csr_col_ptr_tensor_desc, &csr_col_ptr_desc);
+      EXPECT_EQ(wholememory_make_tensor_from_handle(
+                  &wm_csr_row_ptr_tensor, csr_row_ptr_memory_handle, &wm_csr_row_ptr_tensor_desc),
+                WHOLEMEMORY_SUCCESS);
+      EXPECT_EQ(wholememory_make_tensor_from_handle(
+                  &wm_csr_col_ptr_tensor, csr_col_ptr_memory_handle, &wm_csr_col_ptr_tensor_desc),
+                WHOLEMEMORY_SUCCESS);
+
+      wholememory_tensor_t center_nodes_tensor, output_sample_offset_tensor;
+      wholememory_tensor_description_t center_nodes_tensor_desc, output_sample_offset_tensor_desc;
+      wholememory_copy_array_desc_to_tensor(&center_nodes_tensor_desc, &center_node_desc);
+      wholememory_copy_array_desc_to_tensor(&output_sample_offset_tensor_desc,
+                                            &output_sample_offset_desc);
+      EXPECT_EQ(wholememory_make_tensor_from_pointer(
+                  &center_nodes_tensor, dev_center_nodes, &center_nodes_tensor_desc),
+                WHOLEMEMORY_SUCCESS);
+      EXPECT_EQ(wholememory_make_tensor_from_pointer(&output_sample_offset_tensor,
+                                                     dev_output_sample_offset,
+                                                     &output_sample_offset_tensor_desc),
+                WHOLEMEMORY_SUCCESS);
 
       wholememory_env_func_t* default_env_func = wholememory::get_default_env_func();
       memory_context_t output_dest_mem_ctx, output_center_localid_mem_ctx, output_edge_gid_mem_ctx;
 
-      EXPECT_EQ(wholegraph_csr_unweighted_sample_without_replacement(wm_csr_row_ptr_gref,
-                                                                     csr_row_ptr_desc,
-                                                                     wm_csr_col_ptr_gref,
-                                                                     csr_col_ptr_desc,
-                                                                     dev_center_nodes,
-                                                                     center_node_desc,
+      EXPECT_EQ(wholegraph_csr_unweighted_sample_without_replacement(wm_csr_row_ptr_tensor,
+                                                                     wm_csr_col_ptr_tensor,
+                                                                     center_nodes_tensor,
                                                                      max_sample_count,
-                                                                     dev_output_sample_offset,
-                                                                     output_sample_offset_desc,
+                                                                     output_sample_offset_tensor,
                                                                      &output_dest_mem_ctx,
                                                                      &output_center_localid_mem_ctx,
                                                                      &output_edge_gid_mem_ctx,
@@ -357,6 +372,12 @@ INSTANTIATE_TEST_SUITE_P(
                       WHOLEMEMORY_MT_CONTINUOUS),
                     WholeGraphCSRUnweightedSampleWithoutReplacementTestParam().set_memory_type(
                       WHOLEMEMORY_MT_CHUNKED),
+                    WholeGraphCSRUnweightedSampleWithoutReplacementTestParam()
+                      .set_memory_type(WHOLEMEMORY_MT_CONTINUOUS)
+                      .set_memory_location(WHOLEMEMORY_ML_HOST),
+                    WholeGraphCSRUnweightedSampleWithoutReplacementTestParam()
+                      .set_memory_type(WHOLEMEMORY_MT_CHUNKED)
+                      .set_memory_location(WHOLEMEMORY_ML_HOST),
                     WholeGraphCSRUnweightedSampleWithoutReplacementTestParam()
                       .set_memory_type(WHOLEMEMORY_MT_CONTINUOUS)
                       .set_max_sample_count(10)
