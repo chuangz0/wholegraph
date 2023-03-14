@@ -11,31 +11,9 @@ def gen_csr_format_from_dense_matrix(matrix_tensor, graph_node_count, graph_edge
     assert row_num == col_num
     csr_row_ptr = torch.zeros((graph_node_count + 1, ), dtype = torch.int64)
     for i in range(row_num):
-        # row_element_num = 0
-        # for j in range(col_num):
-        #     if matrix_tensor[i][j] != 0:
-        #        row_element_num += 1
-        # csr_row_ptr[i + 1] = row_element_num
-        csr_row_ptr[i + 1] = torch.count_nonzero(matrix_tensor[i]).item()
-    
+        csr_row_ptr[i + 1] = torch.count_nonzero(matrix_tensor[i]).item(
     csr_row_ptr = torch.cumsum(csr_row_ptr, dim = 0, dtype = torch.int64)
     assert csr_row_ptr[graph_node_count] == graph_edge_count
-
-    '''
-    csr_col_ptr = torch.empty((graph_edge_count,), dtype = torch.int64)
-    csr_weight_ptr = torch.empty((graph_edge_count,), dtype = weight_dtype)
-
-    for i in range(row_num):
-        start = csr_row_ptr[i]
-        end = csr_row_ptr[i+1]
-        index = 0
-        for j in range(col_num):
-            if matrix_tensor[i][j] != 0:
-                # csr_col_ptr[start + index] = j
-                csr_weight_ptr[start + index] = matrix_tensor[i][j]
-                index += 1
-        assert index == end - start
-    '''
     csr_col_ptr = torch.nonzero(matrix_tensor, as_tuple=True)[1]
     csr_weight_ptr = torch.empty((graph_edge_count,), dtype = weight_dtype)
     for row_id in range(row_num):
@@ -44,7 +22,6 @@ def gen_csr_format_from_dense_matrix(matrix_tensor, graph_node_count, graph_edge
         for j in range(start, end):
             col_id = csr_col_ptr[j]
             csr_weight_ptr[j] = matrix_tensor[row_id][col_id]
-
     
     if csr_col_dtype == torch.int32:
         csr_col_ptr = csr_col_ptr.int()
