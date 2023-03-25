@@ -121,23 +121,28 @@ struct cu_error : public raft::exception {
 //  * @brief check for cuda driver API errors but log error instead of raising
 //  *        exception.
 //  */
-#define WM_CU_TRY_NO_THROW(call)                                              \
-  do {                                                                        \
-    CUresult const status = call;                                             \
-    if (status != CUDA_SUCCESS) {                                             \
-      const char* p_err_str = nullptr;                                        \
-      if (cuGetErrorString(status, &p_err_str) == CUDA_ERROR_INVALID_VALUE) { \
-        p_err_str = "Unrecoginzed CU error num";                              \
-      }                                                                       \
-      std::string msg{};                                                      \
-      printf("CU call='%s' at file=%s line=%d failed with %s\n",               \
-             #call,                                                            \
-             __FILE__,                                                         \
-             __LINE__,                                                         \
-             p_err_str;                                                       \
-    }                                                                         \
+#define WM_CU_TRY_NO_THROW(call)                                                                   \
+  do {                                                                                             \
+    CUresult const status = call;                                                                  \
+    if (status != CUDA_SUCCESS) {                                                                  \
+      const char* p_err_str = nullptr;                                                             \
+      if (cuGetErrorString(status, &p_err_str) == CUDA_ERROR_INVALID_VALUE) {                      \
+        p_err_str = "Unrecoginzed CU error num";                                                   \
+      }                                                                                            \
+      std::string msg{};                                                                           \
+      printf(                                                                                      \
+        "CU call='%s' at file=%s line=%d failed with %s\n", #call, __FILE__, __LINE__, p_err_str); \
+    }                                                                                              \
   } while (0)
 
 #ifndef WM_CU_CHECK_NO_THROW
 #define WM_CU_CHECK_NO_THROW(call) WM_CU_TRY_NO_THROW(call)
 #endif
+
+void set_debug_sync_mode(bool debug_sync_mode);
+
+namespace wholememory {
+void debug_synchronize(const char* filename, int line, cudaStream_t stream);
+}
+
+#define WM_CUDA_DEBUG_SYNC_STREAM(S) wholememory::debug_synchronize(__FILE__, __LINE__, (S))

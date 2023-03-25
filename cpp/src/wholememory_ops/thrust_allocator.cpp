@@ -1,8 +1,7 @@
 #include "thrust_allocator.hpp"
 
-#include <raft/util/integer_utils.hpp>
-
 #include "error.hpp"
+#include "wholememory/integer_utils.hpp"
 
 namespace wholememory_ops {
 
@@ -12,7 +11,7 @@ wm_thrust_allocator::value_type* wm_thrust_allocator::allocate(std::ptrdiff_t me
 {
   static const std::ptrdiff_t kThrustAlignSize = 256;
   mem_size = std::max<std::ptrdiff_t>(kThrustAlignSize, mem_size);
-  mem_size = raft::div_rounding_up_unsafe(mem_size, kThrustAlignSize) * kThrustAlignSize;
+  mem_size = wholememory::div_rounding_up_unsafe(mem_size, kThrustAlignSize) * kThrustAlignSize;
   auto* memory_context = new memory_context_t;
   fns->temporary_fns.create_memory_context_fn(memory_context, fns->temporary_fns.global_context);
   wholememory_tensor_description_t tensor_description;

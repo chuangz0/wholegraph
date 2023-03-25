@@ -1,7 +1,5 @@
 #include <cuda_runtime_api.h>
 
-#include <raft/util/integer_utils.hpp>
-
 #include <wholememory/env_func_ptrs.h>
 #include <wholememory/wholememory.h>
 
@@ -12,7 +10,6 @@
 #include "wholememory_ops/functions/exchange_embeddings_nccl_func.h"
 #include "wholememory_ops/functions/exchange_ids_nccl_func.h"
 #include "wholememory_ops/functions/gather_scatter_func.h"
-#include "wholememory_ops/register.hpp"
 #include "wholememory_ops/temp_memory_handle.hpp"
 #include "wholememory_ops/thrust_allocator.hpp"
 
@@ -58,76 +55,37 @@ wholememory_error_code_t wholememory_scatter_nccl(void* input,
     wholememory_comm_t wm_comm;
     WHOLEMEMORY_RETURN_ON_FAIL(wholememory_get_communicator(&wm_comm, wholememory_handle));
 
-    int world_rank, world_size;
+    int world_size;
     WHOLEMEMORY_RETURN_ON_FAIL(wholememory_communicator_get_size(&world_size, wm_comm));
-    WHOLEMEMORY_RETURN_ON_FAIL(wholememory_communicator_get_rank(&world_rank, wm_comm));
 
-    // Exchange node count
-    temp_memory_handle dev_rank_id_count(p_env_fns), host_rank_id_count(p_env_fns),
-      host_recv_rank_id_count(p_env_fns), host_rank_id_offset(p_env_fns);
-    int64_t* dev_rank_id_count_ptr =
-      static_cast<int64_t*>(dev_rank_id_count.device_malloc(world_size, WHOLEMEMORY_DT_INT64));
+    temp_memory_handle host_rank_id_count(p_env_fns), host_recv_rank_id_count(p_env_fns);
     int64_t* host_rank_id_count_ptr =
       static_cast<int64_t*>(host_rank_id_count.host_malloc(world_size, WHOLEMEMORY_DT_INT64));
     int64_t* host_recv_rank_id_count_ptr =
       static_cast<int64_t*>(host_recv_rank_id_count.host_malloc(world_size, WHOLEMEMORY_DT_INT64));
 
-    WHOLEMEMORY_RETURN_ON_FAIL(bucket_ids_for_ranks(indices,
-                                                    indices_desc,
-                                                    dev_rank_id_count_ptr,
-                                                    embedding_entry_count_per_rank,
-                                                    world_size,
-                                                    get_device_prop(-1),
-                                                    stream));
-
-    WM_CUDA_CHECK(cudaGetLastError());
-
-    temp_memory_handle dev_sorted_indice(p_env_fns);
+    temp_memory_handle dev_recv_indice_buffer(p_env_fns);
     temp_memory_handle dev_raw_indice(p_env_fns);
-    int64_t* host_rank_id_offset_ptr =
-      static_cast<int64_t*>(host_rank_id_offset.host_malloc(world_size + 1, WHOLEMEMORY_DT_INT64));
     int64_t* dev_raw_indice_ptr =
       static_cast<int64_t*>(dev_raw_indice.device_malloc(indices_desc.size, WHOLEMEMORY_DT_INT64));
-    void* dev_sorted_indice_ptr =
-      dev_sorted_indice.device_malloc(indices_desc.size, indices_desc.dtype);
-    WM_CUDA_CHECK(cudaMemcpyAsync(host_rank_id_count_ptr,
-                                  dev_rank_id_count_ptr,
-                                  sizeof(int64_t) * world_size,
-                                  cudaMemcpyDeviceToHost,
-                                  stream));
-    WM_CUDA_CHECK(cudaGetLastError());
-    WM_CUDA_CHECK(cudaStreamSynchronize(stream));
-    wm_comm->host_alltoall(
-      host_rank_id_count_ptr, host_recv_rank_id_count_ptr, 1, WHOLEMEMORY_DT_INT64);
-    host_rank_id_offset_ptr[0] = 0;
-    for (int i = 0; i < world_size; i++) {
-      host_rank_id_offset_ptr[i + 1] = host_rank_id_offset_ptr[i] + host_rank_id_count_ptr[i];
-    }
-    WHOLEMEMORY_EXPECTS(wm_comm->sync_stream() == WHOLEMEMORY_SUCCESS,
-                        "Rank id count AllToAll failed.");
+
     int64_t total_recv_count = 0;
+    WHOLEMEMORY_RETURN_ON_FAIL(bucket_and_exchange_ids_func(indices,
+                                                            indices_desc,
+                                                            host_recv_rank_id_count_ptr,
+                                                            host_rank_id_count_ptr,
+                                                            &dev_recv_indice_buffer,
+                                                            dev_raw_indice_ptr,
+                                                            embedding_entry_count_per_rank,
+                                                            wm_comm,
+                                                            &thrust_allocator,
+                                                            p_env_fns,
+                                                            stream));
+
+    // Local Reorder
     for (int i = 0; i < world_size; i++) {
       total_recv_count += host_recv_rank_id_count_ptr[i];
     }
-    void* indice_ptr =
-      static_cast<char*>(indices) +
-      wholememory_dtype_get_element_size(indices_desc.dtype) * indices_desc.storage_offset;
-    indices_desc.storage_offset = 0;
-    temp_memory_handle dev_recv_indice_buffer(p_env_fns);
-    // Exchange ids
-    WHOLEMEMORY_RETURN_ON_FAIL(exchange_ids_func(indice_ptr,
-                                                 indices_desc,
-                                                 host_recv_rank_id_count_ptr,
-                                                 host_rank_id_count_ptr,
-                                                 host_rank_id_offset_ptr,
-                                                 &dev_recv_indice_buffer,
-                                                 dev_sorted_indice_ptr,
-                                                 dev_raw_indice_ptr,
-                                                 wm_comm,
-                                                 &thrust_allocator,
-                                                 stream));
-
-    // Local Reorder
     temp_memory_handle dev_local_reorder_buffer(p_env_fns), dev_embedding_recv_buffer(p_env_fns);
     auto local_reorder_desc =
       wholememory_create_matrix_desc(input_desc.sizes, input_desc.sizes[1], 0, input_desc.dtype);

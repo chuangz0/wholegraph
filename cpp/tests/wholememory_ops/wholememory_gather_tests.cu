@@ -66,6 +66,11 @@ typedef struct WholeMemoryGatherTestParam {
     output_stride = new_output_stride;
     return *this;
   }
+  WholeMemoryGatherTestParam& set_indices_count(int64_t new_indices_count)
+  {
+    indices_count = new_indices_count;
+    return *this;
+  }
   WholeMemoryGatherTestParam& set_embedding_type(wholememory_dtype_t new_embedding_type)
   {
     embedding_type = new_embedding_type;
@@ -129,8 +134,8 @@ TEST_P(WholeMemoryGatherParameterTests, GatherTest)
     cudaStream_t stream;
     EXPECT_EQ(cudaStreamCreate(&stream), cudaSuccess);
 
-    void *dev_indices, *dev_gather_buffer, *dev_reference_buffer, *host_indices,
-      *host_gather_buffer, *host_reference_buffer;
+    void *dev_indices = nullptr, *dev_gather_buffer = nullptr, *dev_reference_buffer = nullptr;
+    void *host_indices = nullptr, *host_gather_buffer = nullptr, *host_reference_buffer = nullptr;
     size_t gather_buffer_size  = wholememory_get_memory_size_from_matrix(&output_desc);
     size_t indices_buffer_size = wholememory_get_memory_size_from_array(&indices_desc);
 
@@ -143,7 +148,8 @@ TEST_P(WholeMemoryGatherParameterTests, GatherTest)
 
     wholememory_ops::testing::device_random_init_local_embedding_table(
       embedding_handle, embedding_desc, stream);
-    wholememory_ops::testing::host_random_init_indices(host_indices, indices_desc);
+    wholememory_ops::testing::host_random_init_indices(
+      host_indices, indices_desc, embedding_desc.sizes[0]);
     EXPECT_EQ(cudaMemcpyAsync(dev_indices,
                               host_indices,
                               wholememory_get_memory_size_from_array(&indices_desc),
@@ -230,10 +236,20 @@ INSTANTIATE_TEST_SUITE_P(
   WholeMemoryGatherOpTests,
   WholeMemoryGatherParameterTests,
   ::testing::Values(
-#if 1
+#if 0
+    WholeMemoryGatherTestParam()
+      .set_memory_location(WHOLEMEMORY_ML_DEVICE)
+      .set_indices_type(WHOLEMEMORY_DT_INT64)
+      .set_entry_count((1LL << 23LL) + 131)
+      .set_embedding_dim(1024)
+      .set_indices_count(100005),
+#endif
     WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS),
     WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED),
     WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED),
+    WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS).set_indices_count(0),
+    WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED).set_indices_count(0),
+    WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED).set_indices_count(0),
     WholeMemoryGatherTestParam()
       .set_memory_type(WHOLEMEMORY_MT_CONTINUOUS)
       .set_memory_location(WHOLEMEMORY_ML_HOST),
@@ -243,6 +259,21 @@ INSTANTIATE_TEST_SUITE_P(
     WholeMemoryGatherTestParam()
       .set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED)
       .set_memory_location(WHOLEMEMORY_ML_HOST),
+    WholeMemoryGatherTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_CONTINUOUS)
+      .set_embedding_dim(11)
+      .set_embedding_stride(12)
+      .set_indices_count(100005),
+    WholeMemoryGatherTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_CHUNKED)
+      .set_embedding_dim(11)
+      .set_embedding_stride(12)
+      .set_indices_count(100005),
+    WholeMemoryGatherTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED)
+      .set_embedding_dim(11)
+      .set_embedding_stride(12)
+      .set_indices_count(100005),
     WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS).set_embedding_dim(128),
     WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED).set_embedding_dim(128),
     WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED).set_embedding_dim(128),
@@ -316,5 +347,4 @@ INSTANTIATE_TEST_SUITE_P(
       .set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED)
       .set_embedding_type(WHOLEMEMORY_DT_HALF)
       .set_embedding_stride(33),
-#endif
     WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED)));

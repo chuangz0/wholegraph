@@ -26,9 +26,9 @@ struct logic_error : public raft::exception {
  */
 #define SET_WHOLEMEMORY_ERROR_MSG(msg, location_prefix, fmt, ...)                                \
   do {                                                                                           \
-    int size1 = std::snprintf(nullptr, 0, "%s", location_prefix);                                \
-    int size2 = std::snprintf(nullptr, 0, "file=%s line=%d: ", __FILE__, __LINE__);              \
-    int size3 = std::snprintf(nullptr, 0, fmt, ##__VA_ARGS__);                                   \
+    int const size1 = std::snprintf(nullptr, 0, "%s", location_prefix);                          \
+    int const size2 = std::snprintf(nullptr, 0, "file=%s line=%d: ", __FILE__, __LINE__);        \
+    int const size3 = std::snprintf(nullptr, 0, fmt, ##__VA_ARGS__);                             \
     if (size1 < 0 || size2 < 0 || size3 < 0) {                                                   \
       (void)printf("Error in snprintf, cannot handle raft exception.\n");                        \
       (void)fflush(stdout);                                                                      \

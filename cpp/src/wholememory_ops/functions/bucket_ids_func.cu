@@ -3,12 +3,12 @@
 #include <cassert>
 #include <cstdint>
 
-#include <raft/util/integer_utils.hpp>
 #include <wholememory/wholememory.h>
 
 #include "cuda_macros.hpp"
 #include "error.hpp"
 #include "logger.hpp"
+#include "wholememory/integer_utils.hpp"
 #include "wholememory_ops/register.hpp"
 
 namespace wholememory_ops {
@@ -28,7 +28,8 @@ __global__ void bucket_ids_for_ranks_kernel(const IndexT* indices,
   for (int idx = threadIdx.x + blockIdx.x * blockDim.x; idx < indice_count;
        idx += blockDim.x * gridDim.x) {
     IndexT node_idx = indices[idx];
-    int rank        = node_idx / embedding_entry_count_per_rank;
+    if (node_idx < 0) continue;
+    int rank = node_idx / embedding_entry_count_per_rank;
     assert(rank >= 0 && rank < world_size);
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 700
     atomicAdd_block(&rank_count_shared[rank], 1);
@@ -53,9 +54,9 @@ void bucket_ids_for_ranks_temp_fn(void* indices,
                                   cudaStream_t stream)
 {
   static constexpr int BLOCK_SIZE = 128;
-  int block_count                 = raft::div_rounding_up_unsafe(indice_desc.size, BLOCK_SIZE);
-  block_count                     = std::min(block_count, sm_count * 4);
-  IndexT* indices_ptr             = static_cast<IndexT*>(indices);
+  int block_count     = wholememory::div_rounding_up_unsafe(indice_desc.size, BLOCK_SIZE);
+  block_count         = std::min(block_count, sm_count * 4);
+  IndexT* indices_ptr = static_cast<IndexT*>(indices);
   indices_ptr += indice_desc.storage_offset;
   bucket_ids_for_ranks_kernel<<<block_count, BLOCK_SIZE, sizeof(int) * world_size, stream>>>(
     indices_ptr,

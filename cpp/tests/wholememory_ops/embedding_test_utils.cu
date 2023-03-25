@@ -219,6 +219,7 @@ __device__ __forceinline__ DataTypeT device_get_embedding_data(int64_t embedding
 {
   int64_t embedding_data = embedding_idx * embedding_dim + dim_idx;
   embedding_data         = embedding_data * 97 + 1007;
+  embedding_data         = embedding_idx;
   return device_get_data_from_int64<DataTypeT>(embedding_data);
 }
 
@@ -230,7 +231,7 @@ __global__ void get_embedding_data_kernel(DataTypeT* embedding_ptr,
                                           int64_t local_entry_start,
                                           int64_t local_entry_count)
 {
-  int local_embedding_idx = blockIdx.x;
+  int64_t local_embedding_idx = blockIdx.x;
   if (local_embedding_idx >= local_entry_count) return;
   int thread_x = threadIdx.x;
   embedding_ptr += storage_offset;
@@ -345,11 +346,12 @@ __global__ void device_get_expected_embedding_kernel(GenTypeT* gen_buffer,
                                                      const IndexT* indices,
                                                      int indice_count)
 {
-  if (blockIdx.x >= indice_count) return;
+  int64_t block_idx = blockIdx.x;
+  if (block_idx >= indice_count) return;
   int thread_x = threadIdx.x;
   gen_buffer += storage_offset;
-  int64_t embedding_idx = indices[blockIdx.x];
-  gen_buffer += embedding_stride * blockIdx.x;
+  int64_t embedding_idx = indices[block_idx];
+  gen_buffer += embedding_stride * block_idx;
   for (; thread_x < embedding_dim; thread_x += blockDim.x) {
     auto data = device_get_embedding_data<GenTypeT>(embedding_idx, embedding_dim, thread_x);
     gen_buffer[thread_x] = data;
@@ -415,24 +417,28 @@ void device_get_expected_embedding(void* output,
 }
 
 template <typename IndexT>
-void host_get_random_indices(void* indices, wholememory_array_description_t indice_desc)
+void host_get_random_indices(void* indices,
+                             wholememory_array_description_t indice_desc,
+                             int64_t max_indices)
 {
   IndexT* indices_ptr = static_cast<IndexT*>(indices);
   std::experimental::reseed();
   for (int64_t i = 0; i < indice_desc.size; i++) {
-    IndexT random_index = std::experimental::randint<IndexT>(0, indice_desc.size - 1);
+    IndexT random_index = std::experimental::randint<IndexT>(0, max_indices - 1);
     indices_ptr[i + indice_desc.storage_offset] = random_index;
   }
 }
 
-void host_random_init_indices(void* indices, wholememory_array_description_t indices_desc)
+void host_random_init_indices(void* indices,
+                              wholememory_array_description_t indices_desc,
+                              int64_t max_indices)
 {
   EXPECT_TRUE(indices_desc.dtype == WHOLEMEMORY_DT_INT ||
               indices_desc.dtype == WHOLEMEMORY_DT_INT64);
   if (indices_desc.dtype == WHOLEMEMORY_DT_INT) {
-    host_get_random_indices<int>(indices, indices_desc);
+    host_get_random_indices<int>(indices, indices_desc, max_indices);
   } else {
-    host_get_random_indices<int64_t>(indices, indices_desc);
+    host_get_random_indices<int64_t>(indices, indices_desc, max_indices);
   }
 }
 

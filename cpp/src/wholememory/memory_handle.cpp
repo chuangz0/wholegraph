@@ -11,10 +11,9 @@
 #include <mutex>
 #include <vector>
 
-#include <raft/util/integer_utils.hpp>
-
 #include "cuda_macros.hpp"
 #include "error.hpp"
+#include "integer_utils.hpp"
 #include "logger.hpp"
 
 namespace wholememory {
@@ -1010,7 +1009,7 @@ class chunked_device_wholememory_impl : public wholememory_impl {
                              cuda_ipc_handle_.mapped_ptrs.data(),
                              sizeof(void*) * comm_->world_size,
                              cudaMemcpyHostToDevice));
-    gref_.stride = alloc_strategy_.local_alloc_size;
+    gref_.stride = rank_partition_strategy_.partition_mem_stride;
   }
   void unmap_and_destroy_runtime_device_memory() noexcept
   {
@@ -1082,7 +1081,7 @@ void wholememory_impl::each_rank_same_chunk_strategy()
   alloc_strategy_.alignment        = comm_->alloc_granularity;
   if (total_size_ > HUGE_PAGE_THRESHOLD) {
     alloc_strategy_.local_alloc_size =
-      raft::round_up_safe(alloc_strategy_.local_alloc_size, HUGE_PAGE_SIZE);
+      round_up_unsafe(alloc_strategy_.local_alloc_size, HUGE_PAGE_SIZE);
     alloc_strategy_.alignment = HUGE_PAGE_SIZE;
   }
   alloc_strategy_.total_alloc_size = alloc_strategy_.local_alloc_size * comm_->world_size;
@@ -1102,7 +1101,7 @@ void wholememory_impl::each_rank_multiple_page_strategy()
   size_t page_size = comm_->alloc_granularity;
   if (total_size_ >= HUGE_PAGE_THRESHOLD) page_size = HUGE_PAGE_SIZE;
   alloc_strategy_.alignment        = page_size;
-  alloc_strategy_.total_alloc_size = raft::round_up_safe(total_size_, page_size);
+  alloc_strategy_.total_alloc_size = round_up_unsafe(total_size_, page_size);
   size_t total_alloc_page_count    = alloc_strategy_.total_alloc_size / page_size;
   size_t rank_page_start           = comm_->world_rank * total_alloc_page_count / comm_->world_size;
   size_t rank_page_end = (comm_->world_rank + 1) * total_alloc_page_count / comm_->world_size;
@@ -1356,7 +1355,7 @@ wholememory_error_code_t determine_partition_plan(size_t* size_per_rank,
 
 size_t determine_entry_partition_plan(size_t total_entry_count, int world_size) noexcept
 {
-  return raft::div_rounding_up_safe<size_t>(total_entry_count, world_size);
+  return div_rounding_up_safe<size_t>(total_entry_count, world_size);
 }
 
 wholememory_error_code_t get_partition_plan_from_handle(

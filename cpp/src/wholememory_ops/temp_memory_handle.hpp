@@ -48,7 +48,7 @@ class temp_memory_handle {
     free_fn_ = temp_mem_fns_->pinned_free_fn;
     return ptr_;
   }
-  void* pointer() const { return ptr_; }
+  [[nodiscard]] void* pointer() const { return ptr_; }
   void free_memory()
   {
     if (ptr_ != nullptr) {

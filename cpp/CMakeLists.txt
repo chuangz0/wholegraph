@@ -230,6 +230,7 @@ set(code_string
 
 set(WHOLEGRAPH_PUBLIC_HEADERS
         wholememory/device_reference.cuh
+        wholememory/embedding.h
         wholememory/env_func_ptrs.h
         wholememory/global_reference.h
         wholememory/tensor_description.h

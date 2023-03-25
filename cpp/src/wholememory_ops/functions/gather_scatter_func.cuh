@@ -3,13 +3,13 @@
 #include <cuda_bf16.h>
 #include <cuda_fp16.h>
 
-#include <raft/util/integer_utils.hpp>
 #include <wholememory/device_reference.cuh>
 #include <wholememory/global_reference.h>
 #include <wholememory/tensor_description.h>
 
 #include "cuda_macros.hpp"
 #include "error.hpp"
+#include "wholememory/integer_utils.hpp"
 
 namespace wholememory_ops {
 
@@ -240,19 +240,19 @@ __global__ void gather_func_kernel(wholememory_gref_t embedding_gref,
                                    OutputT* output,
                                    wholememory_matrix_description_t output_desc)
 {
-  int64_t output_idx = static_cast<int64_t>(blockIdx.x) * blockDim.y + threadIdx.y;
+  int64_t output_idx         = static_cast<int64_t>(blockIdx.x) * blockDim.y + threadIdx.y;
+  IndexT embedding_table_idx = indices[output_idx];
+  if (embedding_table_idx < 0) return;
+  wholememory::device_reference<EmbeddingT> embedding_dev_ref(embedding_gref);
+  int thread_idx           = threadIdx.x;
+  int embedding_size       = embedding_desc.sizes[1];
+  int64_t embedding_stride = embedding_desc.stride;
+  int64_t output_stride    = output_desc.stride;
+  typed_data_vector<EmbeddingT, ALIGNMENT> embeddings;
+  typed_data_vector<OutputT, ALIGNMENT> outputs;
+  OutputT* output_ptr      = output + output_desc.storage_offset + output_stride * output_idx;
+  int64_t embedding_offset = embedding_desc.storage_offset + embedding_table_idx * embedding_stride;
   for (; output_idx < indice_count; output_idx += static_cast<int64_t>(gridDim.x) * blockDim.y) {
-    IndexT embedding_table_idx = indices[output_idx];
-    wholememory::device_reference<EmbeddingT> embedding_dev_ref(embedding_gref);
-    int thread_idx           = threadIdx.x;
-    int embedding_size       = embedding_desc.sizes[1];
-    int64_t embedding_stride = embedding_desc.stride;
-    int64_t output_stride    = output_desc.stride;
-    typed_data_vector<EmbeddingT, ALIGNMENT> embeddings;
-    typed_data_vector<OutputT, ALIGNMENT> outputs;
-    OutputT* output_ptr = output + output_desc.storage_offset + output_stride * output_idx;
-    int64_t embedding_offset =
-      embedding_desc.storage_offset + embedding_table_idx * embedding_stride;
     for (int emb_idx = thread_idx * ALIGNMENT; emb_idx < embedding_size;
          emb_idx += ALIGNMENT * blockDim.x) {
       mov_data<sizeof(EmbeddingT) * ALIGNMENT>(&embeddings,
@@ -285,7 +285,7 @@ void gather_temp_func(wholememory_gref_t embedding_gref,
   int mm_alignment   = determine_memory_alignment_elt_count(output, output_desc);
   int alignment      = std::min<int>(wm_alignment, mm_alignment);
   int embedding_size = embedding_desc.sizes[1];
-  int thread_x       = raft::div_rounding_up_safe<int>(embedding_size, alignment);
+  int thread_x       = wholememory::div_rounding_up_safe<int>(embedding_size, alignment);
   thread_x           = std::min(thread_x, 256);
   int thread_y       = 1;
   if (thread_x < 64) {
@@ -295,7 +295,7 @@ void gather_temp_func(wholememory_gref_t embedding_gref,
     thread_x = power2_thread_x;
     thread_y = 64 / thread_x;
   }
-  int64_t block_count_64 = indice_count / thread_y;
+  int64_t block_count_64 = (indice_count + thread_y - 1) / thread_y;
   int block_count = block_count_64 >= INT_MAX ? INT_MAX / 4 : static_cast<int>(block_count_64);
   dim3 block_dim(thread_x, thread_y, 1);
   void (*kernel_fn)(wholememory_gref_t,
@@ -347,19 +347,19 @@ __global__ void scatter_func_kernel(const InputT* input,
                                     wholememory_gref_t embedding_gref,
                                     wholememory_matrix_description_t embedding_desc)
 {
-  int64_t input_idx = static_cast<int64_t>(blockIdx.x) * blockDim.y + threadIdx.y;
+  int64_t input_idx          = static_cast<int64_t>(blockIdx.x) * blockDim.y + threadIdx.y;
+  int thread_idx             = threadIdx.x;
+  IndexT embedding_table_idx = indices[input_idx];
+  if (embedding_table_idx < 0) return;
+  wholememory::device_reference<EmbeddingT> embedding_dev_ref(embedding_gref);
+  int embedding_size       = embedding_desc.sizes[1];
+  int64_t embedding_stride = embedding_desc.stride;
+  int64_t input_stride     = input_desc.stride;
+  typed_data_vector<EmbeddingT, ALIGNMENT> embeddings;
+  typed_data_vector<InputT, ALIGNMENT> inputs;
+  const InputT* input_ptr  = input + input_desc.storage_offset + input_stride * input_idx;
+  int64_t embedding_offset = embedding_desc.storage_offset + embedding_table_idx * embedding_stride;
   for (; input_idx < indice_count; input_idx += static_cast<int64_t>(gridDim.x) * blockDim.y) {
-    IndexT embedding_table_idx = indices[input_idx];
-    wholememory::device_reference<EmbeddingT> embedding_dev_ref(embedding_gref);
-    int thread_idx           = threadIdx.x;
-    int embedding_size       = embedding_desc.sizes[1];
-    int64_t embedding_stride = embedding_desc.stride;
-    int64_t input_stride     = input_desc.stride;
-    typed_data_vector<EmbeddingT, ALIGNMENT> embeddings;
-    typed_data_vector<InputT, ALIGNMENT> inputs;
-    const InputT* input_ptr = input + input_desc.storage_offset + input_stride * input_idx;
-    int64_t embedding_offset =
-      embedding_desc.storage_offset + embedding_table_idx * embedding_stride;
     for (int emb_idx = thread_idx * ALIGNMENT; emb_idx < embedding_size;
          emb_idx += ALIGNMENT * blockDim.x) {
       mov_data<sizeof(InputT) * ALIGNMENT>(&inputs, input_ptr + emb_idx);
@@ -392,7 +392,7 @@ void scatter_temp_func(const void* input,
   int mm_alignment   = determine_memory_alignment_elt_count(input, input_desc);
   int alignment      = std::min<int>(wm_alignment, mm_alignment);
   int embedding_size = embedding_desc.sizes[1];
-  int thread_x       = raft::div_rounding_up_safe<int>(embedding_size, alignment);
+  int thread_x       = wholememory::div_rounding_up_safe<int>(embedding_size, alignment);
   thread_x           = std::min(thread_x, 256);
   int thread_y       = 1;
   if (thread_x < 64) {
@@ -402,7 +402,7 @@ void scatter_temp_func(const void* input,
     thread_x = power2_thread_x;
     thread_y = 64 / thread_x;
   }
-  int64_t block_count_64 = indice_count / thread_y;
+  int64_t block_count_64 = (indice_count + thread_y - 1) / thread_y;
   int block_count = block_count_64 >= INT_MAX ? INT_MAX / 4 : static_cast<int>(block_count_64);
   dim3 block_dim(thread_x, thread_y, 1);
   void (*kernel_fn)(const InputT*,

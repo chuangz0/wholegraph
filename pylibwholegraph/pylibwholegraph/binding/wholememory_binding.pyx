@@ -41,6 +41,7 @@ cdef extern from "wholememory/wholememory.h":
         WHOLEMEMORY_COMMUNICATION_ERROR     "WHOLEMEMORY_COMMUNICATION_ERROR"  # communication error
         WHOLEMEMORY_INVALID_INPUT           "WHOLEMEMORY_INVALID_INPUT"  # invalid input, e.g. nullptr
         WHOLEMEMORY_INVALID_VALUE           "WHOLEMEMORY_INVALID_VALUE"  # input value is invalid
+        WHOLEMEMORY_OUT_OF_MEMORY           "WHOLEMEMORY_OUT_OF_MEMORY"  # out of memory
 
     ctypedef enum wholememory_memory_type_t:
         WHOLEMEMORY_MT_NONE                 "WHOLEMEMORY_MT_NONE"
@@ -141,6 +142,7 @@ cpdef enum WholeMemoryErrorCode:
     CommunicationError = WHOLEMEMORY_COMMUNICATION_ERROR
     InvalidInput = WHOLEMEMORY_INVALID_INPUT
     InvalidValue = WHOLEMEMORY_INVALID_VALUE
+    OutOfMemory = WHOLEMEMORY_OUT_OF_MEMORY
 
 cpdef enum WholeMemoryMemoryType:
     MtNone = WHOLEMEMORY_MT_NONE
@@ -171,6 +173,8 @@ cdef check_wholememory_error_code(wholememory_error_code_t err):
         raise ValueError('Invalid input')
     elif err_code == InvalidValue:
         raise ValueError('Invalid value')
+    elif err_code == OutOfMemory:
+        raise MemoryError('Out of memory')
     else:
         raise NotImplementedError('Error code %d not recognized' % (int(err),))
 

@@ -91,11 +91,31 @@ wholememory_error_code_t wholememory_tensor_get_global_reference(
   wholememory_tensor_t wholememory_tensor, wholememory_gref_t* wholememory_gref);
 
 /**
+ * Map local tensor of WholeMemory Tensor.
+ * Only support 1D and 2D tensor with WholeMemory Handle.
+ * For 1D tensor, storage_offset should be 0
+ * For 2D tensor, storage_offset + size[1] should <= stride[0]
+ *
+ * @param wholememory_tensor : WholeMemory Tensor.
+ * @param local_tensor : returned local tensor, need to be destroyed.
+ * @return : wholememory_error_code_t
+ */
+wholememory_error_code_t wholememory_tensor_map_local_tensor(
+  wholememory_tensor_t wholememory_tensor, wholememory_tensor_t* local_tensor);
+
+/**
  * Get data pointer from WholeMemory Tensor
  * @param wholememory_tensor : WholeMemory Tensor
  * @return : Pointer to first data for CONTINUOUS WholeMemory or not WholeMemory.
  */
 void* wholememory_tensor_get_data_pointer(wholememory_tensor_t wholememory_tensor);
+
+/**
+ * Get entry count per rank of a WholeMemory Tensor
+ * @param wholememory_tensor : WholeMemory Tensor
+ * @return : entry count per rank
+ */
+size_t wholememory_tensor_get_entry_per_partition(wholememory_tensor_t wholememory_tensor);
 
 /**
  * Get sub tensor of a WholeMemory Tensor
@@ -110,6 +130,14 @@ wholememory_error_code_t wholememory_tensor_get_subtensor(
   int64_t* starts,
   int64_t* ends,
   wholememory_tensor_t* sub_wholememory_tensor);
+
+/**
+ * Get root tensor of a WholeMemory Tensor, root means it is not a sub tensor of any WholeMemory
+ * Tensor.
+ * @param wholememory_tensor : WholeMemory Tensor
+ * @return : the root of current WholeMemory tensor, maybe same as wholememory_tensor.
+ */
+wholememory_tensor_t wholememory_tensor_get_root(wholememory_tensor_t wholememory_tensor);
 
 #ifdef __cplusplus
 }

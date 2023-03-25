@@ -66,6 +66,11 @@ typedef struct WholeMemoryScatterTestParam {
     input_stride = new_input_stride;
     return *this;
   }
+  WholeMemoryScatterTestParam& set_indices_count(int64_t new_indices_count)
+  {
+    indices_count = new_indices_count;
+    return *this;
+  }
   WholeMemoryScatterTestParam& set_embedding_type(wholememory_dtype_t new_embedding_type)
   {
     embedding_type = new_embedding_type;
@@ -129,8 +134,9 @@ TEST_P(WholeMemoryScatterParameterTests, ScatterTest)
     cudaStream_t stream;
     EXPECT_EQ(cudaStreamCreate(&stream), cudaSuccess);
 
-    void *host_indices, *dev_indices, *dev_input_buffer, *dev_gather_buffer, *host_gather_buffer,
-      *host_input_buffer;
+    void *host_indices = nullptr, *dev_indices = nullptr, *dev_input_buffer = nullptr,
+         *dev_gather_buffer  = nullptr;
+    void *host_gather_buffer = nullptr, *host_input_buffer = nullptr;
     size_t scatter_buffer_size = wholememory_get_memory_size_from_matrix(&input_desc);
     size_t indices_buffer_size = wholememory_get_memory_size_from_array(&indices_desc);
 
@@ -141,7 +147,8 @@ TEST_P(WholeMemoryScatterParameterTests, ScatterTest)
     EXPECT_EQ(cudaMallocHost(&host_input_buffer, scatter_buffer_size), cudaSuccess);
     EXPECT_EQ(cudaMallocHost(&host_gather_buffer, scatter_buffer_size), cudaSuccess);
 
-    wholememory_ops::testing::host_random_init_indices(host_indices, indices_desc);
+    wholememory_ops::testing::host_random_init_indices(
+      host_indices, indices_desc, embedding_desc.sizes[0]);
     EXPECT_EQ(cudaMemcpyAsync(dev_indices,
                               host_indices,
                               wholememory_get_memory_size_from_array(&indices_desc),
@@ -247,6 +254,9 @@ INSTANTIATE_TEST_SUITE_P(
     WholeMemoryScatterTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS),
     WholeMemoryScatterTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED),
     WholeMemoryScatterTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED),
+    WholeMemoryScatterTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS).set_indices_count(0),
+    WholeMemoryScatterTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED).set_indices_count(0),
+    WholeMemoryScatterTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED).set_indices_count(0),
     WholeMemoryScatterTestParam()
       .set_memory_type(WHOLEMEMORY_MT_CONTINUOUS)
       .set_memory_location(WHOLEMEMORY_ML_HOST),
@@ -261,6 +271,18 @@ INSTANTIATE_TEST_SUITE_P(
     WholeMemoryScatterTestParam()
       .set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED)
       .set_embedding_dim(128),
+    WholeMemoryScatterTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_CONTINUOUS)
+      .set_embedding_dim(11)
+      .set_indices_count(100005),
+    WholeMemoryScatterTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_CHUNKED)
+      .set_embedding_dim(11)
+      .set_indices_count(100005),
+    WholeMemoryScatterTestParam()
+      .set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED)
+      .set_embedding_dim(11)
+      .set_indices_count(100005),
     WholeMemoryScatterTestParam().set_memory_type(WHOLEMEMORY_MT_CONTINUOUS).set_embedding_dim(127),
     WholeMemoryScatterTestParam().set_memory_type(WHOLEMEMORY_MT_CHUNKED).set_embedding_dim(127),
     WholeMemoryScatterTestParam()

@@ -30,7 +30,15 @@ void device_get_expected_embedding(void* output,
                                    wholememory_env_func_t* p_env_fns,
                                    cudaStream_t stream);
 
-void host_random_init_indices(void* indices, wholememory_array_description_t indices_desc);
+/**
+ * random generate indices from [0, max_indices)
+ * @param indices : pointer of output
+ * @param indices_desc : description of output
+ * @param max_indices : max_indices
+ */
+void host_random_init_indices(void* indices,
+                              wholememory_array_description_t indices_desc,
+                              int64_t max_indices);
 
 void host_check_embedding_same(void* host_embedding,
                                wholememory_matrix_description_t embedding_desc,
