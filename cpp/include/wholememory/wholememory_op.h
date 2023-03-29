@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cuda_runtime_api.h>
-
 #include <wholememory/env_func_ptrs.h>
 #include <wholememory/wholememory.h>
 #include <wholememory/wholememory_tensor.h>
@@ -23,7 +21,7 @@ wholememory_error_code_t wholememory_gather(wholememory_tensor_t wholememory_ten
                                             wholememory_tensor_t indices_tensor,
                                             wholememory_tensor_t output_tensor,
                                             wholememory_env_func_t* p_env_fns,
-                                            cudaStream_t stream);
+                                            void* stream);
 
 /**
  * Scatter Op
@@ -38,7 +36,28 @@ wholememory_error_code_t wholememory_scatter(wholememory_tensor_t input_tensor,
                                              wholememory_tensor_t indices_tensor,
                                              wholememory_tensor_t wholememory_tensor,
                                              wholememory_env_func_t* p_env_fns,
-                                             cudaStream_t stream);
+                                             void* stream);
+
+/**
+ * Just a test function,
+ * @param input_tensor : input tensor
+ * @param output_fixed_tensor : fixed size tensor of output
+ * @param output_variable_device_tensor_handle : device version variable tensor
+ * @param output_variable_pinned_tensor_handle : pinned version variable tensor
+ * @param output_variable_host_tensor_handle : host version variable tensor
+ * @param output_variable_entry_count : output entry count
+ * @param p_env_fns : pointers to environment functions.
+ * @param stream : cudaStream_t to use.
+ * @return : wholememory_error_code_t
+ */
+wholememory_error_code_t wholememory_env_test_op(wholememory_tensor_t input_tensor,
+                                                 wholememory_tensor_t output_fixed_tensor,
+                                                 void* output_variable_device_tensor_handle,
+                                                 void* output_variable_pinned_tensor_handle,
+                                                 void* output_variable_host_tensor_handle,
+                                                 int64_t output_variable_entry_count,
+                                                 wholememory_env_func_t* p_env_fns,
+                                                 void* stream);
 
 #ifdef __cplusplus
 }

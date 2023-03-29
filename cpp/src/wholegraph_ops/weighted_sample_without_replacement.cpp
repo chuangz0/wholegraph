@@ -12,12 +12,12 @@ wholememory_error_code_t wholegraph_csr_weighted_sample_without_replacement(
   wholememory_tensor_t center_nodes_tensor,
   int max_sample_count,
   wholememory_tensor_t output_sample_offset_tensor,
-  memory_context_t* output_dest_memory_context,
-  memory_context_t* output_center_localid_memory_context,
-  memory_context_t* output_edge_gid_memory_context,
+  void* output_dest_memory_context,
+  void* output_center_localid_memory_context,
+  void* output_edge_gid_memory_context,
   unsigned long long random_seed,
   wholememory_env_func_t* p_env_fns,
-  cudaStream_t stream)
+  void* stream)
 {
   bool const csr_row_ptr_has_handle = wholememory_tensor_has_handle(wm_csr_row_ptr_tensor);
   wholememory_memory_type_t csr_row_ptr_memory_type = WHOLEMEMORY_MT_NONE;
@@ -137,5 +137,5 @@ wholememory_error_code_t wholegraph_csr_weighted_sample_without_replacement(
     output_edge_gid_memory_context,
     random_seed,
     p_env_fns,
-    stream);
+    static_cast<cudaStream_t>(stream));
 }

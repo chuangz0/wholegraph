@@ -38,16 +38,14 @@ torch::Tensor gather(int64_t wholememory_tensor_handle,
     output_alloc_tensor_desc.sizes[1] = output_alloc_tensor_desc.strides[0] = p_wm_tensor_desc->sizes[1];
   }
 
-  memory_context_t output_context;
-  create_torch_memory_context_func(&output_context, nullptr);
+  pytorch_memory_context output_context;
   if (requires_grad.has_value()) {
     set_need_grad(&output_context, requires_grad.value());
   }
   torch_common_malloc_func(&output_alloc_tensor_desc, &output_context);
 
-  auto output_tensor = static_cast<pytorch_memory_context*>(output_context.context)->tensor;
+  auto output_tensor = output_context.tensor;
   wrapped_torch_tensor const wrapped_output_tensor(output_tensor);
-  destroy_torch_memory_context_func(&output_context, nullptr);
 
   TORCH_CHECK(wholememory_gather(wt,
                                  wrapped_indices_tensor.get_wholememory_tensor(),

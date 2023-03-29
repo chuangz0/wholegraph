@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cuda_runtime_api.h>
-
 #include <wholememory/env_func_ptrs.h>
 #include <wholememory/wholememory.h>
 #include <wholememory/wholememory_tensor.h>
@@ -32,12 +30,12 @@ wholememory_error_code_t wholegraph_csr_unweighted_sample_without_replacement(
   wholememory_tensor_t center_nodes_tensor,
   int max_sample_count,
   wholememory_tensor_t output_sample_offset_tensor,
-  memory_context_t* output_dest_memory_context,
-  memory_context_t* output_center_localid_memory_context,
-  memory_context_t* output_edge_gid_memory_context,
+  void* output_dest_memory_context,
+  void* output_center_localid_memory_context,
+  void* output_edge_gid_memory_context,
   unsigned long long random_seed,
   wholememory_env_func_t* p_env_fns,
-  cudaStream_t stream);
+  void* stream);
 
 /**
  * Unweighted sample without replacement kernel op
@@ -63,12 +61,12 @@ wholememory_error_code_t wholegraph_csr_weighted_sample_without_replacement(
   wholememory_tensor_t center_nodes_tensor,
   int max_sample_count,
   wholememory_tensor_t output_sample_offset_tensor,
-  memory_context_t* output_dest_memory_context,
-  memory_context_t* output_center_localid_memory_context,
-  memory_context_t* output_edge_gid_memory_context,
+  void* output_dest_memory_context,
+  void* output_center_localid_memory_context,
+  void* output_edge_gid_memory_context,
   unsigned long long random_seed,
   wholememory_env_func_t* p_env_fns,
-  cudaStream_t stream);
+  void* stream);
 
 #ifdef __cplusplus
 }

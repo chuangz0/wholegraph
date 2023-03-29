@@ -13,20 +13,21 @@ wholememory_dtype_t get_wholememory_dtype(torch::ScalarType ts_dtype);
 struct pytorch_memory_context {
   torch::Tensor tensor;
   torch::TensorOptions options;
+  wholememory_tensor_description_t desc;
 };
 
-void set_need_grad(memory_context_t* memory_context, bool require_grad);
+void set_need_grad(pytorch_memory_context* memory_context, bool require_grad);
 
-void create_torch_memory_context_func(memory_context_t* memory_context, void* /*global_context*/);
+void create_torch_memory_context_func(void** memory_context, void* /*global_context*/);
 
-void destroy_torch_memory_context_func(memory_context_t* memory_context, void* /*global_context*/);
+void destroy_torch_memory_context_func(void* memory_context, void* /*global_context*/);
 
 void *torch_common_malloc_func(wholememory_tensor_description_t *tensor_description,
-                               memory_context_t *memory_context,
+                               void *memory_context,
                                bool gpu_memory = true,
                                bool pinned = false);
 
-void torch_common_free_func(memory_context_t* memory_context, void* /*global_context*/);
+void torch_common_free_func(void* memory_context, void* /*global_context*/);
 
 void get_tensor_desc_from_torch_tensor(wholememory_tensor_description_t* tensor_desc, const torch::Tensor& t);
 

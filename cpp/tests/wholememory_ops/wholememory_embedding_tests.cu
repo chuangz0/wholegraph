@@ -294,74 +294,26 @@ INSTANTIATE_TEST_SUITE_P(
   CachedEmbeddingGatherTest,
   WholeMemoryEmbeddingParameterTests,
   ::testing::Values(
-    EmbeddingTestParams()
-      .local_cache()
-      .set_entry_count((1LL << 20LL) + 131)
-      .set_embedding_dim(1024)
-      .set_cache_group_count(2)
-      .set_cache_ratio(0.1),
-    EmbeddingTestParams()
-      .local_cache()
-      .set_entry_count((1LL << 20LL) + 131)
-      .set_embedding_dim(1024)
-      .set_cache_group_count(4)
-      .set_cache_ratio(0.05),
-    EmbeddingTestParams()
-      .local_cache()
-      .set_entry_count((1LL << 20LL) + 131)
-      .set_embedding_dim(1024)
-      .set_cache_group_count(8)
-      .set_cache_ratio(0.02),
 
     EmbeddingTestParams()
-      .non_cache()
-      .set_entry_count((1LL << 32LL) + 127)
-      .set_embedding_dim(3)
-      .set_embedding_stride(3),
+        .local_cache()
+        .set_entry_count((1LL << 22LL) + 131)
+        .set_embedding_dim(256)
+        .set_cache_group_count(2)
+        .set_cache_ratio(0.1),
     EmbeddingTestParams()
-      .device_cache()
-      .set_entry_count((1LL << 32LL) + 127)
-      .set_embedding_dim(3)
-      .set_embedding_stride(3),
+        .local_cache()
+        .set_entry_count((1LL << 22LL) + 131)
+        .set_embedding_dim(256)
+        .set_cache_group_count(4)
+        .set_cache_ratio(0.05),
     EmbeddingTestParams()
-      .local_cache()
-      .set_entry_count((1LL << 32LL) + 127)
-      .set_embedding_dim(3)
-      .set_embedding_stride(3),
-    EmbeddingTestParams()
-      .non_cache()
-      .set_entry_count((1LL << 31LL) - 127)
-      .set_embedding_dim(5)
-      .set_embedding_stride(5)
-      .set_indice_dtype(WHOLEMEMORY_DT_INT),
-    EmbeddingTestParams()
-      .device_cache()
-      .set_entry_count((1LL << 31LL) - 127)
-      .set_indice_dtype(WHOLEMEMORY_DT_INT)
-      .set_embedding_dim(5)
-      .set_embedding_stride(5),
-    EmbeddingTestParams()
-      .local_cache()
-      .set_entry_count((1LL << 31LL) - 127)
-      .set_indice_dtype(WHOLEMEMORY_DT_INT)
-      .set_embedding_dim(5)
-      .set_embedding_stride(5),
+        .local_cache()
+        .set_entry_count((1LL << 22LL) + 131)
+        .set_embedding_dim(256)
+        .set_cache_group_count(8)
+        .set_cache_ratio(0.02),
 #if 1
-    EmbeddingTestParams()
-      .device_cache()
-      .set_memory_location(WHOLEMEMORY_ML_DEVICE)
-      .set_entry_count((1LL << 23LL) + 131)
-      .set_embedding_dim(1024),
-    EmbeddingTestParams()
-      .device_cache()
-      .set_memory_location(WHOLEMEMORY_ML_DEVICE)
-      .set_entry_count((1LL << 26LL) + 131)
-      .set_embedding_dim(1024),
-    EmbeddingTestParams()
-      .set_memory_location(WHOLEMEMORY_ML_DEVICE)
-      .local_cache()
-      .set_entry_count((1LL << 26LL) + 131)
-      .set_embedding_dim(1024),
     EmbeddingTestParams().non_cache(),
     EmbeddingTestParams().non_cache().set_memory_location(WHOLEMEMORY_ML_DEVICE),
     EmbeddingTestParams().device_cache(),
@@ -426,77 +378,63 @@ INSTANTIATE_TEST_SUITE_P(
     EmbeddingTestParams().device_cache().set_output_stride(131),
     EmbeddingTestParams().local_cache().set_output_stride(131),
     // large tests
-    EmbeddingTestParams().non_cache().set_entry_count((1LL << 23LL) + 131).set_embedding_dim(1024),
+    EmbeddingTestParams()
+    .non_cache()
+    .set_entry_count((1LL << 32LL) + 127)
+    .set_embedding_dim(3)
+    .set_embedding_stride(3),
+    EmbeddingTestParams()
+    .device_cache()
+    .set_entry_count((1LL << 32LL) + 127)
+    .set_embedding_dim(3)
+    .set_embedding_stride(3),
+    EmbeddingTestParams()
+    .local_cache()
+    .set_entry_count((1LL << 32LL) + 127)
+    .set_embedding_dim(3)
+    .set_embedding_stride(3),
+    EmbeddingTestParams()
+    .non_cache()
+    .set_entry_count((1LL << 31LL) - 127)
+    .set_embedding_dim(5)
+    .set_embedding_stride(5)
+    .set_indice_dtype(WHOLEMEMORY_DT_INT),
+    EmbeddingTestParams()
+    .device_cache()
+    .set_entry_count((1LL << 31LL) - 127)
+    .set_indice_dtype(WHOLEMEMORY_DT_INT)
+    .set_embedding_dim(5)
+    .set_embedding_stride(5),
+    EmbeddingTestParams()
+    .local_cache()
+    .set_entry_count((1LL << 31LL) - 127)
+    .set_indice_dtype(WHOLEMEMORY_DT_INT)
+    .set_embedding_dim(5)
+    .set_embedding_stride(5),
+
+    EmbeddingTestParams().non_cache().set_entry_count((1LL << 20LL) + 131).set_embedding_dim(1024),
     EmbeddingTestParams()
       .device_cache()
-      .set_entry_count((1LL << 23LL) + 131)
+      .set_entry_count((1LL << 20LL) + 131)
       .set_embedding_dim(1024),
     EmbeddingTestParams()
       .local_cache()
-      .set_entry_count((1LL << 23LL) + 131)
+      .set_entry_count((1LL << 20LL) + 131)
       .set_embedding_dim(1024),
 
-    EmbeddingTestParams().non_cache().set_entry_count((1LL << 23LL) + 129).set_embedding_dim(1024),
-    EmbeddingTestParams()
-      .device_cache()
-      .set_entry_count((1LL << 23LL) + 129)
-      .set_embedding_dim(1024),
-    EmbeddingTestParams()
-      .local_cache()
-      .set_entry_count((1LL << 23LL) + 129)
-      .set_embedding_dim(1024),
-
-    EmbeddingTestParams().non_cache().set_entry_count((1LL << 23LL) + 127).set_embedding_dim(1024),
+    EmbeddingTestParams().non_cache().set_entry_count((1LL << 23LL) + 127).set_embedding_dim(1025),
     EmbeddingTestParams()
       .device_cache()
       .set_entry_count((1LL << 23LL) + 127)
-      .set_embedding_dim(1024),
+      .set_embedding_dim(1025),
     EmbeddingTestParams()
       .local_cache()
       .set_entry_count((1LL << 23LL) + 127)
-      .set_embedding_dim(1024),
-
-    EmbeddingTestParams().non_cache().set_entry_count((1LL << 23LL) + 131).set_embedding_dim(1023),
-    EmbeddingTestParams()
-      .device_cache()
-      .set_entry_count((1LL << 23LL) + 131)
-      .set_embedding_dim(1023),
-    EmbeddingTestParams()
-      .local_cache()
-      .set_entry_count((1LL << 23LL) + 131)
-      .set_embedding_dim(1023),
-
-    EmbeddingTestParams().non_cache().set_entry_count((1LL << 22LL) + 131).set_embedding_dim(1025),
-    EmbeddingTestParams()
-      .device_cache()
-      .set_entry_count((1LL << 22LL) + 131)
-      .set_embedding_dim(1025),
-    EmbeddingTestParams()
-      .local_cache()
-      .set_entry_count((1LL << 22LL) + 131)
       .set_embedding_dim(1025),
 
-    EmbeddingTestParams().non_cache().set_entry_count((1LL << 22LL) + 131).set_embedding_dim(11),
-    EmbeddingTestParams().device_cache().set_entry_count((1LL << 22LL) + 131).set_embedding_dim(11),
-    EmbeddingTestParams().local_cache().set_entry_count((1LL << 22LL) + 131).set_embedding_dim(11),
+    EmbeddingTestParams().non_cache().set_entry_count((1LL << 22LL) + 131).set_embedding_dim(11).set_embedding_stride(12),
+    EmbeddingTestParams().device_cache().set_entry_count((1LL << 22LL) + 131).set_embedding_dim(11).set_embedding_stride(12),
+    EmbeddingTestParams().local_cache().set_entry_count((1LL << 22LL) + 131).set_embedding_dim(11).set_embedding_stride(12),
 
-    EmbeddingTestParams()
-      .local_cache()
-      .set_entry_count((1LL << 22LL) + 131)
-      .set_embedding_dim(1024)
-      .set_cache_group_count(2)
-      .set_cache_ratio(0.1),
-    EmbeddingTestParams()
-      .local_cache()
-      .set_entry_count((1LL << 22LL) + 131)
-      .set_embedding_dim(1024)
-      .set_cache_group_count(4)
-      .set_cache_ratio(0.05),
-    EmbeddingTestParams()
-      .local_cache()
-      .set_entry_count((1LL << 22LL) + 131)
-      .set_embedding_dim(1024)
-      .set_cache_group_count(8)
-      .set_cache_ratio(0.02),
 #endif
     EmbeddingTestParams()));

@@ -1,8 +1,20 @@
 #include "wholememory/wholememory_tensor.h"
 
+#include <atomic>
 #include <cstdlib>
 
 #include "logger.hpp"
+
+#ifdef WM_TENSOR_COUNT_DEBUG
+static std::atomic<int64_t> wm_tensor_count;
+static void inc_tensor_count() { wm_tensor_count.fetch_add(1); }
+static void dec_tensor_count() { wm_tensor_count.fetch_add(-1); }
+static int64_t get_tensor_count() { return wm_tensor_count.load(); }
+#else
+static void inc_tensor_count() {}
+static void dec_tensor_count() {}
+static int64_t get_tensor_count() { return 0; }
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -18,6 +30,8 @@ struct wholememory_tensor_ {
   bool is_wholememory;
   bool own_handle;
 };
+
+int64_t get_wholememory_tensor_count() { return get_tensor_count(); }
 
 wholememory_error_code_t wholememory_create_tensor(
   wholememory_tensor_t* p_wholememory_tensor,
@@ -70,6 +84,7 @@ wholememory_error_code_t wholememory_create_tensor(
                                      memory_type,
                                      memory_location,
                                      granularity);
+  inc_tensor_count();
   if (ret_code != WHOLEMEMORY_SUCCESS) { free(wholememory_tensor); }
   return ret_code;
 }
@@ -83,6 +98,7 @@ wholememory_error_code_t wholememory_destroy_tensor(wholememory_tensor_t wholeme
       free(wholememory_tensor->storage_ptr);
     }
   }
+  dec_tensor_count();
   free(wholememory_tensor);
   return WHOLEMEMORY_SUCCESS;
 }
@@ -116,6 +132,7 @@ wholememory_error_code_t wholememory_make_tensor_from_pointer(
   wholememory_tensor->is_wholememory     = false;
   wholememory_tensor->root_tensor        = wholememory_tensor;
   *p_wholememory_tensor                  = wholememory_tensor;
+  inc_tensor_count();
   return WHOLEMEMORY_SUCCESS;
 }
 
@@ -149,6 +166,7 @@ wholememory_error_code_t wholememory_make_tensor_from_handle(
   wholememory_tensor->is_wholememory     = true;
   wholememory_tensor->root_tensor        = wholememory_tensor;
   *p_wholememory_tensor                  = wholememory_tensor;
+  inc_tensor_count();
   return WHOLEMEMORY_SUCCESS;
 }
 
@@ -317,6 +335,7 @@ wholememory_error_code_t wholememory_tensor_get_subtensor(
       wholememory_tensor->tensor_description.strides[i];
   }
   *p_sub_wholememory_tensor = sub_wholememory_tensor;
+  inc_tensor_count();
 
   return WHOLEMEMORY_SUCCESS;
 }

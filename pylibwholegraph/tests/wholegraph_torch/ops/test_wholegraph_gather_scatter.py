@@ -4,6 +4,7 @@ from pylibwholegraph.utils.multiprocess import multiprocess_run
 from pylibwholegraph.torch.initialize import init_torch_env_and_create_wm_comm, load_wholegraph_op_libraries
 from pylibwholegraph.torch.dlpack_utils import torch_import_from_dlpack
 import torch
+import pylibwholegraph.torch.wholememory_ops as wm_ops
 
 
 # PYTHONPATH=../:$PYTHONPATH python3 -m pytest ../tests/wholegraph_torch/ops/test_wholegraph_gather_scatter.py -s
@@ -18,7 +19,7 @@ def gen_int_embedding(indice_tensor, embedding_dim, output_type):
     return output.type(output_type)
 
 
-def scatter_gather_test_cast(wm_comm, dt, mt, ml, embedding_count, embedding_dim, indice_count):
+def scatter_gather_test_cast(wm_comm, dt, mt, ml, embedding_count, embedding_dim, indice_count, use_python_binding=True):
     world_rank = wm_comm.get_rank()
     world_size = wm_comm.get_size()
     print(
@@ -34,7 +35,10 @@ def scatter_gather_test_cast(wm_comm, dt, mt, ml, embedding_count, embedding_dim
     scatter_indice_cuda = scatter_indice.cuda()
     embedding_to_scatter_cuda = embedding_to_scatter.cuda()
 
-    torch.ops.wholegraph.scatter(embedding_to_scatter_cuda, scatter_indice_cuda, wm_embedding.get_c_handle())
+    if use_python_binding:
+        wm_ops.wholememory_scatter_functor(embedding_to_scatter_cuda, scatter_indice_cuda, wm_embedding)
+    else:
+        torch.ops.wholegraph.scatter(embedding_to_scatter_cuda, scatter_indice_cuda, wm_embedding.get_c_handle())
 
     wm_comm.barrier()
 
@@ -63,8 +67,11 @@ def scatter_gather_test_cast(wm_comm, dt, mt, ml, embedding_count, embedding_dim
 
     gather_indice = torch.randint(0, embedding_count, (indice_count,), dtype=torch.int)
     gather_indice_cuda = gather_indice.cuda()
-    embedding_after_gather_cuda = torch.ops.wholegraph.gather(wm_embedding.get_c_handle(), gather_indice_cuda, None,
-                                                              None)
+    if use_python_binding:
+        embedding_after_gather_cuda = wm_ops.wholememory_gather_forward_functor(wm_embedding, gather_indice_cuda)
+    else:
+        embedding_after_gather_cuda = torch.ops.wholegraph.gather(wm_embedding.get_c_handle(), gather_indice_cuda, None,
+                                                                  None)
     embedding_after_gather = embedding_after_gather_cuda.cpu()
     ref_embedding_gather = gen_int_embedding(gather_indice, embedding_dim, torch.float)
     #print('\ngather_indice=%s\nembedding_after_gather=%s\nref_embedding_gather=%s' % (
@@ -95,7 +102,8 @@ def routine_func(world_rank: int, world_size: int):
     for mt in [wmb.WholeMemoryMemoryType.MtContinuous, wmb.WholeMemoryMemoryType.MtChunked,
                wmb.WholeMemoryMemoryType.MtDistributed]:
         for ml in [wmb.WholeMemoryMemoryLocation.MlHost, wmb.WholeMemoryMemoryLocation.MlDevice]:
-            scatter_gather_test_cast(wm_comm, dt, mt, ml, embedding_count, embedding_dim, indice_count)
+            scatter_gather_test_cast(wm_comm, dt, mt, ml, embedding_count, embedding_dim, indice_count, True)
+            scatter_gather_test_cast(wm_comm, dt, mt, ml, embedding_count, embedding_dim, indice_count, False)
 
 
 def test_wholegraph_gather_scatter():

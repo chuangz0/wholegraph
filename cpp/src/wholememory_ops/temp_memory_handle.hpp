@@ -13,19 +13,14 @@ class temp_memory_handle {
     temp_mem_fns_->create_memory_context_fn(&memory_context_, temp_mem_fns_->global_context);
   }
   temp_memory_handle() = delete;
-  ~temp_memory_handle()
-  {
-    free_memory();
-    temp_mem_fns_->destroy_memory_context_fn(&memory_context_, temp_mem_fns_->global_context);
-  }
+  ~temp_memory_handle() { free_memory(); }
   void* device_malloc(size_t elt_count, wholememory_dtype_t data_type)
   {
     free_memory();
     wholememory_tensor_description_t tensor_description;
     get_tensor_description(&tensor_description, elt_count, data_type);
-    ptr_ = temp_mem_fns_->device_malloc_fn(
-      &tensor_description, &memory_context_, temp_mem_fns_->global_context);
-    free_fn_ = temp_mem_fns_->device_free_fn;
+    ptr_ = temp_mem_fns_->malloc_fn(
+      &tensor_description, WHOLEMEMORY_MA_DEVICE, memory_context_, temp_mem_fns_->global_context);
     return ptr_;
   }
   void* host_malloc(size_t elt_count, wholememory_dtype_t data_type)
@@ -33,9 +28,8 @@ class temp_memory_handle {
     free_memory();
     wholememory_tensor_description_t tensor_description;
     get_tensor_description(&tensor_description, elt_count, data_type);
-    ptr_ = temp_mem_fns_->host_malloc_fn(
-      &tensor_description, &memory_context_, temp_mem_fns_->global_context);
-    free_fn_ = temp_mem_fns_->host_free_fn;
+    ptr_ = temp_mem_fns_->malloc_fn(
+      &tensor_description, WHOLEMEMORY_MA_HOST, memory_context_, temp_mem_fns_->global_context);
     return ptr_;
   }
   void* pinned_malloc(size_t elt_count, wholememory_dtype_t data_type)
@@ -43,19 +37,18 @@ class temp_memory_handle {
     free_memory();
     wholememory_tensor_description_t tensor_description;
     get_tensor_description(&tensor_description, elt_count, data_type);
-    ptr_ = temp_mem_fns_->pinned_malloc_fn(
-      &tensor_description, &memory_context_, temp_mem_fns_->global_context);
-    free_fn_ = temp_mem_fns_->pinned_free_fn;
+    ptr_ = temp_mem_fns_->malloc_fn(
+      &tensor_description, WHOLEMEMORY_MA_PINNED, memory_context_, temp_mem_fns_->global_context);
     return ptr_;
   }
   [[nodiscard]] void* pointer() const { return ptr_; }
   void free_memory()
   {
     if (ptr_ != nullptr) {
-      free_fn_(&memory_context_, temp_mem_fns_->global_context);
-      temp_mem_fns_->destroy_memory_context_fn(&memory_context_, temp_mem_fns_->global_context);
-      free_fn_ = nullptr;
-      ptr_     = nullptr;
+      temp_mem_fns_->free_fn(memory_context_, temp_mem_fns_->global_context);
+      temp_mem_fns_->destroy_memory_context_fn(memory_context_, temp_mem_fns_->global_context);
+      memory_context_ = nullptr;
+      ptr_            = nullptr;
     }
   }
 
@@ -73,10 +66,9 @@ class temp_memory_handle {
   }
 
   wholememory_temp_memory_func_t* temp_mem_fns_ = nullptr;
-  memory_context_t memory_context_;
+  void* memory_context_                         = nullptr;
 
-  wholememory_free_func_t free_fn_ = nullptr;
-  void* ptr_                       = nullptr;
+  void* ptr_ = nullptr;
 };
 
 }  // namespace wholememory_ops

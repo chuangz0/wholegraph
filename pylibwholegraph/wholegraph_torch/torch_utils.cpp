@@ -32,30 +32,26 @@ wholememory_dtype_t get_wholememory_dtype(torch::ScalarType ts_dtype) {
   }
 }
 
-void set_need_grad(memory_context_t* memory_context, bool require_grad) {
-  static_cast<pytorch_memory_context *>(memory_context->context)->options =
-      static_cast<pytorch_memory_context *>(memory_context->context)->options.requires_grad(require_grad);
+void set_need_grad(pytorch_memory_context* memory_context, bool require_grad) {
+  memory_context->options = memory_context->options.requires_grad(require_grad);
 }
 
-void create_torch_memory_context_func(memory_context_t* memory_context, void* /*global_context*/) {
-  wholememory_initialize_tensor_desc(&memory_context->desc);
-  memory_context->context = new pytorch_memory_context();
+void create_torch_memory_context_func(void** memory_context, void* /*global_context*/) {
+  *memory_context = new pytorch_memory_context();
 }
 
-void destroy_torch_memory_context_func(memory_context_t* memory_context, void* /*global_context*/) {
-  wholememory_initialize_tensor_desc(&memory_context->desc);
-  if (memory_context->context != nullptr) {
-    delete static_cast<pytorch_memory_context *>(memory_context->context);
-    memory_context->context = nullptr;
+void destroy_torch_memory_context_func(void* memory_context, void* /*global_context*/) {
+  if (memory_context != nullptr) {
+    delete static_cast<pytorch_memory_context *>(memory_context);
   }
 }
 
 void *torch_common_malloc_func(wholememory_tensor_description_t *tensor_description,
-                               memory_context_t *memory_context,
+                               void *memory_context,
                                bool gpu_memory,
                                bool pinned) {
-  memory_context->desc = *tensor_description;
-  auto* pytorch_context = static_cast<pytorch_memory_context *>(memory_context->context);
+  auto* pytorch_context = static_cast<pytorch_memory_context *>(memory_context);
+  pytorch_context->desc = *tensor_description;
   std::vector<int64_t> shape(tensor_description->dim);
   for (int i = 0; i < tensor_description->dim; i++) {
     shape[i] = tensor_description->sizes[i];
@@ -76,11 +72,11 @@ void *torch_common_malloc_func(wholememory_tensor_description_t *tensor_descript
   return pytorch_context->tensor.data_ptr();
 }
 
-void torch_common_free_func(memory_context_t* memory_context, void* /*global_context*/)
+void torch_common_free_func(void* memory_context, void* /*global_context*/)
 {
-  wholememory_initialize_tensor_desc(&memory_context->desc);
-  static_cast<pytorch_memory_context *>(memory_context->context)->tensor = torch::Tensor();
-  static_cast<pytorch_memory_context *>(memory_context->context)->options = torch::TensorOptions();
+  static_cast<pytorch_memory_context *>(memory_context)->tensor = torch::Tensor();
+  static_cast<pytorch_memory_context *>(memory_context)->options = torch::TensorOptions();
+  wholememory_initialize_tensor_desc(&static_cast<pytorch_memory_context *>(memory_context)->desc);
 }
 
 void get_tensor_desc_from_torch_tensor(wholememory_tensor_description_t* tensor_desc, const torch::Tensor& t) {

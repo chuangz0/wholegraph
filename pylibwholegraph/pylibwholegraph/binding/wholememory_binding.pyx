@@ -21,6 +21,7 @@
 
 cimport cpython
 from libc cimport stdlib
+from libc.stdio cimport printf, fprintf, stdout, stderr, fflush
 import functools
 import cython
 from libc.stdint cimport *
@@ -30,6 +31,16 @@ from cpython cimport Py_buffer
 from cpython cimport array
 import array
 import numpy as np
+from cpython.ref cimport PyObject, Py_INCREF, Py_DECREF
+from cpython.object cimport Py_TYPE, PyObject_CallObject
+from cpython.tuple cimport *
+from cpython.long cimport PyLong_AsLongLong
+
+
+cdef extern from "Python.h":
+    void Py_INCREF(PyObject *o)
+    void Py_DECREF(PyObject *o)
+
 
 cdef extern from "wholememory/wholememory.h":
     ctypedef enum wholememory_error_code_t:
@@ -201,6 +212,276 @@ cdef extern from "wholememory/tensor_description.h":
 
     cdef size_t wholememory_dtype_get_element_size(wholememory_dtype_t dtype)
 
+    cdef int64_t wholememory_get_memory_element_count_from_tensor(
+            wholememory_tensor_description_t * p_tensor_description)
+
+
+cdef extern from "wholememory/env_func_ptrs.h":
+    ctypedef enum wholememory_memory_allocation_type_t:
+        WHOLEMEMORY_MA_NONE                 "WHOLEMEMORY_MA_NONE"
+        WHOLEMEMORY_MA_DEVICE               "WHOLEMEMORY_MA_DEVICE"
+        WHOLEMEMORY_MA_HOST                 "WHOLEMEMORY_MA_HOST"
+        WHOLEMEMORY_MA_PINNED               "WHOLEMEMORY_MA_PINNED"
+
+    ctypedef void (*wholememory_create_memory_context_func_t)(void ** memory_context,
+                                                              void * global_context)
+
+    ctypedef void (*wholememory_destroy_memory_context_func_t)(void * memory_context,
+                                                               void * global_context)
+
+    ctypedef void * (*wholememory_malloc_func_t)(wholememory_tensor_description_t * desc,
+                                                 wholememory_memory_allocation_type_t memory_allocation_type,
+                                                 void * memory_context,
+                                                 void * global_context)
+
+    ctypedef void (*wholememory_free_func_t)(void * memory_context, void * global_context)
+
+    cdef struct wholememory_temp_memory_func_t:
+        wholememory_create_memory_context_func_t create_memory_context_fn
+        wholememory_destroy_memory_context_func_t destroy_memory_context_fn
+        wholememory_malloc_func_t malloc_fn
+        wholememory_free_func_t free_fn
+        void * global_context
+
+    cdef struct wholememory_output_memory_func_t:
+        wholememory_malloc_func_t malloc_fn
+        wholememory_free_func_t free_fn
+        void * global_context
+
+    cdef struct wholememory_env_func_t:
+        wholememory_temp_memory_func_t temporary_fns
+        wholememory_output_memory_func_t output_fns
+
+
+cpdef enum WholeMemoryMemoryAllocType:
+    MatNone = WHOLEMEMORY_MA_NONE
+    MatDevice = WHOLEMEMORY_MA_DEVICE
+    MatHost = WHOLEMEMORY_MA_HOST
+    MatPinned = WHOLEMEMORY_MA_PINNED
+
+cdef class PyMemoryAllocType:
+    cdef wholememory_memory_allocation_type_t alloc_type
+
+    def __cinit__(self):
+        self.alloc_type = WHOLEMEMORY_MA_NONE
+
+    def set_type(self, WholeMemoryMemoryAllocType new_type):
+        self.alloc_type = <wholememory_memory_allocation_type_t> <int64_t> new_type
+
+    def get_type(self):
+        return <int64_t> self.alloc_type
+
+    def set_ctype(self, wholememory_memory_allocation_type_t alloc_type):
+        self.alloc_type = alloc_type
+
+    def get_ctype(self):
+        return self.alloc_type
+
+cdef class GlobalContextWrapper:
+    cdef PyObject * temp_create_context_fn
+    cdef PyObject * temp_destroy_context_fn
+    cdef PyObject * temp_malloc_fn
+    cdef PyObject * temp_free_fn
+    cdef PyObject * temp_global_context
+    cdef PyObject * output_malloc_fn
+    cdef PyObject * output_free_fn
+    cdef PyObject * output_global_context
+    cdef wholememory_env_func_t env_func
+
+    def __cinit__(self):
+        self.temp_create_context_fn = NULL
+        self.temp_destroy_context_fn = NULL
+        self.temp_malloc_fn = NULL
+        self.temp_free_fn = NULL
+        self.temp_global_context = NULL
+        self.output_malloc_fn = NULL
+        self.output_free_fn = NULL
+        self.output_global_context = NULL
+
+    def __dealloc__(self):
+        Py_DECREF(self.self.temp_create_context_fn)
+        Py_DECREF(self.self.temp_destroy_context_fn)
+        Py_DECREF(self.self.temp_malloc_fn)
+        Py_DECREF(self.self.temp_free_fn)
+        if self.temp_global_context:
+            Py_DECREF(self.self.temp_global_context)
+        Py_DECREF(self.self.output_malloc_fn)
+        Py_DECREF(self.self.output_free_fn)
+        if self.output_global_context:
+            Py_DECREF(self.self.output_global_context)
+
+    cpdef create_context(self,
+                         temp_create_context_fn,
+                         temp_destroy_context_fn,
+                         temp_malloc_fn,
+                         temp_free_fn,
+                         temp_global_context,
+                         output_malloc_fn,
+                         output_free_fn,
+                         output_global_context):
+        self.temp_create_context_fn = <PyObject *> temp_create_context_fn
+        Py_INCREF(self.temp_create_context_fn)
+        self.temp_destroy_context_fn = <PyObject *> temp_destroy_context_fn
+        Py_INCREF(self.temp_destroy_context_fn)
+        self.temp_malloc_fn = <PyObject *> temp_malloc_fn
+        Py_INCREF(self.temp_malloc_fn)
+        self.temp_free_fn = <PyObject *> temp_free_fn
+        Py_INCREF(self.temp_free_fn)
+        if temp_global_context:
+            self.temp_global_context = <PyObject *> temp_global_context
+            Py_INCREF(self.temp_global_context)
+        self.output_malloc_fn = <PyObject *> output_malloc_fn
+        Py_INCREF(self.output_malloc_fn)
+        self.output_free_fn = <PyObject *> output_free_fn
+        Py_INCREF(self.output_free_fn)
+        if output_global_context:
+            self.output_global_context = <PyObject *> output_global_context
+            Py_INCREF(self.output_global_context)
+        self.env_func.temporary_fns.create_memory_context_fn = &python_cb_wrapper_temp_create_context
+        self.env_func.temporary_fns.destroy_memory_context_fn = &python_cb_wrapper_temp_destroy_context
+        self.env_func.temporary_fns.malloc_fn = &python_cb_wrapper_temp_malloc
+        self.env_func.temporary_fns.free_fn = &python_cb_wrapper_temp_free
+        self.env_func.temporary_fns.global_context = <PyObject *> self
+        self.env_func.output_fns.malloc_fn = &python_cb_wrapper_output_malloc
+        self.env_func.output_fns.free_fn = &python_cb_wrapper_output_free
+        self.env_func.output_fns.global_context = <PyObject *> self
+        #fprintf(stderr, "in create_context, output_malloc_fn=%ld\n", <int64_t>self.output_malloc_fn)
+
+    cpdef int64_t get_env_fns(self):
+        #fprintf(stderr, "in get_env_fns: env_func_ptrs=%ld, self=%ld\n", <int64_t>&self.env_func, <int64_t>id(self))
+        return <int64_t> (&self.env_func)
+
+cdef void python_cb_wrapper_temp_create_context(void** memory_context,
+                                                void * global_context) nogil:
+    cdef PyObject * ret_memory_context = NULL
+    with gil:
+        wrapped_global_context = <GlobalContextWrapper> <PyObject *> global_context
+        python_fn = wrapped_global_context.temp_create_context_fn
+        python_global_context = wrapped_global_context.temp_global_context
+        args = PyTuple_New(1)
+        Py_INCREF(<object> python_global_context)
+        PyTuple_SetItem(args, 0, <object> python_global_context)
+        py_memory_context = PyObject_CallObject(<object> python_fn, <object> args)
+        ret_memory_context = <PyObject *> py_memory_context
+        #fprintf(stderr, "in python_cb_wrapper_temp_create_context ret_memory_context=%ld\n", <int64_t>ret_memory_context)
+        Py_DECREF(args)
+        Py_INCREF(ret_memory_context)
+        (<PyObject **> memory_context)[0] = ret_memory_context
+    return
+
+cdef void python_cb_wrapper_temp_destroy_context(void * memory_context,
+                                                 void * global_context) nogil:
+    with gil:
+        wrapped_global_context = <GlobalContextWrapper> <PyObject *> global_context
+        python_fn = wrapped_global_context.temp_destroy_context_fn
+        python_global_context = wrapped_global_context.temp_global_context
+        args = PyTuple_New(2)
+        Py_INCREF(<object> <PyObject *> memory_context)
+        PyTuple_SetItem(args, 0, <object> <PyObject *> memory_context)
+        Py_INCREF(<object> python_global_context)
+        PyTuple_SetItem(args, 1, <object> python_global_context)
+        PyObject_CallObject(<object> python_fn, <object> args)
+        Py_DECREF(args)
+        Py_DECREF(<PyObject *> memory_context)
+    return
+
+cdef void * python_cb_wrapper_temp_malloc(wholememory_tensor_description_t * tensor_desc,
+                                          wholememory_memory_allocation_type_t malloc_type,
+                                          void * memory_context,
+                                          void * global_context) nogil:
+    cdef int64_t res_ptr = 0
+    with gil:
+        wrapped_global_context = <GlobalContextWrapper> <PyObject *> global_context
+        py_tensor_desc = PyWholeMemoryTensorDescription()
+        py_tensor_desc.set_by_tensor_desc(tensor_desc)
+        py_malloc_type = PyMemoryAllocType()
+        py_malloc_type.set_type(malloc_type)
+        python_fn = wrapped_global_context.temp_malloc_fn
+        python_global_context = wrapped_global_context.temp_global_context
+        args = PyTuple_New(4)
+        Py_INCREF(py_tensor_desc)
+        PyTuple_SetItem(args, 0, <object> py_tensor_desc)
+        Py_INCREF(py_malloc_type)
+        PyTuple_SetItem(args, 1, <object> py_malloc_type)
+        Py_INCREF(<object> <PyObject *> memory_context)
+        PyTuple_SetItem(args, 2, <object> <PyObject *> memory_context)
+        Py_INCREF(<object> <PyObject *> python_global_context)
+        PyTuple_SetItem(args, 3, <object> <PyObject *> python_global_context)
+        res_ptr = PyLong_AsLongLong(PyObject_CallObject(<object> python_fn, <object> args))
+        Py_DECREF(args)
+    return <void *> res_ptr
+
+cdef void python_cb_wrapper_temp_free(void * memory_context,
+                                      void * global_context) nogil:
+    with gil:
+        wrapped_global_context = <GlobalContextWrapper> <PyObject *> global_context
+        python_fn = wrapped_global_context.temp_free_fn
+        python_global_context = wrapped_global_context.temp_global_context
+        args = PyTuple_New(2)
+        Py_INCREF(<object> <PyObject *> memory_context)
+        PyTuple_SetItem(args, 0, <object> <PyObject *> memory_context)
+        Py_INCREF(<object> python_global_context)
+        PyTuple_SetItem(args, 1, <object> python_global_context)
+        PyObject_CallObject(<object> python_fn, <object> args)
+        Py_DECREF(args)
+    return
+
+cdef void * python_cb_wrapper_output_malloc(wholememory_tensor_description_t * tensor_desc,
+                                            wholememory_memory_allocation_type_t malloc_type,
+                                            void * memory_context,
+                                            void * global_context) nogil:
+    #fprintf(stderr, "in python_cb_wrapper_output_malloc\n")
+    #fprintf(stderr, "tensor_desc dim=%d, size=(%ld, %ld), stride=(%ld, %ld), offset=%ld\n",
+    #        tensor_desc.dim, tensor_desc.sizes[0], tensor_desc.sizes[1],
+    #        tensor_desc.strides[0], tensor_desc.strides[1], tensor_desc.storage_offset)
+    #fprintf(stderr, "malloc_type=%d\n", <int>malloc_type)
+    #fprintf(stderr, "memory_context=%ld, global_context=%ld\n", <intptr_t>memory_context, <intptr_t>global_context)
+    cdef int64_t res_ptr = 0
+    with gil:
+        wrapped_global_context = <GlobalContextWrapper> <PyObject *> global_context
+        py_tensor_desc = PyWholeMemoryTensorDescription()
+        py_tensor_desc.set_by_tensor_desc(tensor_desc)
+        py_malloc_type = PyMemoryAllocType()
+        py_malloc_type.set_type(malloc_type)
+        python_fn = wrapped_global_context.output_malloc_fn
+        python_global_context = wrapped_global_context.output_global_context
+        #fprintf(stderr, "in python_cb_wrapper_output_malloc before args\n")
+        #fprintf(stderr, "py_tensor_desc=%ld, py_malloc_type=%ld, memory_context=%ld, python_global_context=%ld\n",
+        #        <int64_t>id(py_tensor_desc), <int64_t>id(py_malloc_type), <int64_t>memory_context, <int64_t>python_global_context)
+        #fprintf(stderr, "py_tensor_desc.tensor_description dim=%d, size=(%ld, %ld), stride=(%ld, %ld), offset=%ld\n",
+        #        py_tensor_desc.tensor_description.dim, py_tensor_desc.tensor_description.sizes[0], py_tensor_desc.tensor_description.sizes[1],
+        #        py_tensor_desc.tensor_description.strides[0], py_tensor_desc.tensor_description.strides[1], py_tensor_desc.tensor_description.storage_offset)
+        args = PyTuple_New(4)
+        Py_INCREF(py_tensor_desc)
+        PyTuple_SetItem(args, 0, <object> <PyObject *> py_tensor_desc)
+        Py_INCREF(py_malloc_type)
+        PyTuple_SetItem(args, 1, <object> <PyObject *> py_malloc_type)
+        Py_INCREF(<object> <PyObject *> memory_context)
+        PyTuple_SetItem(args, 2, <object> <PyObject *> memory_context)
+        Py_INCREF(<object> <PyObject *> python_global_context)
+        PyTuple_SetItem(args, 3, <object> <PyObject *> python_global_context)
+        #fprintf(stderr, "in python_cb_wrapper_output_malloc before calling, python_fn=%ld, ref_count=%ld\n",
+        #        <int64_t>python_fn, <int64_t>Py_REFCNT(python_fn))
+        res_ptr = PyLong_AsLongLong(PyObject_CallObject(<object> python_fn, <object> args))
+        #fprintf(stderr, "in python_cb_wrapper_output_malloc after calling, res_ptr=%ld\n", <int64_t>res_ptr)
+        Py_DECREF(args)
+    return <void *> res_ptr
+
+cdef void python_cb_wrapper_output_free(void * memory_context,
+                                        void * global_context) nogil:
+    with gil:
+        wrapped_global_context = <GlobalContextWrapper> <PyObject *> global_context
+        python_fn = wrapped_global_context.output_free_fn
+        python_global_context = wrapped_global_context.output_global_context
+        args = PyTuple_New(2)
+        Py_INCREF(<object> <PyObject *> memory_context)
+        PyTuple_SetItem(args, 0, <object> <PyObject *> memory_context)
+        Py_INCREF(<object> python_global_context)
+        PyTuple_SetItem(args, 1, <object> python_global_context)
+        PyObject_CallObject(<object> python_fn, <object> args)
+        Py_DECREF(args)
+    return
+
 
 cdef extern from "wholememory/wholememory_tensor.h":
     cdef struct wholememory_tensor_:
@@ -236,6 +517,11 @@ cdef extern from "wholememory/wholememory_tensor.h":
                                                                    int64_t *ends,
                                                                    wholememory_tensor_t *sub_wholememory_tensor)
 
+    int64_t get_wholememory_tensor_count()
+
+
+def py_get_wholememory_tensor_count():
+    return get_wholememory_tensor_count()
 
 cpdef enum WholeMemoryDataType:
     DtUnknown = WHOLEMEMORY_DT_UNKNOWN
@@ -600,7 +886,7 @@ cdef class PyWholeMemoryComm:
         self.comm_id = NULL
 
     def get_c_handle(self):
-        return <int64_t>self.comm_id
+        return <int64_t> self.comm_id
 
     def get_rank(self):
         cdef int world_rank = -1
@@ -613,7 +899,6 @@ cdef class PyWholeMemoryComm:
     def barrier(self):
         check_wholememory_error_code(wholememory_communicator_barrier(self.comm_id))
 
-
 cdef class PyWholeMemoryHandle:
     cdef wholememory_handle_t wholememory_handle
 
@@ -621,7 +906,7 @@ cdef class PyWholeMemoryHandle:
         self.wholememory_handle = NULL
 
     def get_c_handle(self):
-        return <int64_t>self.wholememory_handle
+        return <int64_t> self.wholememory_handle
 
     def get_communicator(self):
         py_comm = PyWholeMemoryComm()
@@ -682,9 +967,14 @@ cdef class PyWholeMemoryHandle:
             toffsets.append(toffset)
         return chunked_tensors, toffsets
 
-
 cdef class PyWholeMemoryTensorDescription:
     cdef wholememory_tensor_description_t tensor_description
+
+    def __cinit__(self):
+        self.tensor_description.dim = 0
+
+    cdef set_by_tensor_desc(self, wholememory_tensor_description_t * td):
+        self.tensor_description = td[0]
 
     def set_dtype(self, WholeMemoryDataType dtype):
         self.tensor_description.dtype = int(dtype)
@@ -713,7 +1003,8 @@ cdef class PyWholeMemoryTensorDescription:
 
     @property
     def shape(self):
-        return tuple([self.tensor_description.sizes[i] for i in range(self.dim())])
+        ret_shape = tuple([self.tensor_description.sizes[i] for i in range(self.tensor_description.dim)])
+        return ret_shape
 
     def stride(self):
         return tuple([self.tensor_description.strides[i] for i in range(self.dim())])
@@ -721,6 +1012,31 @@ cdef class PyWholeMemoryTensorDescription:
     def storage_offset(self):
         return self.tensor_description.storage_offset
 
+cdef class WrappedLocalTensor:
+    cdef wholememory_tensor_t wm_tensor
+
+    def __cinit__(self):
+        self.wm_tensor = NULL
+
+    def __dealloc__(self):
+        if self.wm_tensor:
+            check_wholememory_error_code(wholememory_destroy_tensor(self.wm_tensor))
+            self.wm_tensor = NULL
+
+    def wrap_tensor(self,
+                    PyWholeMemoryTensorDescription py_desc,
+                    int64_t data_ptr):
+        check_wholememory_error_code(wholememory_make_tensor_from_pointer(&self.wm_tensor,
+                                                                          <void *> data_ptr,
+                                                                          &py_desc.tensor_description))
+
+        return self
+
+    def get_c_handle(self) -> int:
+        if self.wm_tensor:
+            return <int64_t> self.wm_tensor
+        else:
+            return 0
 
 cdef class PyWholeMemoryTensor:
     cdef wholememory_tensor_t wholememory_tensor
@@ -730,7 +1046,7 @@ cdef class PyWholeMemoryTensor:
         self.wholememory_tensor = NULL
 
     def get_c_handle(self):
-        return <int64_t>self.wholememory_tensor
+        return <int64_t> self.wholememory_tensor
 
     def get_wholememory_handle(self):
         handle = PyWholeMemoryHandle()
@@ -930,7 +1246,6 @@ def create_wholememory_matrix(WholeMemoryDataType dtype,
                                                            int(mem_location)))
     return wholememory_tensor
 
-
 def create_wholememory_tensor(PyWholeMemoryTensorDescription tensor_description,
                               PyWholeMemoryComm comm,
                               WholeMemoryMemoryType mem_type,
@@ -949,7 +1264,6 @@ def create_wholememory_tensor(PyWholeMemoryTensorDescription tensor_description,
                                                            int(mem_location)))
     return wholememory_tensor
 
-
 def make_tensor_as_wholememory(PyWholeMemoryTensorDescription tensor_description,
                                int64_t data_ptr):
     if tensor_description.stride()[tensor_description.dim() - 1] != 1:
@@ -959,7 +1273,6 @@ def make_tensor_as_wholememory(PyWholeMemoryTensorDescription tensor_description
                                                                       <void *> data_ptr,
                                                                       &tensor_description.tensor_description))
     return wholememory_tensor
-
 
 def make_handle_as_wholememory(PyWholeMemoryTensorDescription tensor_description,
                                PyWholeMemoryHandle handle):
@@ -971,12 +1284,152 @@ def make_handle_as_wholememory(PyWholeMemoryTensorDescription tensor_description
                                                                      &tensor_description.tensor_description))
     return wholememory_tensor
 
-
 def destroy_wholememory_tensor(PyWholeMemoryTensor wholememory_tensor):
     check_wholememory_error_code(wholememory_destroy_tensor(wholememory_tensor.wholememory_tensor))
-
 
 def fork_get_gpu_count():
     return fork_get_device_count()
 
+cdef extern from "wholememory/wholememory_op.h":
+    cdef wholememory_error_code_t wholememory_gather(wholememory_tensor_t wholememory_tensor,
+                                                     wholememory_tensor_t indices_tensor,
+                                                     wholememory_tensor_t output_tensor,
+                                                     wholememory_env_func_t * p_env_fns,
+                                                     void * stream)
 
+    cdef wholememory_error_code_t wholememory_scatter(wholememory_tensor_t input_tensor,
+                                                      wholememory_tensor_t indices_tensor,
+                                                      wholememory_tensor_t wholememory_tensor,
+                                                      wholememory_env_func_t * p_env_fns,
+                                                      void * stream)
+    cdef wholememory_error_code_t wholememory_env_test_op(wholememory_tensor_t input_tensor,
+                                                          wholememory_tensor_t output_fixed_tensor,
+                                                          void *output_variable_device_tensor_handle,
+                                                          void *output_variable_pinned_tensor_handle,
+                                                          void *output_variable_host_tensor_handle,
+                                                          int64_t output_variable_entry_count,
+                                                          wholememory_env_func_t *p_env_fns,
+                                                          void *stream)
+
+
+cpdef void wholememory_gather_op(PyWholeMemoryTensor wholememory_tensor,
+                                 WrappedLocalTensor indices_tensor,
+                                 WrappedLocalTensor output_tensor,
+                                 int64_t p_env_fns_int,
+                                 int64_t stream_int):
+    check_wholememory_error_code(wholememory_gather(<wholememory_tensor_t> <int64_t> wholememory_tensor.get_c_handle(),
+                                                    <wholememory_tensor_t> <int64_t> indices_tensor.get_c_handle(),
+                                                    <wholememory_tensor_t> <int64_t> output_tensor.get_c_handle(),
+                                                    <wholememory_env_func_t *> p_env_fns_int,
+                                                    <void *> stream_int))
+
+cpdef void wholememory_scatter_op(WrappedLocalTensor input_tensor,
+                                  WrappedLocalTensor indices_tensor,
+                                  PyWholeMemoryTensor wholememory_tensor,
+                                  int64_t p_env_fns_int,
+                                  int64_t stream_int):
+    check_wholememory_error_code(wholememory_scatter(<wholememory_tensor_t> <int64_t> input_tensor.get_c_handle(),
+                                                     <wholememory_tensor_t> <int64_t> indices_tensor.get_c_handle(),
+                                                     <wholememory_tensor_t> <int64_t> wholememory_tensor.get_c_handle(),
+                                                     <wholememory_env_func_t *> p_env_fns_int,
+                                                     <void *> stream_int))
+
+cpdef void wholememory_env_test_cython_op(WrappedLocalTensor input,
+                                          WrappedLocalTensor output,
+                                          int64_t output_variable_device_tensor_handle,
+                                          int64_t output_variable_pinned_tensor_handle,
+                                          int64_t output_variable_host_tensor_handle,
+                                          int64_t output_variable_entry_count,
+                                          int64_t p_env_fns_int,
+                                          int64_t stream_int):
+    check_wholememory_error_code(wholememory_env_test_op(<wholememory_tensor_t> <int64_t> input.get_c_handle(),
+                                                         <wholememory_tensor_t> <int64_t> output.get_c_handle(),
+                                                         <void *> output_variable_device_tensor_handle,
+                                                         <void *> output_variable_pinned_tensor_handle,
+                                                         <void *> output_variable_host_tensor_handle,
+                                                         output_variable_entry_count,
+                                                         <wholememory_env_func_t *> p_env_fns_int,
+                                                         <void *> stream_int))
+    return
+
+cdef extern from "wholememory/wholegraph_op.h":
+    cdef wholememory_error_code_t wholegraph_csr_unweighted_sample_without_replacement(
+            wholememory_tensor_t wm_csr_row_ptr_tensor,
+            wholememory_tensor_t wm_csr_col_ptr_tensor,
+            wholememory_tensor_t center_nodes_tensor,
+            int max_sample_count,
+            wholememory_tensor_t output_sample_offset_tensor,
+            void * output_dest_memory_context,
+            void * output_center_localid_memory_context,
+            void * output_edge_gid_memory_context,
+            unsigned long long random_seed,
+            wholememory_env_func_t * p_env_fns,
+            void * stream)
+
+    cdef wholememory_error_code_t wholegraph_csr_weighted_sample_without_replacement(
+            wholememory_tensor_t wm_csr_row_ptr_tensor,
+            wholememory_tensor_t wm_csr_col_ptr_tensor,
+            wholememory_tensor_t wm_csr_weight_ptr_tensor,
+            wholememory_tensor_t center_nodes_tensor,
+            int max_sample_count,
+            wholememory_tensor_t output_sample_offset_tensor,
+            void * output_dest_memory_context,
+            void * output_center_localid_memory_context,
+            void * output_edge_gid_memory_context,
+            unsigned long long random_seed,
+            wholememory_env_func_t * p_env_fns,
+            void * stream)
+
+cpdef void csr_unweighted_sample_without_replacement(
+        PyWholeMemoryTensor wm_csr_row_ptr_tensor,
+        PyWholeMemoryTensor wm_csr_col_ptr_tensor,
+        WrappedLocalTensor center_nodes_tensor,
+        int max_sample_count,
+        WrappedLocalTensor output_sample_offset_tensor,
+        int64_t output_dest_memory_handle,
+        int64_t output_center_localid_memory_handle,
+        int64_t output_edge_gid_memory_handle,
+        unsigned long long random_seed,
+        int64_t p_env_fns_int,
+        int64_t stream_int
+):
+    check_wholememory_error_code(wholegraph_csr_unweighted_sample_without_replacement(
+        <wholememory_tensor_t> <int64_t> wm_csr_row_ptr_tensor.get_c_handle(),
+        <wholememory_tensor_t> <int64_t> wm_csr_col_ptr_tensor.get_c_handle(),
+        <wholememory_tensor_t> <int64_t> center_nodes_tensor.get_c_handle(),
+        max_sample_count,
+        <wholememory_tensor_t> <int64_t> output_sample_offset_tensor.get_c_handle(),
+        <void *> output_dest_memory_handle,
+        <void *> output_center_localid_memory_handle,
+        <void *> output_edge_gid_memory_handle,
+        random_seed,
+        <wholememory_env_func_t *> p_env_fns_int,
+        <void *> stream_int))
+
+cpdef void csr_weighted_sample_without_replacement(
+        PyWholeMemoryTensor wm_csr_row_ptr_tensor,
+        PyWholeMemoryTensor wm_csr_col_ptr_tensor,
+        PyWholeMemoryTensor wm_csr_weight_ptr_tensor,
+        WrappedLocalTensor center_nodes_tensor,
+        int max_sample_count,
+        WrappedLocalTensor output_sample_offset_tensor,
+        int64_t output_dest_memory_handle,
+        int64_t output_center_localid_memory_handle,
+        int64_t output_edge_gid_memory_handle,
+        unsigned long long random_seed,
+        int64_t p_env_fns_int,
+        int64_t stream_int
+):
+    check_wholememory_error_code(wholegraph_csr_weighted_sample_without_replacement(
+        <wholememory_tensor_t> <int64_t> wm_csr_row_ptr_tensor.get_c_handle(),
+        <wholememory_tensor_t> <int64_t> wm_csr_col_ptr_tensor.get_c_handle(),
+        <wholememory_tensor_t> <int64_t> wm_csr_weight_ptr_tensor.get_c_handle(),
+        <wholememory_tensor_t> <int64_t> center_nodes_tensor.get_c_handle(),
+        max_sample_count,
+        <wholememory_tensor_t> <int64_t> output_sample_offset_tensor.get_c_handle(),
+        <void *> output_dest_memory_handle,
+        <void *> output_center_localid_memory_handle,
+        <void *> output_edge_gid_memory_handle,
+        random_seed,
+        <wholememory_env_func_t *> p_env_fns_int,
+        <void *> stream_int))

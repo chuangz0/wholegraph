@@ -7,6 +7,7 @@ import torch
 import random 
 from functools import partial
 from pylibwholegraph.test_utils.test_comm import gen_csr_graph, copy_host_1D_tensor_to_wholememory, host_get_sample_offset_tensor, host_sample_all_neighbors, int_to_wholememory_datatype, int_to_wholememory_location, int_to_wholememory_type
+import pylibwholegraph.torch.wholegraph_ops as wg_ops
 
 def  host_weighted_sample_without_replacement_func(host_csr_row_ptr, host_csr_col_ptr, host_csr_weight_ptr, center_nodes, output_sample_offset_tensor, col_id_dtype, csr_weight_dtype, total_sample_count, max_sample_count, random_seed):
     output_dest_tensor = torch.empty((total_sample_count,), dtype = col_id_dtype)
@@ -118,12 +119,18 @@ def routine_func(world_rank: int, world_size: int, **kwargs):
     center_node_tensor_cuda = center_node_tensor.cuda()
     random_seed = random.randint(1, 10000)
 
-    output_sample_offset_tensor_cuda, output_dest_tensor_cuda, output_center_localid_tensor_cuda, output_edge_gid_tensor_cuda = torch.ops.wholegraph.weighted_sample_without_replacement(wm_csr_row_ptr.get_c_handle(),
-                                wm_csr_col_ptr.get_c_handle(),
-                                wm_csr_weight_ptr.get_c_handle(),
+    #output_sample_offset_tensor_cuda, output_dest_tensor_cuda, output_center_localid_tensor_cuda, output_edge_gid_tensor_cuda = torch.ops.wholegraph.weighted_sample_without_replacement(wm_csr_row_ptr.get_c_handle(),
+    #                            wm_csr_col_ptr.get_c_handle(),
+    #                            wm_csr_weight_ptr.get_c_handle(),
+    #                            center_node_tensor_cuda,
+    #                            max_sample_count,
+    #                            random_seed)
+    output_sample_offset_tensor_cuda, output_dest_tensor_cuda, output_center_localid_tensor_cuda, output_edge_gid_tensor_cuda = wg_ops.weighted_sample_without_replacement(wm_csr_row_ptr,
+                                wm_csr_col_ptr,
+                                wm_csr_weight_ptr,
                                 center_node_tensor_cuda,
                                 max_sample_count,
-                                random_seed) 
+                                random_seed)
     output_sample_offset_tensor = output_sample_offset_tensor_cuda.cpu()
     output_dest_tensor = output_dest_tensor_cuda.cpu()
     output_center_localid_tensor = output_center_localid_tensor_cuda.cpu()

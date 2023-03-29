@@ -6,7 +6,7 @@ from pylibwholegraph.torch.dlpack_utils import torch_import_from_dlpack
 import torch
 from functools import partial
 from pylibwholegraph.test_utils.test_comm import gen_csr_graph, copy_host_1D_tensor_to_wholememory, host_get_sample_offset_tensor, host_sample_all_neighbors, int_to_wholememory_datatype, int_to_wholememory_location, int_to_wholememory_type
-
+import pylibwholegraph.torch.wholegraph_ops as wg_ops
 import random
 
 def unweighte_sample_without_replacement_base(random_values, M, N):
@@ -115,11 +115,16 @@ def routine_func(world_rank: int, world_size: int, **kwargs):
     center_node_tensor_cuda = center_node_tensor.cuda()
     random_seed = random.randint(1, 10000)
 
-    output_sample_offset_tensor_cuda, output_dest_tensor_cuda, output_center_localid_tensor_cuda, output_edge_gid_tensor_cuda = torch.ops.wholegraph.unweighted_sample_without_replacement(wm_csr_row_ptr.get_c_handle(),
-                                wm_csr_col_ptr.get_c_handle(),
+    #output_sample_offset_tensor_cuda, output_dest_tensor_cuda, output_center_localid_tensor_cuda, output_edge_gid_tensor_cuda = torch.ops.wholegraph.unweighted_sample_without_replacement(wm_csr_row_ptr.get_c_handle(),
+    #                            wm_csr_col_ptr.get_c_handle(),
+    #                            center_node_tensor_cuda,
+    #                            max_sample_count,
+    #                            random_seed)
+    output_sample_offset_tensor_cuda, output_dest_tensor_cuda, output_center_localid_tensor_cuda, output_edge_gid_tensor_cuda = wg_ops.unweighted_sample_without_replacement(wm_csr_row_ptr,
+                                wm_csr_col_ptr,
                                 center_node_tensor_cuda,
                                 max_sample_count,
-                                random_seed) 
+                                random_seed)
     output_sample_offset_tensor = output_sample_offset_tensor_cuda.cpu()
     output_dest_tensor = output_dest_tensor_cuda.cpu()
     output_center_localid_tensor = output_center_localid_tensor_cuda.cpu()

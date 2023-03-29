@@ -257,7 +257,8 @@ TEST_P(WholeGraphCSRWeightedSampleWithoutReplacementParameterTests, WeightedSamp
                 WHOLEMEMORY_SUCCESS);
 
       wholememory_env_func_t* default_env_func = wholememory::get_default_env_func();
-      memory_context_t output_dest_mem_ctx, output_center_localid_mem_ctx, output_edge_gid_mem_ctx;
+      wholememory::default_memory_context_t output_dest_mem_ctx, output_center_localid_mem_ctx,
+        output_edge_gid_mem_ctx;
 
       EXPECT_EQ(wholegraph_csr_weighted_sample_without_replacement(wm_csr_row_ptr_tensor,
                                                                    wm_csr_col_ptr_tensor,
@@ -303,19 +304,19 @@ TEST_P(WholeGraphCSRWeightedSampleWithoutReplacementParameterTests, WeightedSamp
                 cudaSuccess);
       EXPECT_EQ(cudaMemcpyAsync(
                   host_output_dest_nodes,
-                  output_dest_mem_ctx.context,
+                  output_dest_mem_ctx.ptr,
                   total_sample_count * wholememory_dtype_get_element_size(csr_col_ptr_desc.dtype),
                   cudaMemcpyDeviceToHost,
                   stream),
                 cudaSuccess);
       EXPECT_EQ(cudaMemcpyAsync(host_output_center_nodes_local_id,
-                                output_center_localid_mem_ctx.context,
+                                output_center_localid_mem_ctx.ptr,
                                 total_sample_count * sizeof(int),
                                 cudaMemcpyDeviceToHost,
                                 stream),
                 cudaSuccess);
       EXPECT_EQ(cudaMemcpyAsync(host_output_global_edge_id,
-                                output_edge_gid_mem_ctx.context,
+                                output_edge_gid_mem_ctx.ptr,
                                 total_sample_count * sizeof(int64_t),
                                 cudaMemcpyDeviceToHost,
                                 stream),
@@ -376,9 +377,9 @@ TEST_P(WholeGraphCSRWeightedSampleWithoutReplacementParameterTests, WeightedSamp
         host_ref_output_global_edge_id,
         wholememory_create_array_desc(host_total_sample_count, 0, WHOLEMEMORY_DT_INT64));
 
-      (default_env_func->output_fns).device_free_fn(&output_dest_mem_ctx, nullptr);
-      (default_env_func->output_fns).device_free_fn(&output_center_localid_mem_ctx, nullptr);
-      (default_env_func->output_fns).device_free_fn(&output_edge_gid_mem_ctx, nullptr);
+      (default_env_func->output_fns).free_fn(&output_dest_mem_ctx, nullptr);
+      (default_env_func->output_fns).free_fn(&output_center_localid_mem_ctx, nullptr);
+      (default_env_func->output_fns).free_fn(&output_edge_gid_mem_ctx, nullptr);
 
       if (host_ref_output_sample_offset != nullptr) free(host_ref_output_sample_offset);
       if (host_ref_output_dest_nodes != nullptr) free(host_ref_output_dest_nodes);

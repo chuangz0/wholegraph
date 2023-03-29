@@ -8,108 +8,80 @@
 
 namespace wholememory {
 
-void empty_create_memory_context_func(memory_context_t* memory_context, void* /*global_context*/)
+void default_create_memory_context_func(void** memory_context, void* /*global_context*/)
 {
-  wholememory_initialize_tensor_desc(&memory_context->desc);
-  memory_context->context = nullptr;
+  auto* default_memory_context = new default_memory_context_t;
+  wholememory_initialize_tensor_desc(&default_memory_context->desc);
+  default_memory_context->ptr             = nullptr;
+  default_memory_context->allocation_type = WHOLEMEMORY_MA_NONE;
+  *memory_context                         = default_memory_context;
 }
 
-void empty_destroy_memory_context_func(memory_context_t* /*memory_context*/,
-                                       void* /*global_context*/)
+void default_destroy_memory_context_func(void* memory_context, void* /*global_context*/)
 {
+  auto* default_memory_context = static_cast<default_memory_context_t*>(memory_context);
+  delete default_memory_context;
 }
 
-void* default_host_malloc_func(wholememory_tensor_description_t* tensor_description,
-                               memory_context_t* memory_context,
-                               void* /*global_context*/)
+void* default_malloc_func(wholememory_tensor_description_t* tensor_description,
+                          wholememory_memory_allocation_type_t memory_allocation_type,
+                          void* memory_context,
+                          void* /*global_context*/)
 {
-  void* ptr               = malloc(wholememory_get_memory_size_from_tensor(tensor_description));
-  memory_context->desc    = *tensor_description;
-  memory_context->context = ptr;
-  return ptr;
-}
-
-void default_host_free_func(memory_context_t* memory_context, void* /*global_context*/)
-{
-  free(memory_context->context);
-  wholememory_initialize_tensor_desc(&memory_context->desc);
-  memory_context->context = nullptr;
-}
-
-void* default_device_malloc_func(wholememory_tensor_description_t* tensor_description,
-                                 memory_context_t* memory_context,
-                                 void* /*global_context*/)
-{
-  void* ptr = nullptr;
+  auto* default_memory_context = static_cast<default_memory_context_t*>(memory_context);
+  void* ptr                    = nullptr;
   try {
-    WM_CUDA_CHECK(cudaMalloc(&ptr, wholememory_get_memory_size_from_tensor(tensor_description)));
+    if (memory_allocation_type == WHOLEMEMORY_MA_HOST) {
+      ptr = malloc(wholememory_get_memory_size_from_tensor(tensor_description));
+      if (ptr == nullptr) { WHOLEMEMORY_FAIL_NOTHROW("malloc returned nullptr.\n"); }
+    } else if (memory_allocation_type == WHOLEMEMORY_MA_PINNED) {
+      WM_CUDA_CHECK(
+        cudaMallocHost(&ptr, wholememory_get_memory_size_from_tensor(tensor_description)));
+    } else if (memory_allocation_type == WHOLEMEMORY_MA_DEVICE) {
+      WM_CUDA_CHECK(cudaMalloc(&ptr, wholememory_get_memory_size_from_tensor(tensor_description)));
+    } else {
+      WHOLEMEMORY_FAIL_NOTHROW("memory_allocation_type incorrect.\n");
+    }
   } catch (wholememory::cuda_error& wce) {
     WHOLEMEMORY_FAIL_NOTHROW("cudaMalloc failed, %s.\n", wce.what());
   }
-  memory_context->desc    = *tensor_description;
-  memory_context->context = ptr;
+  default_memory_context->desc            = *tensor_description;
+  default_memory_context->ptr             = ptr;
+  default_memory_context->allocation_type = memory_allocation_type;
   return ptr;
 }
 
-void default_device_free_func(memory_context_t* memory_context, void* /*global_context*/)
+void default_free_func(void* memory_context, void* /*global_context*/)
 {
-  try {
-    WM_CUDA_CHECK(cudaFree(memory_context->context));
-  } catch (wholememory::cuda_error& wce) {
-    WHOLEMEMORY_FAIL_NOTHROW("cudaFree failed, %s.\n", wce.what());
+  auto* default_memory_context = static_cast<default_memory_context_t*>(memory_context);
+  auto memory_allocation_type  = default_memory_context->allocation_type;
+  if (memory_allocation_type == WHOLEMEMORY_MA_HOST) {
+    free(default_memory_context->ptr);
+  } else if (memory_allocation_type == WHOLEMEMORY_MA_PINNED) {
+    WM_CUDA_CHECK(cudaFreeHost(default_memory_context->ptr));
+  } else if (memory_allocation_type == WHOLEMEMORY_MA_DEVICE) {
+    WM_CUDA_CHECK(cudaFree(default_memory_context->ptr));
+  } else {
+    WHOLEMEMORY_FAIL_NOTHROW("memory_allocation_type incorrect.\n");
   }
-  wholememory_initialize_tensor_desc(&memory_context->desc);
-  memory_context->context = nullptr;
-}
-
-void* default_pinned_malloc_func(wholememory_tensor_description_t* tensor_description,
-                                 memory_context_t* memory_context,
-                                 void* /*global_context*/)
-{
-  void* ptr = nullptr;
-  try {
-    WM_CUDA_CHECK(
-      cudaMallocHost(&ptr, wholememory_get_memory_size_from_tensor(tensor_description)));
-  } catch (wholememory::cuda_error& wce) {
-    WHOLEMEMORY_FAIL_NOTHROW("cudaMallocHost failed, %s.\n", wce.what());
-  }
-  memory_context->desc    = *tensor_description;
-  memory_context->context = ptr;
-  return ptr;
-}
-
-void default_pinned_free_func(memory_context_t* memory_context, void* /*global_context*/)
-{
-  try {
-    WM_CUDA_CHECK(cudaFreeHost(memory_context->context));
-  } catch (wholememory::cuda_error& wce) {
-    WHOLEMEMORY_FAIL_NOTHROW("cudaFreeHost failed, %s.\n", wce.what());
-  }
-  wholememory_initialize_tensor_desc(&memory_context->desc);
-  memory_context->context = nullptr;
+  wholememory_initialize_tensor_desc(&default_memory_context->desc);
+  default_memory_context->ptr             = nullptr;
+  default_memory_context->allocation_type = WHOLEMEMORY_MA_NONE;
 }
 
 static wholememory_env_func_t default_env_func = {
   .temporary_fns =
     {
-      .create_memory_context_fn  = empty_create_memory_context_func,
-      .destroy_memory_context_fn = empty_destroy_memory_context_func,
-      .host_malloc_fn            = default_host_malloc_func,
-      .host_free_fn              = default_host_free_func,
-      .device_malloc_fn          = default_device_malloc_func,
-      .device_free_fn            = default_device_free_func,
-      .pinned_malloc_fn          = default_pinned_malloc_func,
-      .pinned_free_fn            = default_pinned_free_func,
+      .create_memory_context_fn  = default_create_memory_context_func,
+      .destroy_memory_context_fn = default_destroy_memory_context_func,
+      .malloc_fn                 = default_malloc_func,
+      .free_fn                   = default_free_func,
       .global_context            = nullptr,
     },
   .output_fns = {
-    .host_malloc_fn   = default_host_malloc_func,
-    .host_free_fn     = default_host_free_func,
-    .device_malloc_fn = default_device_malloc_func,
-    .device_free_fn   = default_device_free_func,
-    .pinned_malloc_fn = default_pinned_malloc_func,
-    .pinned_free_fn   = default_pinned_free_func,
-    .global_context   = nullptr,
+    .malloc_fn      = default_malloc_func,
+    .free_fn        = default_free_func,
+    .global_context = nullptr,
   }};
 
 wholememory_env_func_t* get_default_env_func() { return &default_env_func; }

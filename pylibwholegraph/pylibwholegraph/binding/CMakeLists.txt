@@ -1,5 +1,5 @@
 # Set the list of Cython files to build
-set(cython_sources wholememory_binding.pyx)
+set(cython_sources wholememory_binding.pyx wholegraph_ops_binding.pyx)
 set(linked_libraries wholegraph::wholegraph)
 
 # Build all of the Cython targets

@@ -4,6 +4,12 @@
 
 namespace wholememory {
 
+struct default_memory_context_t {
+  wholememory_tensor_description_t desc;
+  wholememory_memory_allocation_type_t allocation_type;
+  void* ptr;
+};
+
 /**
  * @brief : Default environment functions for memory allocation.
  * Will use cudaMalloc/cudaFree, cudaMallocHost/cudaFreeHost, malloc/free.

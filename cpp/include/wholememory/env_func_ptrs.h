@@ -15,44 +15,40 @@
 extern "C" {
 #endif
 
-struct memory_context_t {
-  wholememory_tensor_description_t desc;
-  void* context;
+enum wholememory_memory_allocation_type_t {
+  WHOLEMEMORY_MA_NONE = 0,
+  WHOLEMEMORY_MA_DEVICE,
+  WHOLEMEMORY_MA_HOST,
+  WHOLEMEMORY_MA_PINNED,
 };
 
 /**
  * Function pointer to create temporary memory context.
  */
-typedef void (*wholememory_create_memory_context_func_t)(memory_context_t* memory_context,
+typedef void (*wholememory_create_memory_context_func_t)(void** memory_context,
                                                          void* global_context);
 
-typedef void (*wholememory_destroy_memory_context_func_t)(memory_context_t* memory_context,
+typedef void (*wholememory_destroy_memory_context_func_t)(void* memory_context,
                                                           void* global_context);
 
-typedef void* (*wholememory_malloc_func_t)(wholememory_tensor_description_t* desc,
-                                           memory_context_t* memory_context,
-                                           void* global_context);
+typedef void* (*wholememory_malloc_func_t)(
+  wholememory_tensor_description_t* desc,
+  wholememory_memory_allocation_type_t memory_allocation_type,
+  void* memory_context,
+  void* global_context);
 
-typedef void (*wholememory_free_func_t)(memory_context_t* memory_context, void* global_context);
+typedef void (*wholememory_free_func_t)(void* memory_context, void* global_context);
 
 struct wholememory_temp_memory_func_t {
   wholememory_create_memory_context_func_t create_memory_context_fn;
   wholememory_destroy_memory_context_func_t destroy_memory_context_fn;
-  wholememory_malloc_func_t host_malloc_fn;
-  wholememory_free_func_t host_free_fn;
-  wholememory_malloc_func_t device_malloc_fn;
-  wholememory_free_func_t device_free_fn;
-  wholememory_malloc_func_t pinned_malloc_fn;
-  wholememory_free_func_t pinned_free_fn;
+  wholememory_malloc_func_t malloc_fn;
+  wholememory_free_func_t free_fn;
   void* global_context;
 };
 struct wholememory_output_memory_func_t {
-  wholememory_malloc_func_t host_malloc_fn;
-  wholememory_free_func_t host_free_fn;
-  wholememory_malloc_func_t device_malloc_fn;
-  wholememory_free_func_t device_free_fn;
-  wholememory_malloc_func_t pinned_malloc_fn;
-  wholememory_free_func_t pinned_free_fn;
+  wholememory_malloc_func_t malloc_fn;
+  wholememory_free_func_t free_fn;
   void* global_context;
 };
 

@@ -139,6 +139,9 @@ wholememory_error_code_t wholememory_tensor_get_subtensor(
  */
 wholememory_tensor_t wholememory_tensor_get_root(wholememory_tensor_t wholememory_tensor);
 
+#define WM_TENSOR_COUNT_DEBUG
+int64_t get_wholememory_tensor_count();
+
 #ifdef __cplusplus
 }
 #endif

@@ -12,6 +12,8 @@
 #include "../wholememory/wholememory_test_utils.hpp"
 #include "embedding_test_utils.hpp"
 
+static int g_dev_count = 0;
+
 typedef struct WholeMemoryGatherTestParam {
   wholememory_matrix_description_t get_embedding_desc() const
   {
@@ -106,130 +108,132 @@ class WholeMemoryGatherParameterTests
 
 TEST_P(WholeMemoryGatherParameterTests, GatherTest)
 {
-  auto params   = GetParam();
-  int dev_count = ForkGetDeviceCount();
-  EXPECT_GE(dev_count, 1);
+  auto params = GetParam();
+  EXPECT_GE(g_dev_count, 1);
   std::vector<std::array<int, 2>> pipes;
-  CreatePipes(&pipes, dev_count);
-  MultiProcessRun(dev_count, [&params, &pipes](int world_rank, int world_size) {
-    EXPECT_EQ(wholememory_init(0), WHOLEMEMORY_SUCCESS);
+  CreatePipes(&pipes, g_dev_count);
+  MultiProcessRun(
+    g_dev_count,
+    [&params, &pipes](int world_rank, int world_size) {
+      EXPECT_EQ(wholememory_init(0), WHOLEMEMORY_SUCCESS);
 
-    EXPECT_EQ(cudaSetDevice(world_rank), cudaSuccess);
+      EXPECT_EQ(cudaSetDevice(world_rank), cudaSuccess);
 
-    wholememory_comm_t wm_comm = create_communicator_by_pipes(pipes, world_rank, world_size);
+      wholememory_comm_t wm_comm = create_communicator_by_pipes(pipes, world_rank, world_size);
 
-    wholememory_handle_t embedding_handle;
-    auto embedding_desc         = params.get_embedding_desc();
-    auto indices_desc           = params.get_indices_desc();
-    auto output_desc            = params.get_output_desc();
-    size_t embedding_entry_size = params.get_embedding_granularity();
-    EXPECT_EQ(wholememory_malloc(&embedding_handle,
-                                 wholememory_get_memory_size_from_matrix(&embedding_desc),
-                                 wm_comm,
-                                 params.memory_type,
-                                 params.memory_location,
-                                 embedding_entry_size),
-              WHOLEMEMORY_SUCCESS);
+      wholememory_handle_t embedding_handle;
+      auto embedding_desc         = params.get_embedding_desc();
+      auto indices_desc           = params.get_indices_desc();
+      auto output_desc            = params.get_output_desc();
+      size_t embedding_entry_size = params.get_embedding_granularity();
+      EXPECT_EQ(wholememory_malloc(&embedding_handle,
+                                   wholememory_get_memory_size_from_matrix(&embedding_desc),
+                                   wm_comm,
+                                   params.memory_type,
+                                   params.memory_location,
+                                   embedding_entry_size),
+                WHOLEMEMORY_SUCCESS);
 
-    cudaStream_t stream;
-    EXPECT_EQ(cudaStreamCreate(&stream), cudaSuccess);
+      cudaStream_t stream;
+      EXPECT_EQ(cudaStreamCreate(&stream), cudaSuccess);
 
-    void *dev_indices = nullptr, *dev_gather_buffer = nullptr, *dev_reference_buffer = nullptr;
-    void *host_indices = nullptr, *host_gather_buffer = nullptr, *host_reference_buffer = nullptr;
-    size_t gather_buffer_size  = wholememory_get_memory_size_from_matrix(&output_desc);
-    size_t indices_buffer_size = wholememory_get_memory_size_from_array(&indices_desc);
+      void *dev_indices = nullptr, *dev_gather_buffer = nullptr, *dev_reference_buffer = nullptr;
+      void *host_indices = nullptr, *host_gather_buffer = nullptr, *host_reference_buffer = nullptr;
+      size_t gather_buffer_size  = wholememory_get_memory_size_from_matrix(&output_desc);
+      size_t indices_buffer_size = wholememory_get_memory_size_from_array(&indices_desc);
 
-    EXPECT_EQ(cudaMallocHost(&host_indices, indices_buffer_size), cudaSuccess);
-    EXPECT_EQ(cudaMalloc(&dev_indices, indices_buffer_size), cudaSuccess);
-    EXPECT_EQ(cudaMalloc(&dev_gather_buffer, gather_buffer_size), cudaSuccess);
-    EXPECT_EQ(cudaMalloc(&dev_reference_buffer, gather_buffer_size), cudaSuccess);
-    EXPECT_EQ(cudaMallocHost(&host_gather_buffer, gather_buffer_size), cudaSuccess);
-    EXPECT_EQ(cudaMallocHost(&host_reference_buffer, gather_buffer_size), cudaSuccess);
+      EXPECT_EQ(cudaMallocHost(&host_indices, indices_buffer_size), cudaSuccess);
+      EXPECT_EQ(cudaMalloc(&dev_indices, indices_buffer_size), cudaSuccess);
+      EXPECT_EQ(cudaMalloc(&dev_gather_buffer, gather_buffer_size), cudaSuccess);
+      EXPECT_EQ(cudaMalloc(&dev_reference_buffer, gather_buffer_size), cudaSuccess);
+      EXPECT_EQ(cudaMallocHost(&host_gather_buffer, gather_buffer_size), cudaSuccess);
+      EXPECT_EQ(cudaMallocHost(&host_reference_buffer, gather_buffer_size), cudaSuccess);
 
-    wholememory_ops::testing::device_random_init_local_embedding_table(
-      embedding_handle, embedding_desc, stream);
-    wholememory_ops::testing::host_random_init_indices(
-      host_indices, indices_desc, embedding_desc.sizes[0]);
-    EXPECT_EQ(cudaMemcpyAsync(dev_indices,
-                              host_indices,
-                              wholememory_get_memory_size_from_array(&indices_desc),
-                              cudaMemcpyHostToDevice,
-                              stream),
-              cudaSuccess);
+      wholememory_ops::testing::device_random_init_local_embedding_table(
+        embedding_handle, embedding_desc, stream);
+      wholememory_ops::testing::host_random_init_indices(
+        host_indices, indices_desc, embedding_desc.sizes[0]);
+      EXPECT_EQ(cudaMemcpyAsync(dev_indices,
+                                host_indices,
+                                wholememory_get_memory_size_from_array(&indices_desc),
+                                cudaMemcpyHostToDevice,
+                                stream),
+                cudaSuccess);
 
-    EXPECT_EQ(cudaStreamSynchronize(stream), cudaSuccess);
-    wholememory_communicator_barrier(wm_comm);
+      EXPECT_EQ(cudaStreamSynchronize(stream), cudaSuccess);
+      wholememory_communicator_barrier(wm_comm);
 
-    wholememory_tensor_t embedding_tensor;
-    wholememory_tensor_description_t embedding_tensor_desc;
-    wholememory_copy_matrix_desc_to_tensor(&embedding_tensor_desc, &embedding_desc);
-    EXPECT_EQ(wholememory_make_tensor_from_handle(
-                &embedding_tensor, embedding_handle, &embedding_tensor_desc),
-              WHOLEMEMORY_SUCCESS);
+      wholememory_tensor_t embedding_tensor;
+      wholememory_tensor_description_t embedding_tensor_desc;
+      wholememory_copy_matrix_desc_to_tensor(&embedding_tensor_desc, &embedding_desc);
+      EXPECT_EQ(wholememory_make_tensor_from_handle(
+                  &embedding_tensor, embedding_handle, &embedding_tensor_desc),
+                WHOLEMEMORY_SUCCESS);
 
-    wholememory_tensor_t indices_tensor, output_tensor;
-    wholememory_tensor_description_t indices_tensor_desc, output_tensor_desc;
-    wholememory_copy_array_desc_to_tensor(&indices_tensor_desc, &indices_desc);
-    wholememory_copy_matrix_desc_to_tensor(&output_tensor_desc, &output_desc);
-    EXPECT_EQ(
-      wholememory_make_tensor_from_pointer(&indices_tensor, dev_indices, &indices_tensor_desc),
-      WHOLEMEMORY_SUCCESS);
-    EXPECT_EQ(
-      wholememory_make_tensor_from_pointer(&output_tensor, dev_gather_buffer, &output_tensor_desc),
-      WHOLEMEMORY_SUCCESS);
-    EXPECT_EQ(wholememory_gather(embedding_tensor,
-                                 indices_tensor,
-                                 output_tensor,
-                                 wholememory::get_default_env_func(),
-                                 stream),
-              WHOLEMEMORY_SUCCESS);
+      wholememory_tensor_t indices_tensor, output_tensor;
+      wholememory_tensor_description_t indices_tensor_desc, output_tensor_desc;
+      wholememory_copy_array_desc_to_tensor(&indices_tensor_desc, &indices_desc);
+      wholememory_copy_matrix_desc_to_tensor(&output_tensor_desc, &output_desc);
+      EXPECT_EQ(
+        wholememory_make_tensor_from_pointer(&indices_tensor, dev_indices, &indices_tensor_desc),
+        WHOLEMEMORY_SUCCESS);
+      EXPECT_EQ(wholememory_make_tensor_from_pointer(
+                  &output_tensor, dev_gather_buffer, &output_tensor_desc),
+                WHOLEMEMORY_SUCCESS);
+      EXPECT_EQ(wholememory_gather(embedding_tensor,
+                                   indices_tensor,
+                                   output_tensor,
+                                   wholememory::get_default_env_func(),
+                                   stream),
+                WHOLEMEMORY_SUCCESS);
 
-    EXPECT_EQ(cudaGetLastError(), cudaSuccess);
-    EXPECT_EQ(cudaStreamSynchronize(stream), cudaSuccess);
-    EXPECT_EQ(wholememory_destroy_tensor(indices_tensor), WHOLEMEMORY_SUCCESS);
-    EXPECT_EQ(wholememory_destroy_tensor(output_tensor), WHOLEMEMORY_SUCCESS);
+      EXPECT_EQ(cudaGetLastError(), cudaSuccess);
+      EXPECT_EQ(cudaStreamSynchronize(stream), cudaSuccess);
+      EXPECT_EQ(wholememory_destroy_tensor(indices_tensor), WHOLEMEMORY_SUCCESS);
+      EXPECT_EQ(wholememory_destroy_tensor(output_tensor), WHOLEMEMORY_SUCCESS);
 
-    wholememory_ops::testing::device_get_expected_embedding(dev_reference_buffer,
-                                                            output_desc,
-                                                            embedding_desc.dtype,
-                                                            dev_indices,
-                                                            indices_desc,
-                                                            wholememory::get_default_env_func(),
-                                                            stream);
-    EXPECT_EQ(cudaMemcpyAsync(host_gather_buffer,
-                              dev_gather_buffer,
-                              wholememory_get_memory_size_from_matrix(&output_desc),
-                              cudaMemcpyDeviceToHost,
-                              stream),
-              cudaSuccess);
-    EXPECT_EQ(cudaMemcpyAsync(host_reference_buffer,
-                              dev_reference_buffer,
-                              wholememory_get_memory_size_from_matrix(&output_desc),
-                              cudaMemcpyDeviceToHost,
-                              stream),
-              cudaSuccess);
-    EXPECT_EQ(cudaGetLastError(), cudaSuccess);
-    EXPECT_EQ(cudaStreamSynchronize(stream), cudaSuccess);
+      wholememory_ops::testing::device_get_expected_embedding(dev_reference_buffer,
+                                                              output_desc,
+                                                              embedding_desc.dtype,
+                                                              dev_indices,
+                                                              indices_desc,
+                                                              wholememory::get_default_env_func(),
+                                                              stream);
+      EXPECT_EQ(cudaMemcpyAsync(host_gather_buffer,
+                                dev_gather_buffer,
+                                wholememory_get_memory_size_from_matrix(&output_desc),
+                                cudaMemcpyDeviceToHost,
+                                stream),
+                cudaSuccess);
+      EXPECT_EQ(cudaMemcpyAsync(host_reference_buffer,
+                                dev_reference_buffer,
+                                wholememory_get_memory_size_from_matrix(&output_desc),
+                                cudaMemcpyDeviceToHost,
+                                stream),
+                cudaSuccess);
+      EXPECT_EQ(cudaGetLastError(), cudaSuccess);
+      EXPECT_EQ(cudaStreamSynchronize(stream), cudaSuccess);
 
-    wholememory_ops::testing::host_check_embedding_same(
-      host_gather_buffer, output_desc, host_reference_buffer, output_desc);
+      wholememory_ops::testing::host_check_embedding_same(
+        host_gather_buffer, output_desc, host_reference_buffer, output_desc);
 
-    EXPECT_EQ(cudaFreeHost(host_indices), cudaSuccess);
-    EXPECT_EQ(cudaFree(dev_indices), cudaSuccess);
-    EXPECT_EQ(cudaFree(dev_gather_buffer), cudaSuccess);
-    EXPECT_EQ(cudaFree(dev_reference_buffer), cudaSuccess);
-    EXPECT_EQ(cudaFreeHost(host_gather_buffer), cudaSuccess);
-    EXPECT_EQ(cudaFreeHost(host_reference_buffer), cudaSuccess);
+      EXPECT_EQ(cudaFreeHost(host_indices), cudaSuccess);
+      EXPECT_EQ(cudaFree(dev_indices), cudaSuccess);
+      EXPECT_EQ(cudaFree(dev_gather_buffer), cudaSuccess);
+      EXPECT_EQ(cudaFree(dev_reference_buffer), cudaSuccess);
+      EXPECT_EQ(cudaFreeHost(host_gather_buffer), cudaSuccess);
+      EXPECT_EQ(cudaFreeHost(host_reference_buffer), cudaSuccess);
 
-    EXPECT_EQ(wholememory_destroy_tensor(embedding_tensor), WHOLEMEMORY_SUCCESS);
+      EXPECT_EQ(wholememory_destroy_tensor(embedding_tensor), WHOLEMEMORY_SUCCESS);
 
-    EXPECT_EQ(wholememory_free(embedding_handle), WHOLEMEMORY_SUCCESS);
+      EXPECT_EQ(wholememory_free(embedding_handle), WHOLEMEMORY_SUCCESS);
 
-    EXPECT_EQ(wholememory::destroy_all_communicators(), WHOLEMEMORY_SUCCESS);
+      EXPECT_EQ(wholememory::destroy_all_communicators(), WHOLEMEMORY_SUCCESS);
 
-    EXPECT_EQ(wholememory_finalize(), WHOLEMEMORY_SUCCESS);
-    WHOLEMEMORY_CHECK(::testing::Test::HasFailure() == false);
-  });
+      EXPECT_EQ(wholememory_finalize(), WHOLEMEMORY_SUCCESS);
+      WHOLEMEMORY_CHECK(::testing::Test::HasFailure() == false);
+    },
+    true);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -348,3 +352,18 @@ INSTANTIATE_TEST_SUITE_P(
       .set_embedding_type(WHOLEMEMORY_DT_HALF)
       .set_embedding_stride(33),
     WholeMemoryGatherTestParam().set_memory_type(WHOLEMEMORY_MT_DISTRIBUTED)));
+
+class GlobalEnvironment : public ::testing::Environment {
+ public:
+  void SetUp() override { g_dev_count = ForkGetDeviceCount(); }
+  void TearDown() override {}
+};
+
+int main(int argc, char** argv)
+{
+  ::testing::InitGoogleTest(&argc, argv);
+
+  ::testing::AddGlobalTestEnvironment(new GlobalEnvironment);
+
+  return RUN_ALL_TESTS();
+}

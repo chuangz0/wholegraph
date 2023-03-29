@@ -41,16 +41,11 @@ variable_list unweighted_sample_without_replacement(int64_t csr_row_ptr_wholemem
   output_sample_offset_tensor_desc.sizes[0]       = p_input_nodes_desc->sizes[0] + 1;
   output_sample_offset_tensor_desc.strides[0]      = 1;
 
-  memory_context_t output_sample_offset_context, output_dest_memory_context, output_center_localid_memory_context, output_edge_gid_memory_context;
-  create_torch_memory_context_func(&output_sample_offset_context, nullptr);
-  create_torch_memory_context_func(&output_dest_memory_context, nullptr);
-  create_torch_memory_context_func(&output_center_localid_memory_context, nullptr);
-  create_torch_memory_context_func(&output_edge_gid_memory_context, nullptr);
+  pytorch_memory_context output_sample_offset_context, output_dest_memory_context, output_center_localid_memory_context, output_edge_gid_memory_context;
 
   torch_common_malloc_func(&output_sample_offset_tensor_desc, &output_sample_offset_context);
-  auto output_sample_offset_tensor = static_cast<pytorch_memory_context*>(output_sample_offset_context.context)->tensor;
+  auto output_sample_offset_tensor = output_sample_offset_context.tensor;
   wrapped_torch_tensor const wrapped_output_sample_offset_tensor(output_sample_offset_tensor);
-  destroy_torch_memory_context_func(&output_sample_offset_context, nullptr);
 
   unsigned long long random_seed_value;
   if (random_seed.has_value()) { random_seed_value = random_seed.value(); }
@@ -74,9 +69,9 @@ variable_list unweighted_sample_without_replacement(int64_t csr_row_ptr_wholemem
     wholegraph_torch::get_pytorch_env_func(),
     wholegraph_torch::get_current_stream()) == WHOLEMEMORY_SUCCESS)
 
-  auto output_dest_tensor = static_cast<pytorch_memory_context*>(output_dest_memory_context.context)->tensor;
-  auto output_center_localid_tensor = static_cast<pytorch_memory_context*>(output_center_localid_memory_context.context)->tensor;
-  auto output_edge_gid_tensor = static_cast<pytorch_memory_context*>(output_edge_gid_memory_context.context)->tensor;
+  auto output_dest_tensor = output_dest_memory_context.tensor;
+  auto output_center_localid_tensor = output_center_localid_memory_context.tensor;
+  auto output_edge_gid_tensor = output_edge_gid_memory_context.tensor;
 
   return {output_sample_offset_tensor, output_dest_tensor, output_center_localid_tensor, output_edge_gid_tensor};
 }

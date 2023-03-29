@@ -337,9 +337,9 @@ void wholegraph_csr_weighted_sample_without_replacement_func(
   int max_sample_count,
   void* output_sample_offset,
   wholememory_array_description_t output_sample_offset_desc,
-  memory_context_t* output_dest_memory_context,
-  memory_context_t* output_center_localid_memory_context,
-  memory_context_t* output_edge_gid_memory_context,
+  void* output_dest_memory_context,
+  void* output_center_localid_memory_context,
+  void* output_edge_gid_memory_context,
   unsigned long long random_seed,
   wholememory_env_func_t* p_env_fns,
   cudaStream_t stream)
