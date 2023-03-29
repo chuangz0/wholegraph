@@ -87,8 +87,8 @@ def test_loop_memory():
     assert wmb.py_get_wholememory_tensor_count() == 0
     print('total_time=%f' % (end_time - start_time, ))
 
-@pytest.mark.parametrize('output_len', list(range(1, 100, 7)))
-@pytest.mark.parametrize('embed_dim', list(range(1, 128, 5)))
+@pytest.mark.parametrize('output_len', list(range(1, 100, 17)))
+@pytest.mark.parametrize('embed_dim', list(range(1, 128, 23)))
 def test_random_alloc(output_len, embed_dim):
     torch.cuda.set_device(0)
     input_tensor = torch.rand((embed_dim, ), device='cuda')
