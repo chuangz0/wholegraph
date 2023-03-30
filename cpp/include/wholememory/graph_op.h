@@ -29,6 +29,43 @@ wholememory_error_code_t graph_append_unique(wholememory_tensor_t target_nodes_t
                                        wholememory_env_func_t * p_env_fns, 
                                        void* stream);
 
+/**
+ * Spmm CSR no Weight Forward Op
+ * @param csr_row_ptr : Wholememory Tensor of local graph csr_row_ptr
+ * @param csr_col_ind : Wholememory Tensor of local graph csr_col_ptr
+ * @param features : Wholememory Tensor of features
+ * @param aggregator : aggreagtor type
+ * @param p_env_fns : pointers to environment functions.
+ * @param stream : CUDA stream to use
+ * @return : wholememory_error_code_t
+ */
+
+wholememory_error_code_t spmm_csr_no_weight_forward(wholememory_tensor_t csr_row_ptr,
+                                                    wholememory_tensor_t csr_col_ind,
+                                                    wholememory_tensor_t features,
+                                                    int64_t aggregator,
+                                                    wholememory_env_func_t * p_env_fns,
+                                                    void* stream);
+
+/**
+ * Spmm CSR no Weight Forward Op
+ * @param csr_row_ptr : Wholememory Tensor of local graph csr_row_ptr
+ * @param csr_col_ind : Wholememory Tensor of local graph csr_col_ptr
+ * @param grad_output : Wholememory Tensor of grad_output
+ * @param aggregator : aggreagtor type
+ * @param p_env_fns : pointers to environment functions.
+ * @param stream : CUDA stream to use
+ * @return : wholememory_error_code_t
+ */
+ wholememory_error_code_t spmm_csr_no_weight_backward(wholememory_tensor_t csr_row_ptr,
+                                                      wholememory_tensor_t csr_col_ind,
+                                                      wholememory_tensor_t grad_output,
+                                                      int64_t aggregator,
+                                                      wholememory_env_func_t * p_env_fns,
+                                                      void* stream);
+
+
+
 #ifdef __cplusplus
 }
 #endif
