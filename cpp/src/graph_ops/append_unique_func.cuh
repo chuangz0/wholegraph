@@ -278,8 +278,7 @@ void graph_append_unique_func(
   void* neighbor_nodes_ptr,
   wholememory_array_description_t neighbor_nodes_desc,
   void* output_unique_node_memory_context,
-  void* output_neighbor_raw_to_unique_mapping_ptr,
-  wholememory_array_description_t output_neighbor_raw_to_unique_mapping_desc,
+  int* output_neighbor_raw_to_unique_mapping_ptr,
   wholememory_env_func_t* p_env_fns,
   cudaStream_t stream)
 {
@@ -335,11 +334,6 @@ void graph_append_unique_func(
     <<<num_blocks, kAssignThreadBlockSize, 0, stream>>>(
       table_keys, value_id, target_count, output_unique_node_ptr);
   if (output_neighbor_raw_to_unique_mapping_ptr) {
-    WHOLEMEMORY_EXPECTS(output_neighbor_raw_to_unique_mapping_desc.dtype == WHOLEMEMORY_DT_INT,
-                        "graph_append_unique_func(). "
-                        "output_neighbor_raw_to_unique_mapping_desc.dtype != WHOLEMEMORY_DT_INT, "
-                        "output_neighbor_raw_to_unique_mapping_desc.dtype = %d",
-                        output_neighbor_raw_to_unique_mapping_desc.dtype);
     auh.RetrieveNeighborKeysForValueIDs(stream, (int*)output_neighbor_raw_to_unique_mapping_ptr);
   }
   WM_CUDA_CHECK(cudaStreamSynchronize(stream));

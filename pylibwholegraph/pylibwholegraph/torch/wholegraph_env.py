@@ -2,6 +2,7 @@ import torch
 import pylibwholegraph.binding.wholememory_binding as wmb
 from enum import IntEnum
 import sys
+from typing import Union
 
 
 default_cuda_stream_int_ptr = None
@@ -158,9 +159,11 @@ def get_wholegraph_env_fns(use_default = True) -> int:
     return wholegraph_env_context.get_env_fns()
 
 
-def wrap_torch_tensor(t: torch.Tensor) -> wmb.WrappedLocalTensor:
-    wm_t = wmb.WrappedLocalTensor()
+def wrap_torch_tensor(t: Union[torch.Tensor, None]) -> wmb.WrappedLocalTensor:
     py_desc = wmb.PyWholeMemoryTensorDescription()
+    wm_t = wmb.WrappedLocalTensor()
+    if t is None:
+        return wm_t.wrap_tensor(py_desc, 0)
     py_desc.set_dtype(pytorch_dtype_to_wholememory_dtype(t.dtype))
     py_desc.set_storage_offset(0)
     py_desc.set_shape(tuple(t.shape))

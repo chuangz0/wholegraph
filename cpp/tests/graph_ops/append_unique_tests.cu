@@ -118,7 +118,7 @@ TEST_P(GraphAppendUniqueParameterTests, AppendUniqueTest) {
                 WHOLEMEMORY_SUCCESS);
       wholememory_env_func_t* default_env_func = wholememory::get_default_env_func();
       wholememory::default_memory_context_t output_unique_node_memory_ctx;
-      EXPECT_EQ(append_unique(target_node_tensor,
+      EXPECT_EQ(graph_append_unique(target_node_tensor,
                               neighbor_node_tensor,
                               &output_unique_node_memory_ctx,
                               output_neighbor_raw_to_unique_mapping_tensor,

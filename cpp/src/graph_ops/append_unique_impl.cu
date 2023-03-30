@@ -17,8 +17,7 @@ wholememory_error_code_t graph_append_unique(
   void* neighbor_nodes_ptr,
   wholememory_array_description_t neighbor_nodes_desc,
   void* output_unique_node_memory_context,
-  void* output_neighbor_raw_to_unique_mapping_ptr,
-  wholememory_array_description_t output_neighbor_raw_to_unique_mapping_desc,
+  int* output_neighbor_raw_to_unique_mapping_ptr,
   wholememory_env_func_t* p_env_fns,
   cudaStream_t stream) {
 
@@ -31,7 +30,6 @@ wholememory_error_code_t graph_append_unique(
                         neighbor_nodes_desc,
                         output_unique_node_memory_context,
                         output_neighbor_raw_to_unique_mapping_ptr,
-                        output_neighbor_raw_to_unique_mapping_desc,
                         p_env_fns,
                         stream);
 

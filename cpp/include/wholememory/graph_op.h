@@ -22,7 +22,7 @@ extern "C" {
  */
 
 
-wholememory_error_code_t append_unique(wholememory_tensor_t target_nodes_tensor,
+wholememory_error_code_t graph_append_unique(wholememory_tensor_t target_nodes_tensor,
                                        wholememory_tensor_t neighbor_nodes_tensor,
                                        void* output_unique_node_memory_context,
                                        wholememory_tensor_t output_neighbor_raw_to_unique_mapping_tensor, 

@@ -108,10 +108,22 @@ wholememory_error_code_t wholememory_make_tensor_from_pointer(
   void* storage_ptr,
   wholememory_tensor_description_t* tensor_description)
 {
+  if (storage_ptr == nullptr || tensor_description->dim == 0) {
+    auto* wholememory_tensor =
+      static_cast<wholememory_tensor_*>(malloc(sizeof(wholememory_tensor_)));
+    wholememory_tensor->storage_ptr        = storage_ptr;
+    wholememory_tensor->tensor_description = *tensor_description;
+    wholememory_tensor->own_handle         = false;
+    wholememory_tensor->is_wholememory     = false;
+    wholememory_tensor->root_tensor        = wholememory_tensor;
+    *p_wholememory_tensor                  = wholememory_tensor;
+    return WHOLEMEMORY_SUCCESS;
+  }
+
   if (p_wholememory_tensor == nullptr || tensor_description == nullptr) {
     return WHOLEMEMORY_INVALID_INPUT;
   }
-  if (tensor_description->dim <= 0 || tensor_description->dim > 2) {
+  if (tensor_description->dim < 0 || tensor_description->dim > 2) {
     WHOLEMEMORY_ERROR("tensor_description->dim=%d", tensor_description->dim);
     return WHOLEMEMORY_INVALID_INPUT;
   }
