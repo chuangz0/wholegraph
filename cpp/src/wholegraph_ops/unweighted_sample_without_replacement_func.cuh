@@ -334,16 +334,21 @@ void wholegraph_csr_unweighted_sample_without_replacement_func(
   WMIdType* output_dest_node_ptr =
     (WMIdType*)gen_output_dest_buffer_mh.device_malloc(count, wm_csr_col_ptr_desc.dtype);
 
-  wholememory_ops::output_memory_handle gen_output_center_localid_buffer_mh(
-    p_env_fns, output_center_localid_memory_context);
-  int* output_center_localid_ptr =
-    (int*)gen_output_center_localid_buffer_mh.device_malloc(count, WHOLEMEMORY_DT_INT);
+  int* output_center_localid_ptr = nullptr;
+  if (output_center_localid_memory_context) {
+    wholememory_ops::output_memory_handle gen_output_center_localid_buffer_mh(
+      p_env_fns, output_center_localid_memory_context);
+    output_center_localid_ptr = (int*)gen_output_center_localid_buffer_mh.device_malloc(count, WHOLEMEMORY_DT_INT);
+  }
 
-  wholememory_ops::output_memory_handle gen_output_edge_gid_buffer_mh(
-    p_env_fns, output_edge_gid_memory_context);
-  int64_t* output_edge_gid_ptr =
-    (int64_t*)gen_output_edge_gid_buffer_mh.device_malloc(count, WHOLEMEMORY_DT_INT64);
 
+  int64_t* output_edge_gid_ptr = nullptr;
+  if (output_edge_gid_memory_context) {
+    wholememory_ops::output_memory_handle gen_output_edge_gid_buffer_mh(
+      p_env_fns, output_edge_gid_memory_context);
+    output_edge_gid_ptr =
+      (int64_t*)gen_output_edge_gid_buffer_mh.device_malloc(count, WHOLEMEMORY_DT_INT64);
+  }
   // sample node
   if (max_sample_count <= 0) {
     sample_all_kernel<IdType, int, WMIdType, int64_t>

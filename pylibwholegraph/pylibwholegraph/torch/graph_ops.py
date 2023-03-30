@@ -7,7 +7,7 @@ from typing import Union
 def append_unique(
         target_node_tensor: torch.Tensor,
         neighbor_node_tensor: torch.Tensor,
-        need_neighbor_raw_to_unique: bool = True):
+        need_neighbor_raw_to_unique: bool = False):
     assert target_node_tensor.dim() == 1
     assert neighbor_node_tensor.dim() == 1
 

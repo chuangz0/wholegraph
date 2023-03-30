@@ -10,7 +10,8 @@ def unweighted_sample_without_replacement(
         center_nodes_tensor: torch.Tensor,
         max_sample_count: int,
         random_seed: Union[int, None] = None,
-        need_edge_output: bool = True):
+        need_center_local_output: bool = False, 
+        need_edge_output: bool = False):
     assert wm_csr_row_ptr_tensor.dim() == 1
     assert wm_csr_col_ptr_tensor.dim() == 1
     assert center_nodes_tensor.dim() == 1
@@ -19,10 +20,13 @@ def unweighted_sample_without_replacement(
     output_sample_offset_tensor = torch.empty(center_nodes_tensor.shape[0] + 1, device='cuda', dtype=torch.int)
     output_dest_context = TorchMemoryContext()
     output_dest_tensor_id = id(output_dest_context)
-    output_center_localid_context = TorchMemoryContext()
-    output_center_localid_tensor_id = id(output_center_localid_context)
+    output_center_localid_context = None
+    output_center_localid_tensor_id = 0
     output_edge_gid_context = None
     output_edge_gid_tensor_id = 0
+    if need_center_local_output:
+        output_center_localid_context = TorchMemoryContext()
+        output_center_localid_tensor_id = id(output_center_localid_context)
     if need_edge_output:
         output_edge_gid_context = TorchMemoryContext()
         output_edge_gid_tensor_id = id(output_edge_gid_context)
@@ -37,10 +41,15 @@ def unweighted_sample_without_replacement(
                                                   random_seed,
                                                   get_wholegraph_env_fns(),
                                                   get_stream())
-    if need_edge_output:
+    if (need_edge_output and need_center_local_output):
         return output_sample_offset_tensor, output_dest_context.get_tensor(), output_center_localid_context.get_tensor(), output_edge_gid_context.get_tensor()
-    else:
+    elif (need_center_local_output):
         return output_sample_offset_tensor, output_dest_context.get_tensor(), output_center_localid_context.get_tensor()
+    elif (need_edge_output):
+        return output_sample_offset_tensor, output_dest_context.get_tensor(), output_edge_gid_context.get_tensor()
+    else:
+        return output_sample_offset_tensor, output_dest_context.get_tensor()
+
 
 
 def weighted_sample_without_replacement(
@@ -50,7 +59,8 @@ def weighted_sample_without_replacement(
         center_nodes_tensor: torch.Tensor,
         max_sample_count: int,
         random_seed: Union[int, None] = None,
-        need_edge_output: bool = True):
+        need_center_local_output: bool = False, 
+        need_edge_output: bool = False):
     assert wm_csr_row_ptr_tensor.dim() == 1
     assert wm_csr_col_ptr_tensor.dim() == 1
     assert wm_csr_weight_ptr_tensor.dim() == 1
@@ -61,10 +71,13 @@ def weighted_sample_without_replacement(
     output_sample_offset_tensor = torch.empty(center_nodes_tensor.shape[0] + 1, device='cuda', dtype=torch.int)
     output_dest_context = TorchMemoryContext()
     output_dest_tensor_id = id(output_dest_context)
-    output_center_localid_context = TorchMemoryContext()
-    output_center_localid_tensor_id = id(output_center_localid_context)
+    output_center_localid_context = None
+    output_center_localid_tensor_id = 0
     output_edge_gid_context = None
     output_edge_gid_tensor_id = 0
+    if need_center_local_output:
+        output_center_localid_context = TorchMemoryContext()
+        output_center_localid_tensor_id = id(output_center_localid_context)
     if need_edge_output:
         output_edge_gid_context = TorchMemoryContext()
         output_edge_gid_tensor_id = id(output_edge_gid_context)
@@ -80,7 +93,11 @@ def weighted_sample_without_replacement(
                                                 random_seed,
                                                 get_wholegraph_env_fns(),
                                                 get_stream())
-    if need_edge_output:
+    if (need_edge_output and need_center_local_output):
         return output_sample_offset_tensor, output_dest_context.get_tensor(), output_center_localid_context.get_tensor(), output_edge_gid_context.get_tensor()
-    else:
+    elif (need_center_local_output):
         return output_sample_offset_tensor, output_dest_context.get_tensor(), output_center_localid_context.get_tensor()
+    elif (need_edge_output):
+        return output_sample_offset_tensor, output_dest_context.get_tensor(), output_edge_gid_context.get_tensor()
+    else:
+        return output_sample_offset_tensor, output_dest_context.get_tensor()
