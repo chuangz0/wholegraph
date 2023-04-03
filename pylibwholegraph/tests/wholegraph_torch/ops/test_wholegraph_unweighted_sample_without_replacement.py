@@ -122,84 +122,44 @@ def routine_func(world_rank: int, world_size: int, **kwargs):
     #                            center_node_tensor_cuda,
     #                            max_sample_count,
     #                            random_seed)
-    output_sample_offset_tensor_cuda = None
-    output_dest_tensor_cuda = None
-    output_center_localid_tensor_cuda = None
-    output_edge_gid_tensor_cuda = None
-
     output_sample_offset_tensor = None
     output_dest_tensor = None
     output_center_localid_tensor = None
     output_edge_gid_tensor = None
-
-    if need_edge_output and need_center_local_output:
-        output_sample_offset_tensor_cuda, output_dest_tensor_cuda, output_center_localid_tensor_cuda, output_edge_gid_tensor_cuda = wg_ops.unweighted_sample_without_replacement(wm_csr_row_ptr,
+    output_tensors = wg_ops.unweighted_sample_without_replacement(wm_csr_row_ptr,
                                 wm_csr_col_ptr,
                                 center_node_tensor_cuda,
                                 max_sample_count,
                                 random_seed,
                                 need_center_local_output=need_center_local_output,
                                 need_edge_output=need_edge_output)
-        output_sample_offset_tensor = output_sample_offset_tensor_cuda.cpu()
-        output_dest_tensor = output_dest_tensor_cuda.cpu()
-        output_center_localid_tensor = output_center_localid_tensor_cuda.cpu()
-        output_edge_gid_tensor = output_edge_gid_tensor_cuda.cpu()
-    elif need_center_local_output:
-        output_sample_offset_tensor_cuda, output_dest_tensor_cuda, output_center_localid_tensor_cuda = wg_ops.unweighted_sample_without_replacement(wm_csr_row_ptr,
-                                wm_csr_col_ptr,
-                                center_node_tensor_cuda,
-                                max_sample_count,
-                                random_seed,
-                                need_center_local_output=need_center_local_output,
-                                need_edge_output=need_edge_output)
-        output_sample_offset_tensor = output_sample_offset_tensor_cuda.cpu()
-        output_dest_tensor = output_dest_tensor_cuda.cpu()
-        output_center_localid_tensor = output_center_localid_tensor_cuda.cpu()
-    elif need_edge_output:
-        output_sample_offset_tensor_cuda, output_dest_tensor_cuda, output_edge_gid_tensor_cuda = wg_ops.unweighted_sample_without_replacement(wm_csr_row_ptr,
-                                wm_csr_col_ptr,
-                                center_node_tensor_cuda,
-                                max_sample_count,
-                                random_seed,
-                                need_center_local_output=need_center_local_output,
-                                need_edge_output=need_edge_output)
-        output_sample_offset_tensor = output_sample_offset_tensor_cuda.cpu()
-        output_dest_tensor = output_dest_tensor_cuda.cpu()
-        output_edge_gid_tensor = output_edge_gid_tensor_cuda.cpu()
-    else:
-        output_sample_offset_tensor_cuda, output_dest_tensor_cuda = wg_ops.unweighted_sample_without_replacement(wm_csr_row_ptr,
-                                wm_csr_col_ptr,
-                                center_node_tensor_cuda,
-                                max_sample_count,
-                                random_seed,
-                                need_center_local_output=need_center_local_output,
-                                need_edge_output=need_edge_output)
-        output_sample_offset_tensor = output_sample_offset_tensor_cuda.cpu()
-        output_dest_tensor = output_dest_tensor_cuda.cpu()
-
+    output_cpu_tensors = tuple(tensor.cpu() for tensor in output_tensors)
     torch_col_id_dtype = torch.int32
     if (col_id_dtype == wmb.WholeMemoryDataType.DtInt64):
         torch_col_id_dtype = torch.int64 
-
     output_sample_offset_tensor_ref, output_dest_tensor_ref, output_center_localid_tensor_ref, output_edge_gid_tensor_ref = host_unweighted_sample_without_replacement(host_csr_row_ptr, host_csr_col_ptr, center_node_tensor, max_sample_count, torch_col_id_dtype, random_seed)
 
     if need_edge_output and need_center_local_output:
+        output_sample_offset_tensor, output_dest_tensor, output_center_localid_tensor, output_edge_gid_tensor = output_cpu_tensors
         assert torch.equal(output_sample_offset_tensor, output_sample_offset_tensor_ref)
         assert torch.equal(output_dest_tensor, output_dest_tensor_ref)
         assert torch.equal(output_center_localid_tensor, output_center_localid_tensor_ref)
-        assert torch.equal(output_edge_gid_tensor, output_edge_gid_tensor_ref)
-    elif need_edge_output:
-        assert torch.equal(output_sample_offset_tensor, output_sample_offset_tensor_ref)
-        assert torch.equal(output_dest_tensor, output_dest_tensor_ref)
         assert torch.equal(output_edge_gid_tensor, output_edge_gid_tensor_ref)
     elif need_center_local_output:
+        output_sample_offset_tensor, output_dest_tensor, output_center_localid_tensor = output_cpu_tensors
         assert torch.equal(output_sample_offset_tensor, output_sample_offset_tensor_ref)
         assert torch.equal(output_dest_tensor, output_dest_tensor_ref)
         assert torch.equal(output_center_localid_tensor, output_center_localid_tensor_ref)
-    else:
+    elif need_edge_output:
+        output_sample_offset_tensor, output_dest_tensor, output_edge_gid_tensor = output_cpu_tensors
         assert torch.equal(output_sample_offset_tensor, output_sample_offset_tensor_ref)
         assert torch.equal(output_dest_tensor, output_dest_tensor_ref)
-      
+        assert torch.equal(output_edge_gid_tensor, output_edge_gid_tensor_ref)
+    else:
+        output_sample_offset_tensor, output_dest_tensor = output_cpu_tensors
+        assert torch.equal(output_sample_offset_tensor, output_sample_offset_tensor_ref)
+        assert torch.equal(output_dest_tensor, output_dest_tensor_ref)
+
     wmb.destroy_wholememory_tensor(wm_csr_row_ptr)
     wmb.destroy_wholememory_tensor(wm_csr_col_ptr)
 

@@ -11,8 +11,7 @@
 #include <wholememory/env_func_ptrs.h>
 #include <wholememory/tensor_description.h>
 
-namespace graph_ops
-{
+namespace graph_ops {
 
 static constexpr int kAssignBucketSize      = 32;  // it is not adjustable
 static constexpr int kAssignThreadBlockSize = 8 * 32;
@@ -25,7 +24,6 @@ __global__ void InsertKeysKernel(AppendUniqueHash<KeyT, BucketSize> auh);
 
 template <typename KeyT, int BucketSize, bool IsTarget = false>
 __global__ void RetrieveKeysKernel(AppendUniqueHash<KeyT, BucketSize> auh, int* output);
-
 
 template <typename T>
 __device__ __forceinline__ T atomicCASSigned(T* ptr, T cmp, T val)
@@ -49,8 +47,9 @@ class AppendUniqueHash {
       neighbors_(neighbors)
   {
     int total_slots_needed = (target_count + neighbor_count) * 2;
-    total_slots_needed         = raft::div_rounding_up_safe<int>(total_slots_needed, kAssignBucketSize) * kAssignBucketSize;
-    bucket_count_              = raft::div_rounding_up_safe<int>(total_slots_needed, BucketSize) + 1;
+    total_slots_needed =
+      raft::div_rounding_up_safe<int>(total_slots_needed, kAssignBucketSize) * kAssignBucketSize;
+    bucket_count_ = raft::div_rounding_up_safe<int>(total_slots_needed, BucketSize) + 1;
   }
   ~AppendUniqueHash() {}
   void AllocateMemoryAndInit(wholememory_ops::temp_memory_handle& hash_teable_keys_tmh,
@@ -63,9 +62,10 @@ class AppendUniqueHash {
       kAssignThreadBlockSize;
     wholememory_dtype_t table_key_wholememory_dtype = WHOLEMEMORY_DT_INT;
     if (sizeof(KeyT) == 8) { table_key_wholememory_dtype = WHOLEMEMORY_DT_INT64; }
-    table_keys_ = (KeyT*)hash_teable_keys_tmh.device_malloc(total_alloc_slots, table_key_wholememory_dtype);
-    value_id_   = (int*)hash_teable_values_tmh.device_malloc(total_alloc_slots, WHOLEMEMORY_DT_INT);
- 
+    table_keys_ =
+      (KeyT*)hash_teable_keys_tmh.device_malloc(total_alloc_slots, table_key_wholememory_dtype);
+    value_id_ = (int*)hash_teable_values_tmh.device_malloc(total_alloc_slots, WHOLEMEMORY_DT_INT);
+
     // init key to -1
     WM_CUDA_CHECK(cudaMemsetAsync(table_keys_, -1, total_alloc_slots * sizeof(KeyT), stream));
     // init value_id to -1
@@ -75,7 +75,8 @@ class AppendUniqueHash {
   void InsertKeys(cudaStream_t stream)
   {
     const int thread_count = 512;
-    int target_block_count = raft::div_rounding_up_safe<int>(target_count_ * BucketSize, thread_count);
+    int target_block_count =
+      raft::div_rounding_up_safe<int>(target_count_ * BucketSize, thread_count);
     InsertKeysKernel<KeyT, BucketSize, true>
       <<<target_block_count, thread_count, 0, stream>>>(*this);
     WM_CUDA_CHECK(cudaStreamSynchronize(stream));
@@ -183,9 +184,9 @@ class AppendUniqueHash {
 
   int bucket_count_;
 
-  KeyT* table_keys_     = nullptr;  // -1 invalid
-  int32_t* value_id_    = nullptr;  // -1 invalid, -2 need assign final neighbor id
- 
+  KeyT* table_keys_  = nullptr;  // -1 invalid
+  int32_t* value_id_ = nullptr;  // -1 invalid, -2 need assign final neighbor id
+
   const KeyT* targets_   = nullptr;
   const KeyT* neighbors_ = nullptr;
   int target_count_;
@@ -241,20 +242,18 @@ __global__ void CountBucketKernel(const int* value_id, int* bucket_count_ptr)
 }
 
 template <typename KeyT>
-__global__ void AssignValueKernel(int* value_id,
-                                  const int* bucket_prefix_sum_ptr,
-                                  int target_count)
+__global__ void AssignValueKernel(int* value_id, const int* bucket_prefix_sum_ptr, int target_count)
 {
-  int idx        = blockIdx.x * blockDim.x + threadIdx.x;
-  int warp_start = bucket_prefix_sum_ptr[idx / 32];
-  int value      = value_id[idx];
+  int idx                  = blockIdx.x * blockDim.x + threadIdx.x;
+  int warp_start           = bucket_prefix_sum_ptr[idx / 32];
+  int value                = value_id[idx];
   unsigned int thread_mask = (1UL << (threadIdx.x % 32)) - 1;
   unsigned int assign_mask =
     __ballot_sync(0xffffffff, value == AppendUniqueHash<KeyT>::kNeedAssignValueID);
   assign_mask &= thread_mask;
   int idx_in_warp  = __popc((int)assign_mask);
   int assigned_idx = idx_in_warp + warp_start;
-  if ( value == AppendUniqueHash<KeyT>::kNeedAssignValueID) {
+  if (value == AppendUniqueHash<KeyT>::kNeedAssignValueID) {
     value_id[idx] = assigned_idx + target_count;
   }
 }
@@ -263,26 +262,25 @@ template <typename KeyT>
 __global__ void ComputeOutputUniqueNeighborAndCountKernel(const KeyT* table_keys,
                                                           const int* value_ids,
                                                           int target_count,
-                                                          KeyT* unique_total_output) {
-  int idx         = blockIdx.x * blockDim.x + threadIdx.x;
-  KeyT key        = table_keys[idx];
-  int value_id    = value_ids[idx];
+                                                          KeyT* unique_total_output)
+{
+  int idx      = blockIdx.x * blockDim.x + threadIdx.x;
+  KeyT key     = table_keys[idx];
+  int value_id = value_ids[idx];
   if (value_id >= target_count) { unique_total_output[value_id] = key; }
 }
 
-
 template <typename KeyT>
-void graph_append_unique_func(
-  void* target_nodes_ptr,
-  wholememory_array_description_t target_nodes_desc,
-  void* neighbor_nodes_ptr,
-  wholememory_array_description_t neighbor_nodes_desc,
-  void* output_unique_node_memory_context,
-  int* output_neighbor_raw_to_unique_mapping_ptr,
-  wholememory_env_func_t* p_env_fns,
-  cudaStream_t stream)
+void graph_append_unique_func(void* target_nodes_ptr,
+                              wholememory_array_description_t target_nodes_desc,
+                              void* neighbor_nodes_ptr,
+                              wholememory_array_description_t neighbor_nodes_desc,
+                              void* output_unique_node_memory_context,
+                              int* output_neighbor_raw_to_unique_mapping_ptr,
+                              wholememory_env_func_t* p_env_fns,
+                              cudaStream_t stream)
 {
-  int target_count = target_nodes_desc.size;
+  int target_count   = target_nodes_desc.size;
   int neighbor_count = neighbor_nodes_desc.size;
   AppendUniqueHash<KeyT> auh(
     target_count, neighbor_count, (const KeyT*)target_nodes_ptr, (const KeyT*)neighbor_nodes_ptr);
@@ -294,15 +292,13 @@ void graph_append_unique_func(
   wholememory_ops::temp_memory_handle bucket_count_tm(p_env_fns), bucket_prefix_sum_tm(p_env_fns);
   int num_bucket_count  = raft::div_rounding_up_safe<int>(auh.SlotCount(), kAssignBucketSize) + 1;
   int* bucket_count_ptr = (int*)bucket_count_tm.device_malloc(num_bucket_count, WHOLEMEMORY_DT_INT);
-  int* bucket_prefix_sum_ptr = (int*)bucket_prefix_sum_tm.device_malloc(num_bucket_count, WHOLEMEMORY_DT_INT);
+  int* bucket_prefix_sum_ptr =
+    (int*)bucket_prefix_sum_tm.device_malloc(num_bucket_count, WHOLEMEMORY_DT_INT);
   KeyT* table_keys = auh.TableKeys();
   int* value_id    = auh.ValueID();
   int num_blocks   = raft::div_rounding_up_safe<int>(auh.SlotCount(), kAssignThreadBlockSize);
   CountBucketKernel<KeyT>
-    <<<num_blocks,
-       kAssignThreadBlockSize,
-       0,
-       stream>>>(value_id, bucket_count_ptr);
+    <<<num_blocks, kAssignThreadBlockSize, 0, stream>>>(value_id, bucket_count_ptr);
   WM_CUDA_CHECK(cudaGetLastError());
   wholememory_ops::wm_thrust_allocator thrust_allocator(p_env_fns);
   thrust::exclusive_scan(thrust::cuda::par(thrust_allocator).on(stream),
@@ -316,19 +312,20 @@ void graph_append_unique_func(
                                 cudaMemcpyDeviceToHost,
                                 stream));
   WM_CUDA_CHECK(cudaStreamSynchronize(stream));
-  
-  AssignValueKernel<KeyT>
-    <<<num_blocks,
-       kAssignThreadBlockSize,
-       0,
-       stream>>>(value_id, bucket_prefix_sum_ptr, target_count);
+
+  AssignValueKernel<KeyT><<<num_blocks, kAssignThreadBlockSize, 0, stream>>>(
+    value_id, bucket_prefix_sum_ptr, target_count);
   wholememory_ops::output_memory_handle gen_output_unique_node_buffer_mh(
     p_env_fns, output_unique_node_memory_context);
 
-  KeyT* output_unique_node_ptr = (KeyT*)gen_output_unique_node_buffer_mh.device_malloc(unique_neighbor_count + target_count, target_nodes_desc.dtype);
+  KeyT* output_unique_node_ptr = (KeyT*)gen_output_unique_node_buffer_mh.device_malloc(
+    unique_neighbor_count + target_count, target_nodes_desc.dtype);
 
-  WM_CUDA_CHECK(cudaMemcpyAsync(
-    output_unique_node_ptr, target_nodes_ptr, target_count * sizeof(KeyT), cudaMemcpyDeviceToDevice, stream));
+  WM_CUDA_CHECK(cudaMemcpyAsync(output_unique_node_ptr,
+                                target_nodes_ptr,
+                                target_count * sizeof(KeyT),
+                                cudaMemcpyDeviceToDevice,
+                                stream));
 
   ComputeOutputUniqueNeighborAndCountKernel<KeyT>
     <<<num_blocks, kAssignThreadBlockSize, 0, stream>>>(
@@ -338,4 +335,4 @@ void graph_append_unique_func(
   }
   WM_CUDA_CHECK(cudaStreamSynchronize(stream));
 }
-} // namespace graph_ops
+}  // namespace graph_ops

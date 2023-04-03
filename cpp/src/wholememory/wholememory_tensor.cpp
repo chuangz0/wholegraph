@@ -117,6 +117,7 @@ wholememory_error_code_t wholememory_make_tensor_from_pointer(
     wholememory_tensor->is_wholememory     = false;
     wholememory_tensor->root_tensor        = wholememory_tensor;
     *p_wholememory_tensor                  = wholememory_tensor;
+    inc_tensor_count();
     return WHOLEMEMORY_SUCCESS;
   }
 
