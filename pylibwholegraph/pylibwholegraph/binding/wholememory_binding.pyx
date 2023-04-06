@@ -41,6 +41,8 @@ cdef extern from "Python.h":
     void Py_INCREF(PyObject *o)
     void Py_DECREF(PyObject *o)
 
+    const char * PyUnicode_AsUTF8(object unicode)
+
 
 cdef extern from "wholememory/wholememory.h":
     ctypedef enum wholememory_error_code_t:
@@ -142,6 +144,19 @@ cdef extern from "wholememory/wholememory.h":
                                                                  wholememory_handle_t wholememory_handle)
 
     cdef int fork_get_device_count()
+
+    cdef wholememory_error_code_t wholememory_load_from_file(wholememory_handle_t wholememory_handle,
+                                                             size_t memory_offset,
+                                                             size_t memory_entry_size,
+                                                             size_t file_entry_size,
+                                                             const char** file_names,
+                                                             int file_count)
+
+    cdef wholememory_error_code_t wholememory_store_to_file(wholememory_handle_t wholememory_handle,
+                                                            size_t memory_offset,
+                                                            size_t memory_entry_stride,
+                                                            size_t file_entry_size,
+                                                            const char *local_file_name)
 
 
 cpdef enum WholeMemoryErrorCode:
@@ -534,6 +549,65 @@ cpdef enum WholeMemoryDataType:
     DtInt16 = WHOLEMEMORY_DT_INT16
     DtInt8 = WHOLEMEMORY_DT_INT8
     DtCount = WHOLEMEMORY_DT_COUNT
+
+cdef extern from "wholememory/embedding.h":
+    cdef struct wholememory_embedding_cache_policy_:
+        pass
+
+    cdef struct wholememory_embedding_optimizer_:
+        pass
+
+    cdef struct wholememory_embedding_:
+        pass
+
+    ctypedef wholememory_embedding_cache_policy_ * wholememory_embedding_cache_policy_t
+    ctypedef wholememory_embedding_optimizer_ * wholememory_embedding_optimizer_t
+    ctypedef wholememory_embedding_ * wholememory_embedding_t
+
+    ctypedef enum wholememory_access_type_t:
+        WHOLEMEMORY_AT_NONE                 "WHOLEMEMORY_AT_NONE"
+        WHOLEMEMORY_AT_READONLY             "WHOLEMEMORY_AT_READONLY"
+        WHOLEMEMORY_AT_READWRITE            "WHOLEMEMORY_AT_READWRITE"
+
+    ctypedef enum wholememory_optimizer_type_t:
+        WHOLEMEMORY_OPT_NONE                "WHOLEMEMORY_OPT_NONE"
+        WHOLEMEMORY_OPT_SGD                 "WHOLEMEMORY_OPT_SGD"
+        WHOLEMEMORY_OPT_LAZY_ADAM           "WHOLEMEMORY_OPT_LAZY_ADAM"
+        WHOLEMEMORY_OPT_RMSPROP             "WHOLEMEMORY_OPT_RMSPROP"
+        WHOLEMEMORY_OPT_ADAGRAD             "WHOLEMEMORY_OPT_ADAGRAD"
+
+    cdef wholememory_error_code_t wholememory_create_embedding_cache_policy(
+            wholememory_embedding_cache_policy_t * cache_policy,
+            wholememory_comm_t cache_level_comm,
+            wholememory_memory_type_t memory_type,
+            wholememory_memory_location_t memory_location,
+            wholememory_access_type_t access_type,
+            float cache_ratio)
+
+    cdef wholememory_error_code_t wholememory_destroy_embedding_cache_policy(
+            wholememory_embedding_cache_policy_t cache_policy)
+
+    cdef wholememory_error_code_t wholememory_create_embedding(
+            wholememory_embedding_t * wholememory_embedding,
+            wholememory_tensor_description_t * embedding_tensor_description,
+            wholememory_comm_t comm,
+            wholememory_memory_type_t memory_type,
+            wholememory_memory_location_t memory_location,
+            wholememory_embedding_optimizer_t optimizer,
+            wholememory_embedding_cache_policy_t cache_policy)
+
+    cdef wholememory_error_code_t wholememory_destroy_embedding(
+            wholememory_embedding_t wholememory_embedding)
+
+    cdef wholememory_error_code_t wholememory_embedding_gather(wholememory_embedding_t wholememory_embedding,
+                                                               wholememory_tensor_t indices,
+                                                               wholememory_tensor_t output,
+                                                               bool adjust_cache,
+                                                               wholememory_env_func_t * p_env_fns,
+                                                               int64_t stream_int)
+
+    cdef wholememory_tensor_t wholememory_embedding_get_embedding_tensor(
+            wholememory_embedding_t wholememory_embedding)
 
 ######################################################################
 # dlpack
@@ -967,6 +1041,29 @@ cdef class PyWholeMemoryHandle:
             toffsets.append(toffset)
         return chunked_tensors, toffsets
 
+    def from_filelist(self,
+                       int64_t memory_offset,
+                       int64_t memory_entry_size,
+                       int64_t file_entry_size,
+                       file_list):
+        load_wholememory_handle_from_filelist(<int64_t> self.wholememory_handle,
+                                              memory_offset,
+                                              memory_entry_size,
+                                              file_entry_size,
+                                              file_list)
+
+    def to_file(self,
+                int64_t memory_offset,
+                int64_t memory_entry_size,
+                int64_t file_entry_size,
+                file_name):
+        store_wholememory_handle_to_file(<int64_t> self.wholememory_handle,
+                                         memory_offset,
+                                         memory_entry_size,
+                                         file_entry_size,
+                                         file_name)
+
+
 cdef class PyWholeMemoryTensorDescription:
     cdef wholememory_tensor_description_t tensor_description
 
@@ -1168,6 +1265,44 @@ cdef class PyWholeMemoryTensor:
             chunked_tensors.append(self.get_tensor_in_window(chunked_flatten_tensors[i], element_offsets[i])[0])
         return chunked_tensors
 
+    def from_filelist(self, filelist):
+        handle = self.get_wholememory_handle()
+        strides = self.stride()
+        shape = self.shape
+        cdef size_t elt_size = wholememory_dtype_get_element_size(self.tensor_description.dtype)
+
+        cdef size_t memory_offset
+        cdef size_t memory_entry_size
+        cdef size_t file_entry_size
+        memory_offset = self.storage_offset() * elt_size
+        memory_entry_size = elt_size * strides[0]
+        if self.dim() == 1:
+            file_entry_size = elt_size
+        elif self.dim() == 2:
+            file_entry_size = elt_size * shape[1]
+        else:
+            raise ValueError('tensor dim should be 1 or 2')
+        handle.from_filelist(memory_offset, memory_entry_size, file_entry_size, filelist)
+
+    def to_file(self, filename):
+        handle = self.get_wholememory_handle()
+        strides = self.stride()
+        shape = self.shape
+        cdef size_t elt_size = wholememory_dtype_get_element_size(self.tensor_description.dtype)
+
+        cdef size_t memory_offset
+        cdef size_t memory_entry_size
+        cdef size_t file_entry_size
+        memory_offset = self.storage_offset() * elt_size
+        memory_entry_size = elt_size * strides[0]
+        if self.dim() == 1:
+            file_entry_size = elt_size
+        elif self.dim() == 2:
+            file_entry_size = elt_size * shape[1]
+        else:
+            raise ValueError('tensor dim should be 1 or 2')
+        handle.to_file(memory_offset, memory_entry_size, file_entry_size, filename)
+
 ###############################################################################
 
 
@@ -1289,6 +1424,43 @@ def destroy_wholememory_tensor(PyWholeMemoryTensor wholememory_tensor):
 
 def fork_get_gpu_count():
     return fork_get_device_count()
+
+cpdef load_wholememory_handle_from_filelist(int64_t wholememory_handle_int_ptr,
+                                            int64_t memory_offset,
+                                            int64_t memory_entry_size,
+                                            int64_t file_entry_size,
+                                            file_list):
+    cdef const char ** filenames
+    cdef int num_files = len(file_list)
+    cdef int i
+
+    filenames = <const char**> stdlib.malloc(num_files * sizeof(char *))
+
+    try:
+        for i in range(num_files):
+            filenames[i] = PyUnicode_AsUTF8(file_list[i])
+
+        check_wholememory_error_code(wholememory_load_from_file(
+            <wholememory_handle_t> <int64_t> wholememory_handle_int_ptr,
+            memory_offset,
+            memory_entry_size,
+            file_entry_size,
+            filenames,
+            num_files))
+    finally:
+        stdlib.free(filenames)
+
+cpdef store_wholememory_handle_to_file(int64_t wholememory_handle_int_ptr,
+                                       int64_t memory_offset,
+                                       int64_t memory_entry_size,
+                                       int64_t file_entry_size,
+                                       file_name):
+    check_wholememory_error_code(wholememory_store_to_file(
+        <wholememory_handle_t> <int64_t> wholememory_handle_int_ptr,
+        memory_offset,
+        memory_entry_size,
+        file_entry_size,
+        PyUnicode_AsUTF8(file_name)))
 
 cdef extern from "wholememory/wholememory_op.h":
     cdef wholememory_error_code_t wholememory_gather(wholememory_tensor_t wholememory_tensor,

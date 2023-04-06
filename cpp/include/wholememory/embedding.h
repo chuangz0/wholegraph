@@ -85,8 +85,8 @@ wholememory_error_code_t wholememory_destroy_embedding_cache_policy(
 /**
  * Create WholeMemory Embedding
  * @param wholememory_embedding : Returned wholememory_embedding_t
- * @param embedding_description : Description of the embedding, sizes and dtype used, stride and
- * storage_offset ignored.
+ * @param embedding_tensor_description : Description of the embedding, sizes and dtype used, stride
+ * and storage_offset ignored. Must be matrix
  * @param comm : WholeMemory Communicator
  * @param memory_type : Memory Type of the underlying WholeMemory
  * @param memory_location : Memory Location of the underlying WholeMemory
@@ -96,7 +96,7 @@ wholememory_error_code_t wholememory_destroy_embedding_cache_policy(
  */
 wholememory_error_code_t wholememory_create_embedding(
   wholememory_embedding_t* wholememory_embedding,
-  wholememory_matrix_description_t* embedding_description,
+  wholememory_tensor_description_t* embedding_tensor_description,
   wholememory_comm_t comm,
   wholememory_memory_type_t memory_type,
   wholememory_memory_location_t memory_location,
@@ -118,7 +118,7 @@ wholememory_error_code_t wholememory_destroy_embedding(
  * @param output : output tensor
  * @param adjust_cache : if we should adjust cache in this gather
  * @param p_env_fns : env fns
- * @param stream : CUDA stream to use
+ * @param stream_int : CUDA stream to use
  * @return : wholememory_error_code_t
  */
 wholememory_error_code_t wholememory_embedding_gather(wholememory_embedding_t wholememory_embedding,
@@ -126,7 +126,7 @@ wholememory_error_code_t wholememory_embedding_gather(wholememory_embedding_t wh
                                                       wholememory_tensor_t output,
                                                       bool adjust_cache,
                                                       wholememory_env_func_t* p_env_fns,
-                                                      cudaStream_t stream);
+                                                      int64_t stream_int);
 
 /**
  * Get WholeMemory Tensor from WholeMemory Embedding.

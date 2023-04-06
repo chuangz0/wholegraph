@@ -50,6 +50,7 @@ class wholememory_impl {
   [[nodiscard]] wholememory_memory_location_t get_location() const { return location_; }
   [[nodiscard]] wholememory_comm_t get_comm() const { return comm_; }
   [[nodiscard]] size_t total_size() const { return total_size_; }
+  [[nodiscard]] size_t data_granularity() const { return data_granularity_; }
   virtual void create_memory()           = 0;
   virtual void destroy_memory() noexcept = 0;
   [[nodiscard]] virtual void* get_continuous_mapping_pointer() const noexcept { return nullptr; }
@@ -1287,6 +1288,11 @@ wholememory_memory_location_t get_memory_location(wholememory_handle_t wholememo
 size_t get_total_size(wholememory_handle_t wholememory_handle) noexcept
 {
   return wholememory_handle->impl->total_size();
+}
+
+size_t get_data_granularity(wholememory_handle_t wholememory_handle) noexcept
+{
+  return wholememory_handle->impl->data_granularity();
 }
 
 wholememory_error_code_t get_local_memory_from_handle(

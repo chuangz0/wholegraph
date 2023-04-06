@@ -41,6 +41,8 @@ wholememory_memory_location_t get_memory_location(wholememory_handle_t wholememo
 
 size_t get_total_size(wholememory_handle_t wholememory_handle) noexcept;
 
+size_t get_data_granularity(wholememory_handle_t wholememory_handle) noexcept;
+
 wholememory_error_code_t get_local_memory_from_handle(
   void** local_ptr,
   size_t* local_size,
