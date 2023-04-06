@@ -1069,6 +1069,8 @@ cdef class PyWholeMemoryTensorDescription:
 
     def __cinit__(self):
         self.tensor_description.dim = 0
+        self.tensor_description.dtype = int(0)
+        self.tensor_description.storage_offset = 0
 
     cdef set_by_tensor_desc(self, wholememory_tensor_description_t * td):
         self.tensor_description = td[0]
@@ -1605,3 +1607,29 @@ cpdef void csr_weighted_sample_without_replacement(
         random_seed,
         <wholememory_env_func_t *> p_env_fns_int,
         <void *> stream_int))
+
+
+cdef extern from "wholememory/graph_op.h":
+    cdef wholememory_error_code_t graph_append_unique(wholememory_tensor_t target_nodes_tensor,
+                                        wholememory_tensor_t neighbor_nodes_tensor,
+                                        void* output_unique_node_memory_context,
+                                        wholememory_tensor_t output_neighbor_raw_to_unique_mapping_tensor, 
+                                        wholememory_env_func_t * p_env_fns, 
+                                        void* stream)
+
+cpdef void append_unique(
+        WrappedLocalTensor target_node_tensor,
+        WrappedLocalTensor neighbor_node_tensor,
+        int64_t output_unique_node_memory_handle,
+        WrappedLocalTensor output_neighbor_raw_to_unique_mapping_tensor,
+        int64_t p_env_fns_int,
+        int64_t stream_int):
+    check_wholememory_error_code(graph_append_unique(
+        <wholememory_tensor_t> <int64_t> target_node_tensor.get_c_handle(),
+        <wholememory_tensor_t> <int64_t> neighbor_node_tensor.get_c_handle(),
+        <void*> output_unique_node_memory_handle,
+         <wholememory_tensor_t> <int64_t> output_neighbor_raw_to_unique_mapping_tensor.get_c_handle(),
+        <wholememory_env_func_t *> p_env_fns_int,
+        <void *> stream_int
+    ))
+    
