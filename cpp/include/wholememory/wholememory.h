@@ -92,6 +92,8 @@ wholememory_memory_location_t wholememory_get_memory_location(
 
 size_t wholememory_get_total_size(wholememory_handle_t wholememory_handle);
 
+size_t wholememory_get_data_granularity(wholememory_handle_t wholememory_handle);
+
 wholememory_error_code_t wholememory_get_local_memory(void** local_ptr,
                                                       size_t* local_size,
                                                       size_t* local_offset,
@@ -127,8 +129,14 @@ wholememory_error_code_t wholememory_load_from_file(wholememory_handle_t wholeme
                                                     size_t memory_offset,
                                                     size_t memory_entry_size,
                                                     size_t file_entry_size,
-                                                    const char** file_prefix,
+                                                    const char** file_names,
                                                     int file_count);
+
+wholememory_error_code_t wholememory_store_to_file(wholememory_handle_t wholememory_handle,
+                                                   size_t memory_offset,
+                                                   size_t memory_entry_stride,
+                                                   size_t file_entry_size,
+                                                   const char* local_file_name);
 
 #ifdef __cplusplus
 }

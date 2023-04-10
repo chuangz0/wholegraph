@@ -7,6 +7,7 @@ extern "C" {
 size_t wholememory_dtype_get_element_size(wholememory_dtype_t dtype)
 {
   switch (dtype) {
+    case WHOLEMEMORY_DT_UNKNOWN: return 0;
     case WHOLEMEMORY_DT_INT8: return 1;
     case WHOLEMEMORY_DT_INT16:
     case WHOLEMEMORY_DT_BF16:

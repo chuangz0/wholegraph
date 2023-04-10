@@ -94,12 +94,14 @@ ConfigureTest(WHOLEGRAPH_CSR_UNWEIGHTED_SAMPLE_WITHOUT_REPLACEMENT_TEST wholegra
 #wholegraph weighted samping op tests
 ConfigureTest(WHOLEGRAPH_CSR_WEIGHTED_SAMPLE_WITHOUT_REPLACEMENT_TEST wholegraph_ops/wholegraph_csr_weighted_sample_without_replacement_tests.cu wholegraph_ops/graph_sampling_test_utils.cu)
 
-#wholegraph weighted samping op tests
+#wholegraph cache set tests
 ConfigureTest(WHOLEGRAPH_CACHESET_TEST wholememory_ops/cacheset_tests.cu)
 
-#wholegraph weighted samping op tests
+#wholegraph embedding tests
 ConfigureTest(WHOLEGRAPH_EMBEDDING_TEST wholememory_ops/wholememory_embedding_tests.cu wholememory_ops/embedding_test_utils.cu)
 
 #graph spmm forward op tests
 ConfigureTest(GRAPH_SPMM_NO_WEIGHT_FORWARD_TEST graph_ops/spmm_csr_no_weight_test.cu graph_ops/spmm_csr_no_weight_utils.cu wholegraph_ops/graph_sampling_test_utils.cu)
 
+#graph append unique op tests
+ConfigureTest(GRAPH_APPEND_UNIQUE_TEST graph_ops/append_unique_tests.cu graph_ops/append_unique_test_utils.cu wholegraph_ops/graph_sampling_test_utils.cu)

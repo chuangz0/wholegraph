@@ -1,6 +1,7 @@
 #include <wholememory/wholememory.h>
 
 #include "communicator.hpp"
+#include "file_io.h"
 #include "initialize.hpp"
 #include "memory_handle.hpp"
 #include "parallel_utils.hpp"
@@ -85,6 +86,11 @@ size_t wholememory_get_total_size(wholememory_handle_t wholememory_handle)
   return wholememory::get_total_size(wholememory_handle);
 }
 
+size_t wholememory_get_data_granularity(wholememory_handle_t wholememory_handle)
+{
+  return wholememory::get_data_granularity(wholememory_handle);
+}
+
 wholememory_error_code_t wholememory_get_local_memory(void** local_ptr,
                                                       size_t* local_size,
                                                       size_t* local_offset,
@@ -154,10 +160,21 @@ wholememory_error_code_t wholememory_load_from_file(wholememory_handle_t wholeme
                                                     size_t memory_offset,
                                                     size_t memory_entry_size,
                                                     size_t file_entry_size,
-                                                    const char** file_prefix,
+                                                    const char** file_names,
                                                     int file_count)
 {
-  return WHOLEMEMORY_NOT_IMPLEMENTED;
+  return wholememory::load_file_to_handle(
+    wholememory_handle, memory_offset, memory_entry_size, file_entry_size, file_names, file_count);
+}
+
+wholememory_error_code_t wholememory_store_to_file(wholememory_handle_t wholememory_handle,
+                                                   size_t memory_offset,
+                                                   size_t memory_entry_stride,
+                                                   size_t file_entry_size,
+                                                   const char* local_file_name)
+{
+  return wholememory::store_handle_to_file(
+    wholememory_handle, memory_offset, memory_entry_stride, file_entry_size, local_file_name);
 }
 
 wholememory_error_code_t wholememory_load_hdfs_support() { return WHOLEMEMORY_NOT_IMPLEMENTED; }

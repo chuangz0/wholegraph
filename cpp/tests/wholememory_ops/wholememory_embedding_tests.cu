@@ -200,9 +200,12 @@ TEST_P(WholeMemoryEmbeddingParameterTests, EmbeddingGatherTest)
     wholememory_embedding_cache_policy_t cache_policy = params.get_cache_policy(cache_comm);
 
     wholememory_embedding_t wm_embedding;
+    wholememory_tensor_description_t embedding_tensor_description;
+    wholememory_copy_matrix_desc_to_tensor(&embedding_tensor_description,
+                                           &params.embedding_description);
 
     EXPECT_EQ(wholememory_create_embedding(&wm_embedding,
-                                           &params.embedding_description,
+                                           &embedding_tensor_description,
                                            wm_comm,
                                            params.memory_type,
                                            params.memory_location,
@@ -238,7 +241,7 @@ TEST_P(WholeMemoryEmbeddingParameterTests, EmbeddingGatherTest)
                                              output_tensor,
                                              i % 2 == 0,
                                              wholememory::get_default_env_func(),
-                                             stream),
+                                             (int64_t)stream),
                 WHOLEMEMORY_SUCCESS);
 
       wholememory_ops::testing::device_get_expected_embedding(dev_reference_buffer,

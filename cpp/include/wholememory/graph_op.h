@@ -38,7 +38,7 @@ wholememory_error_code_t graph_append_unique(
  * @param csr_col_ind : Wholememory Tensor of local graph csr_col_ptr
  * @param features : Wholememory Tensor of features
  * @param aggregator : aggreagtor type
- * @param output_features: Wholememory Tensor of output features
+ * @param output_features : Wholememory Tensor of output features
  * @param p_env_fns : pointers to environment functions.
  * @param stream : CUDA stream to use
  * @return : wholememory_error_code_t
@@ -57,8 +57,8 @@ wholememory_error_code_t spmm_csr_no_weight_forward(wholememory_tensor_t csr_row
  * @param csr_col_ind : Wholememory Tensor of local graph csr_col_ptr
  * @param grad_output : Wholememory Tensor of grad_output
  * @param aggregator : aggreagtor type
- * @param output_features: Wholememory Tensor of output features
- * @param p_env_fns : pointers to environment functions.
+ * @param output_features : Wholememory Tensor of output features
+ * @param p_env_fns : pointers to environment functions
  * @param stream : CUDA stream to use
  * @return : wholememory_error_code_t
  */

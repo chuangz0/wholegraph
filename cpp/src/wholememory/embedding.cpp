@@ -1,5 +1,7 @@
 #include <wholememory/embedding.h>
 
+#include <cuda_runtime_api.h>
+
 #include <wholememory/env_func_ptrs.h>
 #include <wholememory/wholememory_op.h>
 
@@ -512,13 +514,19 @@ wholememory_error_code_t wholememory_destroy_embedding_cache_policy(
 
 wholememory_error_code_t wholememory_create_embedding(
   wholememory_embedding_t* wholememory_embedding,
-  wholememory_matrix_description_t* embedding_description,
+  wholememory_tensor_description_t* embedding_description,
   wholememory_comm_t comm,
   wholememory_memory_type_t memory_type,
   wholememory_memory_location_t memory_location,
   wholememory_embedding_optimizer_t optimizer,
   wholememory_embedding_cache_policy_t cache_policy)
 {
+  wholememory_matrix_description_t embedding_matrix_description;
+  if (!wholememory_convert_tensor_desc_to_matrix(&embedding_matrix_description,
+                                                 embedding_description)) {
+    WHOLEMEMORY_ERROR("wholememory_create_embedding input description must be 2D matrix");
+    return WHOLEMEMORY_INVALID_INPUT;
+  }
   wholememory::embedding_base* embedding_impl_ptr = nullptr;
   int embedding_world_size                        = 1;
   WHOLEMEMORY_RETURN_ON_FAIL(wholememory_communicator_get_size(&embedding_world_size, comm));
@@ -563,7 +571,7 @@ wholememory_error_code_t wholememory_create_embedding(
   }
 
   WHOLEMEMORY_RETURN_ON_FAIL(embedding_impl_ptr->allocate(
-    embedding_description, comm, memory_type, memory_location, cache_policy, optimizer));
+    &embedding_matrix_description, comm, memory_type, memory_location, cache_policy, optimizer));
 
   *wholememory_embedding = static_cast<wholememory_embedding_t>(embedding_impl_ptr);
   return WHOLEMEMORY_SUCCESS;
@@ -583,10 +591,11 @@ wholememory_error_code_t wholememory_embedding_gather(wholememory_embedding_t wh
                                                       wholememory_tensor_t output,
                                                       bool adjust_cache,
                                                       wholememory_env_func_t* p_env_fns,
-                                                      cudaStream_t stream)
+                                                      int64_t stream_int)
 {
   auto* embedding_impl_ptr = static_cast<wholememory::embedding_base*>(wholememory_embedding);
-  return embedding_impl_ptr->gather(indices, output, adjust_cache, p_env_fns, stream);
+  return embedding_impl_ptr->gather(
+    indices, output, adjust_cache, p_env_fns, (cudaStream_t)stream_int);
 }
 
 wholememory_tensor_t wholememory_embedding_get_embedding_tensor(
