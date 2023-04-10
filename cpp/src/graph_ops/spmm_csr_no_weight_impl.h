@@ -1,6 +1,7 @@
 #pragma once
-#include <wholememory/env_func_ptrs.h>
+#include <cuda_runtime_api.h>
 #include <wholememory/tensor_description.h>
+#include <wholememory/wholememory.h>
 
 namespace graph_ops {
 wholememory_error_code_t spmm_csr_no_weight_forward_mapped(
