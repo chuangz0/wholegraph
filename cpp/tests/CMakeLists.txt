@@ -100,3 +100,6 @@ ConfigureTest(WHOLEGRAPH_CACHESET_TEST wholememory_ops/cacheset_tests.cu)
 #wholegraph weighted samping op tests
 ConfigureTest(WHOLEGRAPH_EMBEDDING_TEST wholememory_ops/wholememory_embedding_tests.cu wholememory_ops/embedding_test_utils.cu)
 
+#graph spmm forward op tests
+ConfigureTest(GRAPH_SPMM_NO_WEIGHT_FORWARD_TEST graph_ops/spmm_csr_no_weight_test.cu graph_ops/spmm_csr_no_weight_utils.cu wholegraph_ops/graph_sampling_test_utils.cu)
+

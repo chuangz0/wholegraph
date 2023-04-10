@@ -1,7 +1,10 @@
 #include <cuda_runtime_api.h>
+#include <raft/util/cudart_utils.hpp>
+#include <raft/util/integer_utils.hpp>
 
-#include <wholememory/wholememory.h>
+#include "spmm_csr_no_weight_func.cuh"
 #include <wholememory/env_func_ptrs.h>
+#include <wholememory/wholememory.h>
 
 #include "wholememory_ops/register.hpp"
 
@@ -19,22 +22,21 @@ wholememory_error_code_t spmm_csr_no_weight_forward_mapped(
   int aggregator,
   void* output_ptr,
   wholememory_matrix_description_t output_desc,
-  wholememory_env_func_t* p_env_fns,
-  cudaStream_t stream) {
+  cudaStream_t stream)
+{
   try {
     DISPATCH_ONE_TYPE(feature_desc.dtype,
-                       SpMMCSRNoWeightForward,
-                       csr_row_ptr,
-                       csr_row_ptr_desc,
-                       csr_col_ptr,
-                       csr_col_ptr_desc,
-                       feature_ptr,
-                       feature_desc,
-                       aggregator,
-                       output_ptr,
-                       output_desc,
-                       p_env_fns,
-                       stream);
+                      SpMMCSRNoWeightForward,
+                      csr_row_ptr,
+                      csr_row_ptr_desc,
+                      csr_col_ptr,
+                      csr_col_ptr_desc,
+                      feature_ptr,
+                      feature_desc,
+                      aggregator,
+                      output_ptr,
+                      output_desc,
+                      stream);
 
   } catch (const raft::cuda_error& rle) {
     // WHOLEMEMORY_FAIL_NOTHROW("%s", rle.what());
@@ -45,6 +47,6 @@ wholememory_error_code_t spmm_csr_no_weight_forward_mapped(
     return WHOLEMEMORY_LOGIC_ERROR;
   }
   return WHOLEMEMORY_SUCCESS;
-  }
+}
 
-} // namespace graph_ops
+}  // namespace graph_ops

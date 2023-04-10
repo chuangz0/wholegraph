@@ -1,9 +1,9 @@
 #pragma once
+#include "error.hpp"
 #include <wholememory/env_func_ptrs.h>
 #include <wholememory/tensor_description.h>
 
-namespace graph_ops
-{
+namespace graph_ops {
 
 // aggregator
 // 0: sum
@@ -43,17 +43,17 @@ __global__ void SpmmCsrNoWeightForwardSimpleKernel(const int* csr_row_ptr,
 }
 
 template <typename T>
-void spmm_csr_no_weight_forward_func(
-  void* csr_row_ptr,
-  wholememory_array_description_t csr_row_ptr_desc,
-  void* csr_col_ptr,
-  wholememory_array_description_t csr_col_ptr_desc,
-  void* feature_ptr,
-  wholememory_matrix_description_t feature_desc,
-  int aggregator,
-  void* output_ptr,
-  wholememory_matrix_description_t output_desc,
-  cudaStream_t stream){
+void spmm_csr_no_weight_forward_func(void* csr_row_ptr,
+                                     wholememory_array_description_t csr_row_ptr_desc,
+                                     void* csr_col_ptr,
+                                     wholememory_array_description_t csr_col_ptr_desc,
+                                     void* feature_ptr,
+                                     wholememory_matrix_description_t feature_desc,
+                                     int aggregator,
+                                     void* output_ptr,
+                                     wholememory_matrix_description_t output_desc,
+                                     cudaStream_t stream)
+{
   WHOLEMEMORY_EXPECTS(csr_row_ptr_desc.dtype == WHOLEMEMORY_DT_INT,
                       "spmm_csr_no_weight_forward_func(). "
                       "csr_row_ptr_desc.dtype != WHOLEMEMORY_DT_INT, "
@@ -64,32 +64,27 @@ void spmm_csr_no_weight_forward_func(
                       "csr_col_ptr_desc.dtype != WHOLEMEMORY_DT_INT, "
                       "csr_col_ptr_desc.dtype = %d",
                       csr_col_ptr_desc.dtype);
-  WHOLEMEMORY_EXPECTS(csr_row_ptr_desc.size - 1 == feature_desc.sizes[0],
-                      "spmm_csr_no_weight_forward_func(). "
-                      "csr_row_ptr_desc.size != feature_desc.sizes[0] + 1, "
-                      "csr_row_ptr_desc.size = %ld, feature_desc.sizes[0] = %ld",
-                      csr_row_ptr_desc.size, feature_desc.sizes[0]);
-  int input_count = feature_desc.sizes[0];
-  int64_t embedding_dim = feature_desc.sizes[1];
+
+  int input_count          = csr_row_ptr_desc.size - 1;
+  int64_t embedding_dim    = feature_desc.sizes[1];
   int64_t embedding_stride = feature_desc.stride;
   int64_t output_stride    = embedding_stride;
 
-  int block_count = input_count;
+  int block_count  = input_count;
   int thread_count = embedding_dim;
-  if (embdding_dim > 512) { thread_count = 512; }
+  if (embedding_dim > 512) { thread_count = 512; }
 
   if (aggregator == 0) {
-    SpmmCsrNoWeightForwardSimpleKernel<T, 0><<<block_count, thread_count, 0, stream>>>(
-      (const int*) csr_row_ptr,
-      (const int*) csr_col_ptr,
-      (const T*) feature_ptr,
-      embedding_dim,
-      embedding_stride,
-      input_count,
-      (T *)output_ptr,
-      output_stride);
-  } 
-  else if (aggregator == 1) {
+    SpmmCsrNoWeightForwardSimpleKernel<T, 0>
+      <<<block_count, thread_count, 0, stream>>>((const int*)csr_row_ptr,
+                                                 (const int*)csr_col_ptr,
+                                                 (const T*)feature_ptr,
+                                                 embedding_dim,
+                                                 embedding_stride,
+                                                 input_count,
+                                                 (T*)output_ptr,
+                                                 output_stride);
+  } else if (aggregator == 1) {
     SpmmCsrNoWeightForwardSimpleKernel<T, 1>
       <<<block_count, thread_count, 0, stream>>>((const int*)csr_row_ptr,
                                                  (const int*)csr_col_ptr,
@@ -99,9 +94,8 @@ void spmm_csr_no_weight_forward_func(
                                                  input_count,
                                                  (T*)output_ptr,
                                                  output_stride);
-  }
-  else if (aggregator == 2) {
-    SpmmCsrNoWeightForwardSimpleKernel<T, 0>
+  } else if (aggregator == 2) {
+    SpmmCsrNoWeightForwardSimpleKernel<T, 2>
       <<<block_count, thread_count, 0, stream>>>((const int*)csr_row_ptr,
                                                  (const int*)csr_col_ptr,
                                                  (const T*)feature_ptr,
@@ -113,4 +107,4 @@ void spmm_csr_no_weight_forward_func(
   }
 }
 
-} // namespace graph_ops
+}  // namespace graph_ops
