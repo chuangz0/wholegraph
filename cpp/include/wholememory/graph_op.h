@@ -4,6 +4,9 @@
 #include <wholememory/env_func_ptrs.h>
 #include <wholememory/wholememory.h>
 #include <wholememory/wholememory_tensor.h>
+#define SUM_AGGREGATOR  0
+#define MEAN_AGGREGATOR 1
+#define GCN_AGGREGATOR  2
 
 #ifdef __cplusplus
 extern "C" {
@@ -42,11 +45,10 @@ wholememory_error_code_t graph_append_unique(
  */
 
 wholememory_error_code_t spmm_csr_no_weight_forward(wholememory_tensor_t csr_row_ptr,
-                                                    wholememory_tensor_t csr_col_ind,
+                                                    wholememory_tensor_t csr_col_ptr,
                                                     wholememory_tensor_t features,
                                                     int64_t aggregator,
                                                     wholememory_tensor_t output_features,
-                                                    wholememory_env_func_t* p_env_fns,
                                                     void* stream);
 
 /**
@@ -61,7 +63,7 @@ wholememory_error_code_t spmm_csr_no_weight_forward(wholememory_tensor_t csr_row
  * @return : wholememory_error_code_t
  */
 wholememory_error_code_t spmm_csr_no_weight_backward(wholememory_tensor_t csr_row_ptr,
-                                                     wholememory_tensor_t csr_col_ind,
+                                                     wholememory_tensor_t csr_col_ptr,
                                                      wholememory_tensor_t grad_output,
                                                      int64_t aggregator,
                                                      wholememory_tensor_t output_features,

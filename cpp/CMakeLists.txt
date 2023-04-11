@@ -132,8 +132,8 @@ file(GLOB WHOLEGRAPH_SOURCES
         "src/wholememory_ops/functions/*.cu"
         "src/wholegraph_ops/*.cpp"
         "src/wholegraph_ops/*.cu"
-        "src/graph_ops/*.cpp"
-        "src/graph_ops/*.cu")
+        "src/graph_ops/*.cu"
+        "src/graph_ops/*.cpp")
 
 add_library(wholegraph SHARED "")
 add_library(wholegraph::wholegraph ALIAS wholegraph)

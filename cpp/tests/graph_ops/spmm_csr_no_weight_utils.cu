@@ -1,0 +1,250 @@
+#include "../wholegraph_ops/graph_sampling_test_utils.hpp"
+#include "spmm_csr_no_weight_utils.hpp"
+#include <experimental/random>
+#include <gtest/gtest.h>
+#include <random>
+#include <wholememory/graph_op.h>
+#include <wholememory_ops/register.hpp>
+
+namespace graph_ops::testing {
+
+template <typename RowPtrType, typename ColIdType>
+void host_get_local_csr_graph(int row_num,
+                              int col_num,
+                              int graph_edge_num,
+                              void* host_csr_row_ptr,
+                              wholememory_array_description_t csr_row_ptr_desc,
+                              void* host_csr_col_ptr,
+                              wholememory_array_description_t csr_col_ptr_desc)
+{
+  RowPtrType* csr_row_ptr  = static_cast<RowPtrType*>(host_csr_row_ptr);
+  ColIdType* csr_col_ptr   = static_cast<ColIdType*>(host_csr_col_ptr);
+  int average_edge_per_row = graph_edge_num / row_num;
+  std::default_random_engine generator;
+  std::binomial_distribution<int> distribution(average_edge_per_row, 1);
+  int total_edge = 0;
+  for (int i = 0; i < row_num; i++) {
+    while (true) {
+      int random_num = distribution(generator);
+      if (random_num >= 0 && random_num <= col_num) {
+        csr_row_ptr[i] = random_num;
+        total_edge += random_num;
+        break;
+      }
+    }
+  }
+
+  int adjust_edge = std::abs(total_edge - graph_edge_num);
+  std::random_device rand_dev;
+  std::mt19937 gen(rand_dev());
+  std::uniform_int_distribution<int> distr(0, row_num - 1);
+
+  if (total_edge > graph_edge_num) {
+    for (int i = 0; i < adjust_edge; i++) {
+      while (true) {
+        int random_row_id = distr(gen);
+        if (csr_row_ptr[random_row_id] > 0) {
+          csr_row_ptr[random_row_id]--;
+          break;
+        }
+      }
+    }
+  }
+  if (total_edge < graph_edge_num) {
+    for (int i = 0; i < adjust_edge; i++) {
+      while (true) {
+        int random_row_id = distr(gen);
+        if (csr_row_ptr[random_row_id] < col_num) {
+          csr_row_ptr[random_row_id]++;
+          break;
+        }
+      }
+    }
+  }
+  wholegraph_ops::testing::host_prefix_sum_array(host_csr_row_ptr, csr_row_ptr_desc);
+  EXPECT_TRUE(csr_row_ptr[row_num] == graph_edge_num);
+
+  for (int i = 0; i < row_num; i++) {
+    int start      = csr_row_ptr[i];
+    int end        = csr_row_ptr[i + 1];
+    int edge_count = end - start;
+    if (edge_count == 0) continue;
+
+    std::vector<int> array_in(col_num);
+    for (int i = 0; i < col_num; i++) {
+      array_in[i] = i;
+    }
+    std::sample(array_in.begin(), array_in.end(), &csr_col_ptr[start], edge_count, gen);
+  }
+}
+
+REGISTER_DISPATCH_TWO_TYPES(HOSTGETLOCALCSRGRAPH, host_get_local_csr_graph, SINT3264, SINT3264)
+
+template <typename DataType>
+void get_random_float_array(void* host_csr_weight_ptr,
+                            wholememory_array_description_t graph_csr_weight_ptr_desc)
+{
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<DataType> dis(1.0, 20.0);
+  for (int64_t i = 0; i < graph_csr_weight_ptr_desc.size; i++) {
+    static_cast<DataType*>(host_csr_weight_ptr)[i] = (DataType)dis(gen);
+  }
+}
+
+void gen_local_csr_graph(int row_num,
+                         int col_num,
+                         int graph_edge_num,
+                         void* host_csr_row_ptr,
+                         wholememory_array_description_t csr_row_ptr_desc,
+                         void* host_csr_col_ptr,
+                         wholememory_array_description_t csr_col_ptr_desc,
+                         void* host_csr_weight_ptr,
+                         wholememory_array_description_t csr_weight_ptr_desc)
+{
+  DISPATCH_TWO_TYPES(csr_row_ptr_desc.dtype,
+                     csr_col_ptr_desc.dtype,
+                     HOSTGETLOCALCSRGRAPH,
+                     row_num,
+                     col_num,
+                     graph_edge_num,
+                     host_csr_row_ptr,
+                     csr_row_ptr_desc,
+                     host_csr_col_ptr,
+                     csr_col_ptr_desc);
+  if (host_csr_weight_ptr != nullptr) {
+    if (csr_weight_ptr_desc.dtype == WHOLEMEMORY_DT_FLOAT) {
+      get_random_float_array<float>(host_csr_weight_ptr, csr_weight_ptr_desc);
+    } else if (csr_weight_ptr_desc.dtype == WHOLEMEMORY_DT_DOUBLE) {
+      get_random_float_array<double>(host_csr_weight_ptr, csr_weight_ptr_desc);
+    }
+  }
+}
+
+void gen_features(void* feature_ptr, wholememory_matrix_description_t feature_desc)
+{
+  int64_t feature_size = feature_desc.sizes[0] * feature_desc.sizes[1];
+  wholememory_array_description_t tmp_array_desc =
+    wholememory_create_array_desc(feature_size, 0, feature_desc.dtype);
+  if (feature_desc.dtype == WHOLEMEMORY_DT_FLOAT) {
+    get_random_float_array<float>(feature_ptr, tmp_array_desc);
+
+  } else if (feature_desc.dtype == WHOLEMEMORY_DT_DOUBLE) {
+    get_random_float_array<double>(feature_ptr, tmp_array_desc);
+  }
+}
+
+template <typename FeatureType>
+void get_spmm_csr_no_weight_forward(void* host_csr_row_ptr,
+                                    wholememory_array_description_t csr_row_ptr_desc,
+                                    void* host_csr_col_ptr,
+                                    wholememory_array_description_t csr_col_ptr_desc,
+                                    void* input_feature_ptr,
+                                    wholememory_matrix_description_t input_feature_desc,
+                                    int aggregator,
+                                    void* host_output_feature,
+                                    wholememory_matrix_description_t output_feature_desc)
+{
+  int* csr_row_ptr            = static_cast<int*>(host_csr_row_ptr);
+  int* csr_col_ptr            = static_cast<int*>(host_csr_col_ptr);
+  FeatureType* input_feature  = static_cast<FeatureType*>(input_feature_ptr);
+  FeatureType* output_feature = static_cast<FeatureType*>(host_output_feature);
+  int row_num                 = csr_row_ptr_desc.size - 1;
+  int feature_dim             = input_feature_desc.sizes[1];
+  int feature_stride          = input_feature_desc.stride;
+
+  for (int i = 0; i < row_num; i++) {
+    int start = csr_row_ptr[i];
+    int end   = csr_row_ptr[i + 1];
+
+    for (int k = 0; k < feature_dim; k++) {
+      FeatureType sum = 0;
+      if (aggregator == GCN_AGGREGATOR) { sum += input_feature[i * feature_stride + k]; }
+      for (int j = start; j < end; j++) {
+        int col_id = csr_col_ptr[j];
+        sum += input_feature[col_id * feature_stride + k];
+      }
+      if (aggregator == GCN_AGGREGATOR) { sum /= (end - start + 1); }
+      if (aggregator == MEAN_AGGREGATOR) { sum /= (end - start); }
+      output_feature[i * feature_stride + k] = sum;
+    }
+  }
+}
+
+void host_spmm_csr_no_weight_forward(void* host_csr_row_ptr,
+                                     wholememory_array_description_t csr_row_ptr_desc,
+                                     void* host_csr_col_ptr,
+                                     wholememory_array_description_t csr_col_ptr_desc,
+                                     void* input_feature_ptr,
+                                     wholememory_matrix_description_t input_feature_desc,
+                                     int aggregator,
+                                     void* host_output_feature,
+                                     wholememory_matrix_description_t output_feature_desc)
+{
+  EXPECT_EQ(csr_row_ptr_desc.dtype, WHOLEMEMORY_DT_INT);
+  EXPECT_EQ(csr_col_ptr_desc.dtype, WHOLEMEMORY_DT_INT);
+  EXPECT_EQ(input_feature_desc.dtype, output_feature_desc.dtype);
+  EXPECT_EQ(output_feature_desc.sizes[1], input_feature_desc.sizes[1]);
+
+  if (input_feature_desc.dtype == WHOLEMEMORY_DT_FLOAT) {
+    get_spmm_csr_no_weight_forward<float>(host_csr_row_ptr,
+                                          csr_row_ptr_desc,
+                                          host_csr_col_ptr,
+                                          csr_col_ptr_desc,
+                                          input_feature_ptr,
+                                          input_feature_desc,
+                                          aggregator,
+                                          host_output_feature,
+                                          output_feature_desc);
+  } else if (input_feature_desc.dtype == WHOLEMEMORY_DT_DOUBLE) {
+    get_spmm_csr_no_weight_forward<double>(host_csr_row_ptr,
+                                           csr_row_ptr_desc,
+                                           host_csr_col_ptr,
+                                           csr_col_ptr_desc,
+                                           input_feature_ptr,
+                                           input_feature_desc,
+                                           aggregator,
+                                           host_output_feature,
+                                           output_feature_desc);
+  }
+}
+
+template <typename T>
+void check_float_matrix_same(void* input,
+                             wholememory_matrix_description_t input_matrix_desc,
+                             void* input_ref,
+                             wholememory_matrix_description_t input_ref_matrix_desc,
+                             double epsilon = 1e-5)
+{
+  int64_t diff_count = 0;
+  for (int64_t i = 0; i < input_matrix_desc.sizes[0]; i++) {
+    for (int64_t j = 0; j < input_matrix_desc.sizes[1]; j++) {
+      T value     = static_cast<T*>(input)[i * input_matrix_desc.stride + j];
+      T ref_value = static_cast<T*>(input_ref)[i * input_matrix_desc.stride + j];
+      if (std::abs(value - ref_value) > epsilon) { diff_count++; }
+      if (diff_count < 10 && diff_count > 0) {
+        printf(
+          "row=%ld, col=%ld, got (float %f), but should be (float %f)\n", i, j, value, ref_value);
+        fflush(stdout);
+      }
+    }
+  }
+  EXPECT_EQ(diff_count, 0);
+}
+
+void host_check_float_matrix_same(void* input,
+                                  wholememory_matrix_description_t input_matrix_desc,
+                                  void* input_ref,
+                                  wholememory_matrix_description_t input_ref_matrix_desc)
+{
+  EXPECT_EQ(input_matrix_desc.dtype, input_ref_matrix_desc.dtype);
+  EXPECT_EQ(input_matrix_desc.sizes[0], input_ref_matrix_desc.sizes[0]);
+  EXPECT_EQ(input_matrix_desc.sizes[1], input_matrix_desc.sizes[1]);
+  if (input_matrix_desc.dtype == WHOLEMEMORY_DT_FLOAT) {
+    check_float_matrix_same<float>(input, input_matrix_desc, input_ref, input_ref_matrix_desc);
+  } else if (input_matrix_desc.dtype == WHOLEMEMORY_DT_DOUBLE) {
+    check_float_matrix_same<double>(input, input_matrix_desc, input_ref, input_ref_matrix_desc);
+  }
+}
+
+}  // namespace graph_ops::testing

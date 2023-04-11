@@ -288,7 +288,7 @@ void wholegraph_csr_unweighted_sample_without_replacement_func(
 
   WHOLEMEMORY_EXPECTS(wm_csr_row_ptr_desc.dtype == WHOLEMEMORY_DT_INT64,
                       "wholegraph_csr_unweighted_sample_without_replacement_func(). "
-                      "wm_csr_row_ptr_desc.dtype != WHOLEMEMORY_DT_INT, "
+                      "wm_csr_row_ptr_desc.dtype != WHOLEMEMORY_DT_INT64, "
                       "wm_csr_row_ptr_desc.dtype = %d",
                       wm_csr_row_ptr_desc.dtype);
 
