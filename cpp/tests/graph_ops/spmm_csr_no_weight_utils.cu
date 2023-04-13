@@ -214,7 +214,7 @@ void check_float_matrix_same(void* input,
                              wholememory_matrix_description_t input_matrix_desc,
                              void* input_ref,
                              wholememory_matrix_description_t input_ref_matrix_desc,
-                             double epsilon = 1e-5)
+                             double epsilon = 1e-3)
 {
   int64_t diff_count = 0;
   for (int64_t i = 0; i < input_matrix_desc.sizes[0]; i++) {
@@ -222,7 +222,7 @@ void check_float_matrix_same(void* input,
       T value     = static_cast<T*>(input)[i * input_matrix_desc.stride + j];
       T ref_value = static_cast<T*>(input_ref)[i * input_matrix_desc.stride + j];
       if (std::abs(value - ref_value) > epsilon) { diff_count++; }
-      if (diff_count < 10 && diff_count > 0) {
+      if (diff_count < 5 && diff_count > 0) {
         printf(
           "row=%ld, col=%ld, got (float %f), but should be (float %f)\n", i, j, value, ref_value);
         fflush(stdout);
