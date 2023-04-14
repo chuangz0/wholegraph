@@ -140,17 +140,17 @@ TEST_P(GraphCsrAddSelfLoopParameterTests, CsrAddSelfLoopParameterTest)
                               output_csr_col_ptr_tensor,
                               stream),
             WHOLEMEMORY_SUCCESS);
-
-  EXPECT_EQ(cudaMemcpy(dev_output_csr_row_ptr,
-                       host_output_csr_row_ptr,
+  EXPECT_EQ(cudaStreamSynchronize(stream), cudaSuccess);
+  EXPECT_EQ(cudaMemcpy(host_output_csr_row_ptr,
+                       dev_output_csr_row_ptr,
                        wholememory_get_memory_size_from_array(&csr_row_ptr_array_desc),
-                       cudaMemcpyHostToDevice),
+                       cudaMemcpyDeviceToHost),
             cudaSuccess);
 
-  EXPECT_EQ(cudaMemcpy(dev_output_csr_col_ptr,
-                       host_output_csr_col_ptr,
+  EXPECT_EQ(cudaMemcpy(host_output_csr_col_ptr,
+                       dev_output_csr_col_ptr,
                        wholememory_get_memory_size_from_array(&output_csr_col_ptr_array_desc),
-                       cudaMemcpyHostToDevice),
+                       cudaMemcpyDeviceToHost),
             cudaSuccess);
   EXPECT_EQ(cudaStreamSynchronize(stream), cudaSuccess);
   graph_ops::testing::host_csr_add_self_loop(host_csr_row_ptr,

@@ -134,6 +134,22 @@ void gen_features(void* feature_ptr, wholememory_matrix_description_t feature_de
   }
 }
 
+void gen_features(void* feature_ptr, wholememory_tensor_description_t feature_desc)
+{
+  int64_t feature_size = 1;
+  for (int i = 0; i < feature_desc.dim; i++) {
+    feature_size = feature_desc.sizes[i];
+  }
+  wholememory_array_description_t tmp_array_desc =
+    wholememory_create_array_desc(feature_size, 0, feature_desc.dtype);
+  if (feature_desc.dtype == WHOLEMEMORY_DT_FLOAT) {
+    get_random_float_array<float>(feature_ptr, tmp_array_desc);
+
+  } else if (feature_desc.dtype == WHOLEMEMORY_DT_DOUBLE) {
+    get_random_float_array<double>(feature_ptr, tmp_array_desc);
+  }
+}
+
 template <typename FeatureType>
 void get_spmm_csr_no_weight_forward(void* host_csr_row_ptr,
                                     wholememory_array_description_t csr_row_ptr_desc,
@@ -244,6 +260,45 @@ void host_check_float_matrix_same(void* input,
     check_float_matrix_same<float>(input, input_matrix_desc, input_ref, input_ref_matrix_desc);
   } else if (input_matrix_desc.dtype == WHOLEMEMORY_DT_DOUBLE) {
     check_float_matrix_same<double>(input, input_matrix_desc, input_ref, input_ref_matrix_desc);
+  }
+}
+
+template <typename T>
+void check_float_array_same(T* input, T* input_ref, int64_t total_element, double epsilon = 1e-3)
+{
+  int64_t diff_count = 0;
+  for (int64_t i = 0; i < total_element; i++) {
+    T value     = input[i];
+    T ref_value = input_ref[i];
+    if (std::abs(value - ref_value) > epsilon) { diff_count++; }
+    if (diff_count < 5 && diff_count > 0) {
+      printf("index=%ld, got (float %f), but should be (float %f)\n", i, value, ref_value);
+      fflush(stdout);
+    }
+  }
+}
+
+void host_check_float_tensor_same(void* input,
+                                  wholememory_tensor_description_t input_tensor_desc,
+                                  void* input_ref,
+                                  wholememory_tensor_description_t input_ref_tensor_desc)
+{
+  EXPECT_EQ(input_tensor_desc.dtype, input_ref_tensor_desc.dtype);
+  EXPECT_EQ(input_tensor_desc.dim, input_ref_tensor_desc.dim);
+  int dim = input_tensor_desc.dim;
+  for (int i = 0; i < dim; i++) {
+    EXPECT_EQ(input_tensor_desc.sizes[i], input_ref_tensor_desc.sizes[i]);
+  }
+  int64_t total_ele_size = 1;
+  for (int i = 0; i < dim; i++) {
+    total_ele_size *= input_tensor_desc.sizes[i];
+  }
+  if (input_tensor_desc.dtype == WHOLEMEMORY_DT_FLOAT) {
+    check_float_array_same<float>(
+      static_cast<float*>(input), static_cast<float*>(input_ref), total_ele_size);
+  } else if (input_tensor_desc.dtype == WHOLEMEMORY_DT_DOUBLE) {
+    check_float_array_same<double>(
+      static_cast<double*>(input), static_cast<double*>(input_ref), total_ele_size);
   }
 }
 

@@ -122,3 +122,9 @@ ConfigureTest(GRAPH_EDGE_WEIGHT_SOFTMAX_BACKWARD_TEST graph_ops/edge_weight_soft
 #graph csr add self loop op tests
 ConfigureTest(GRAPH_CSR_ADD_SELF_LOOP_TEST graph_ops/csr_add_self_loop_tests.cu graph_ops/csr_add_self_loop_utils.cu graph_ops/spmm_csr_no_weight_utils.cu wholegraph_ops/graph_sampling_test_utils.cu)
 
+#graph gspmm csr weighted forward op tests
+ConfigureTest(GRAPH_GSPMM_CSR_WEIGHTED_FORWARD_TEST graph_ops/gspmm_csr_weighted_forward_tests.cu graph_ops/gspmm_csr_weighted_test_utils.cu graph_ops/spmm_csr_no_weight_utils.cu wholegraph_ops/graph_sampling_test_utils.cu)
+
+
+#graph gspmm csr weighted backward op tests
+ConfigureTest(GRAPH_GSPMM_CSR_WEIGHTED_BACKWARD_TEST graph_ops/gspmm_csr_weighted_backward_tests.cu graph_ops/gspmm_csr_weighted_test_utils.cu graph_ops/spmm_csr_no_weight_utils.cu wholegraph_ops/graph_sampling_test_utils.cu)

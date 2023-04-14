@@ -148,6 +148,45 @@ wholememory_error_code_t csr_add_self_loop(wholememory_tensor_t csr_row_ptr_tens
                                            wholememory_tensor_t output_csr_col_ptr_tensor,
                                            void* stream);
 
+/**
+ * Csr Add Self Loop Op
+ * @param csr_row_ptr_tensor : Wholememory Tensor of local graph csr_row_ptr
+ * @param csr_col_ptr_tensor : Wholememory Tensor of csr_col_ptr
+ * @param edge_weight_tensor : Wholememory Tensor of edge_weight
+ * @param feature_tensor : Wholememory Tensor of feature
+ * @param output_feature_tensor : Wholememory Tensor of output_feature
+ * @param stream : CUDA stream to use
+ * @return : wholememory_error_code_t
+ */
+wholememory_error_code_t gspmm_csr_weighted_forward(wholememory_tensor_t csr_row_ptr_tensor,
+                                                    wholememory_tensor_t csr_col_ptr_tensor,
+                                                    wholememory_tensor_t edge_weight_tensor,
+                                                    wholememory_tensor_t feature_tensor,
+                                                    wholememory_tensor_t output_feature_tensor,
+                                                    void* stream);
+
+/**
+ * Csr Add Self Loop Op
+ * @param csr_row_ptr_tensor : Wholememory Tensor of local graph csr_row_ptr
+ * @param csr_col_ptr_tensor : Wholememory Tensor of csr_col_ptr
+ * @param edge_weight_tensor : Wholememory Tensor of edge_weight
+ * @param feature_tensor : Wholememory Tensor of feature
+ * @param input_grad_feature_tensor : Wholememory Tensor of input_grad_feature
+ * @param output_grad_edge_weight_tensor : Wholememory Tensor of output_grad_edge_weight
+ * @param output_grad_feature_tensor : Wholememory Tensor of output_grad_feature
+ * @param stream : CUDA stream to use
+ * @return : wholememory_error_code_t
+ */
+wholememory_error_code_t gspmm_csr_weighted_backward(
+  wholememory_tensor_t csr_row_ptr_tensor,
+  wholememory_tensor_t csr_col_ptr_tensor,
+  wholememory_tensor_t edge_weight_tensor,
+  wholememory_tensor_t feature_tensor,
+  wholememory_tensor_t input_grad_feature_tensor,
+  wholememory_tensor_t output_grad_edge_weight_tensor,
+  wholememory_tensor_t output_grad_feature_tensor,
+  void* stream);
+
 #ifdef __cplusplus
 }
 #endif
