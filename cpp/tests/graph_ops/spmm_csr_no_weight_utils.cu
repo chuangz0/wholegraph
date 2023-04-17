@@ -302,4 +302,70 @@ void host_check_float_tensor_same(void* input,
   }
 }
 
+template <typename WeightType>
+void host_get_spmm_csr_no_weight_backward(int* host_csr_row_ptr,
+                                          wholememory_array_description_t csr_row_ptr_desc,
+                                          int* host_csr_col_ptr,
+                                          wholememory_array_description_t csr_col_ptr_desc,
+                                          void* host_input_grad_feature_ptr,
+                                          wholememory_matrix_description_t input_grad_feature_desc,
+                                          int aggregator,
+                                          void* host_ref_output_grad_feature,
+                                          wholememory_matrix_description_t output_feature_desc)
+{
+  WeightType* input_grad_feature_ptr  = static_cast<WeightType*>(host_input_grad_feature_ptr);
+  WeightType* output_grad_feature_ptr = static_cast<WeightType*>(host_ref_output_grad_feature);
+  int64_t emb_dim                     = input_grad_feature_desc.sizes[1];
+
+  int64_t row_num = csr_row_ptr_desc.size - 1;
+  for (int64_t i = 0; i < row_num; i++) {
+    int start     = host_csr_row_ptr[i];
+    int end       = host_csr_row_ptr[i + 1];
+    float scale   = 1.0;
+    int agg_count = end - start;
+    if (aggregator == GCN_AGGREGATOR) {
+      if (agg_count > 0) scale /= (end - start + 1);
+    } else if (aggregator == MEAN_AGGREGATOR) {
+      if (agg_count > 0) scale /= (end - start);
+    }
+    for (int emb_id = 0; emb_id < emb_dim; emb_id++) {
+      WeightType value =
+        static_cast<WeightType>(input_grad_feature_ptr[i * emb_dim + emb_id] * scale);
+      for (int j = start; j < end; j++) {
+        int col_id = host_csr_col_ptr[j];
+        output_grad_feature_ptr[col_id * emb_dim + emb_id] += value;
+      }
+    }
+  }
+}
+void host_spmm_csr_no_weight_backward(void* host_csr_row_ptr,
+                                      wholememory_array_description_t csr_row_ptr_desc,
+                                      void* host_csr_col_ptr,
+                                      wholememory_array_description_t csr_col_ptr_desc,
+                                      void* host_input_grad_feature_ptr,
+                                      wholememory_matrix_description_t input_grad_feature_desc,
+                                      int aggregator,
+                                      void* host_ref_output_grad_feature,
+                                      wholememory_matrix_description_t output_feature_desc)
+{
+  EXPECT_EQ(csr_row_ptr_desc.dtype, WHOLEMEMORY_DT_INT);
+  EXPECT_EQ(csr_col_ptr_desc.dtype, WHOLEMEMORY_DT_INT);
+  EXPECT_EQ(input_grad_feature_desc.dtype, output_feature_desc.dtype);
+  EXPECT_EQ(output_feature_desc.sizes[1], input_grad_feature_desc.sizes[1]);
+  memset(
+    host_ref_output_grad_feature, 0, wholememory_get_memory_size_from_matrix(&output_feature_desc));
+
+  if (input_grad_feature_desc.dtype == WHOLEMEMORY_DT_FLOAT) {
+    host_get_spmm_csr_no_weight_backward<float>(static_cast<int*>(host_csr_row_ptr),
+                                                csr_row_ptr_desc,
+                                                static_cast<int*>(host_csr_col_ptr),
+                                                csr_col_ptr_desc,
+                                                host_input_grad_feature_ptr,
+                                                input_grad_feature_desc,
+                                                aggregator,
+                                                host_ref_output_grad_feature,
+                                                output_feature_desc);
+  }
+}
+
 }  // namespace graph_ops::testing

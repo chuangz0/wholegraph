@@ -101,7 +101,10 @@ ConfigureTest(WHOLEGRAPH_CACHESET_TEST wholememory_ops/cacheset_tests.cu)
 ConfigureTest(WHOLEGRAPH_EMBEDDING_TEST wholememory_ops/wholememory_embedding_tests.cu wholememory_ops/embedding_test_utils.cu)
 
 #graph spmm forward op tests
-ConfigureTest(GRAPH_SPMM_NO_WEIGHT_FORWARD_TEST graph_ops/spmm_csr_no_weight_tests.cu graph_ops/spmm_csr_no_weight_utils.cu wholegraph_ops/graph_sampling_test_utils.cu)
+ConfigureTest(GRAPH_SPMM_NO_WEIGHT_FORWARD_TEST graph_ops/spmm_csr_no_weight_forward_tests.cu graph_ops/spmm_csr_no_weight_utils.cu wholegraph_ops/graph_sampling_test_utils.cu)
+
+#graph spmm backward op tests
+ConfigureTest(GRAPH_SPMM_NO_WEIGHT_BACKWARD_TEST graph_ops/spmm_csr_no_weight_backward_tests.cu graph_ops/spmm_csr_no_weight_utils.cu wholegraph_ops/graph_sampling_test_utils.cu)
 
 #graph append unique op tests
 ConfigureTest(GRAPH_APPEND_UNIQUE_TEST graph_ops/append_unique_tests.cu graph_ops/append_unique_test_utils.cu wholegraph_ops/graph_sampling_test_utils.cu)

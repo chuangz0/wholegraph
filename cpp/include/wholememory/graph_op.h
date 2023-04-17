@@ -23,7 +23,6 @@ extern "C" {
  * @param stream : CUDA stream to use
  * @return : wholememory_error_code_t
  */
-
 wholememory_error_code_t graph_append_unique(
   wholememory_tensor_t target_nodes_tensor,
   wholememory_tensor_t neighbor_nodes_tensor,
@@ -42,7 +41,6 @@ wholememory_error_code_t graph_append_unique(
  * @param stream : CUDA stream to use
  * @return : wholememory_error_code_t
  */
-
 wholememory_error_code_t spmm_csr_no_weight_forward(wholememory_tensor_t csr_row_ptr_tensor,
                                                     wholememory_tensor_t csr_col_ptr_tensor,
                                                     wholememory_tensor_t feature_tensor,
@@ -54,18 +52,19 @@ wholememory_error_code_t spmm_csr_no_weight_forward(wholememory_tensor_t csr_row
  * Spmm CSR no Weight Backward Op
  * @param csr_row_ptr_tensor : Wholememory Tensor of local graph csr_row_ptr
  * @param csr_col_ptr_tensor : Wholememory Tensor of local graph csr_col_ptr
- * @param grad_output_tensor : Wholememory Tensor of grad_output
+ * @param input_grad_tensor : Wholememory Tensor of input_grad_tensor
  * @param aggregator : aggreagtor type
- * @param output_feature_tensor : Wholememory Tensor of output features
+ * @param output_grad_feature_tensor : Wholememory Tensor of output_grad_feature_tensor
  * @param stream : CUDA stream to use
  * @return : wholememory_error_code_t
  */
-wholememory_error_code_t spmm_csr_no_weight_backward(wholememory_tensor_t csr_row_ptr_tensor,
-                                                     wholememory_tensor_t csr_col_ptr_tensor,
-                                                     wholememory_tensor_t grad_output_tensor,
-                                                     int64_t aggregator,
-                                                     wholememory_tensor_t output_feature_tensor,
-                                                     void* stream);
+wholememory_error_code_t spmm_csr_no_weight_backward(
+  wholememory_tensor_t csr_row_ptr_tensor,
+  wholememory_tensor_t csr_col_ptr_tensor,
+  wholememory_tensor_t input_grad_tensor,
+  int64_t aggregator,
+  wholememory_tensor_t output_grad_feature_tensor,
+  void* stream);
 
 /**
  * SpADD CSR Forward Op
