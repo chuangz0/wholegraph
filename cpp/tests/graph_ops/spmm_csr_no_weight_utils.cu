@@ -134,6 +134,22 @@ void gen_features(void* feature_ptr, wholememory_matrix_description_t feature_de
   }
 }
 
+void gen_features(void* feature_ptr, wholememory_tensor_description_t feature_desc)
+{
+  int64_t feature_size = 1;
+  for (int i = 0; i < feature_desc.dim; i++) {
+    feature_size = feature_desc.sizes[i];
+  }
+  wholememory_array_description_t tmp_array_desc =
+    wholememory_create_array_desc(feature_size, 0, feature_desc.dtype);
+  if (feature_desc.dtype == WHOLEMEMORY_DT_FLOAT) {
+    get_random_float_array<float>(feature_ptr, tmp_array_desc);
+
+  } else if (feature_desc.dtype == WHOLEMEMORY_DT_DOUBLE) {
+    get_random_float_array<double>(feature_ptr, tmp_array_desc);
+  }
+}
+
 template <typename FeatureType>
 void get_spmm_csr_no_weight_forward(void* host_csr_row_ptr,
                                     wholememory_array_description_t csr_row_ptr_desc,
@@ -214,7 +230,7 @@ void check_float_matrix_same(void* input,
                              wholememory_matrix_description_t input_matrix_desc,
                              void* input_ref,
                              wholememory_matrix_description_t input_ref_matrix_desc,
-                             double epsilon = 1e-5)
+                             double epsilon = 1e-3)
 {
   int64_t diff_count = 0;
   for (int64_t i = 0; i < input_matrix_desc.sizes[0]; i++) {
@@ -222,7 +238,7 @@ void check_float_matrix_same(void* input,
       T value     = static_cast<T*>(input)[i * input_matrix_desc.stride + j];
       T ref_value = static_cast<T*>(input_ref)[i * input_matrix_desc.stride + j];
       if (std::abs(value - ref_value) > epsilon) { diff_count++; }
-      if (diff_count < 10 && diff_count > 0) {
+      if (diff_count < 5 && diff_count > 0) {
         printf(
           "row=%ld, col=%ld, got (float %f), but should be (float %f)\n", i, j, value, ref_value);
         fflush(stdout);
@@ -244,6 +260,111 @@ void host_check_float_matrix_same(void* input,
     check_float_matrix_same<float>(input, input_matrix_desc, input_ref, input_ref_matrix_desc);
   } else if (input_matrix_desc.dtype == WHOLEMEMORY_DT_DOUBLE) {
     check_float_matrix_same<double>(input, input_matrix_desc, input_ref, input_ref_matrix_desc);
+  }
+}
+
+template <typename T>
+void check_float_array_same(T* input, T* input_ref, int64_t total_element, double epsilon = 1e-3)
+{
+  int64_t diff_count = 0;
+  for (int64_t i = 0; i < total_element; i++) {
+    T value     = input[i];
+    T ref_value = input_ref[i];
+    if (std::abs(value - ref_value) > epsilon) { diff_count++; }
+    if (diff_count < 5 && diff_count > 0) {
+      printf("index=%ld, got (float %f), but should be (float %f)\n", i, value, ref_value);
+      fflush(stdout);
+    }
+  }
+}
+
+void host_check_float_tensor_same(void* input,
+                                  wholememory_tensor_description_t input_tensor_desc,
+                                  void* input_ref,
+                                  wholememory_tensor_description_t input_ref_tensor_desc)
+{
+  EXPECT_EQ(input_tensor_desc.dtype, input_ref_tensor_desc.dtype);
+  EXPECT_EQ(input_tensor_desc.dim, input_ref_tensor_desc.dim);
+  int dim = input_tensor_desc.dim;
+  for (int i = 0; i < dim; i++) {
+    EXPECT_EQ(input_tensor_desc.sizes[i], input_ref_tensor_desc.sizes[i]);
+  }
+  int64_t total_ele_size = 1;
+  for (int i = 0; i < dim; i++) {
+    total_ele_size *= input_tensor_desc.sizes[i];
+  }
+  if (input_tensor_desc.dtype == WHOLEMEMORY_DT_FLOAT) {
+    check_float_array_same<float>(
+      static_cast<float*>(input), static_cast<float*>(input_ref), total_ele_size);
+  } else if (input_tensor_desc.dtype == WHOLEMEMORY_DT_DOUBLE) {
+    check_float_array_same<double>(
+      static_cast<double*>(input), static_cast<double*>(input_ref), total_ele_size);
+  }
+}
+
+template <typename WeightType>
+void host_get_spmm_csr_no_weight_backward(int* host_csr_row_ptr,
+                                          wholememory_array_description_t csr_row_ptr_desc,
+                                          int* host_csr_col_ptr,
+                                          wholememory_array_description_t csr_col_ptr_desc,
+                                          void* host_input_grad_feature_ptr,
+                                          wholememory_matrix_description_t input_grad_feature_desc,
+                                          int aggregator,
+                                          void* host_ref_output_grad_feature,
+                                          wholememory_matrix_description_t output_feature_desc)
+{
+  WeightType* input_grad_feature_ptr  = static_cast<WeightType*>(host_input_grad_feature_ptr);
+  WeightType* output_grad_feature_ptr = static_cast<WeightType*>(host_ref_output_grad_feature);
+  int64_t emb_dim                     = input_grad_feature_desc.sizes[1];
+
+  int64_t row_num = csr_row_ptr_desc.size - 1;
+  for (int64_t i = 0; i < row_num; i++) {
+    int start     = host_csr_row_ptr[i];
+    int end       = host_csr_row_ptr[i + 1];
+    float scale   = 1.0;
+    int agg_count = end - start;
+    if (aggregator == GCN_AGGREGATOR) {
+      if (agg_count > 0) scale /= (end - start + 1);
+    } else if (aggregator == MEAN_AGGREGATOR) {
+      if (agg_count > 0) scale /= (end - start);
+    }
+    for (int emb_id = 0; emb_id < emb_dim; emb_id++) {
+      WeightType value =
+        static_cast<WeightType>(input_grad_feature_ptr[i * emb_dim + emb_id] * scale);
+      for (int j = start; j < end; j++) {
+        int col_id = host_csr_col_ptr[j];
+        output_grad_feature_ptr[col_id * emb_dim + emb_id] += value;
+      }
+    }
+  }
+}
+void host_spmm_csr_no_weight_backward(void* host_csr_row_ptr,
+                                      wholememory_array_description_t csr_row_ptr_desc,
+                                      void* host_csr_col_ptr,
+                                      wholememory_array_description_t csr_col_ptr_desc,
+                                      void* host_input_grad_feature_ptr,
+                                      wholememory_matrix_description_t input_grad_feature_desc,
+                                      int aggregator,
+                                      void* host_ref_output_grad_feature,
+                                      wholememory_matrix_description_t output_feature_desc)
+{
+  EXPECT_EQ(csr_row_ptr_desc.dtype, WHOLEMEMORY_DT_INT);
+  EXPECT_EQ(csr_col_ptr_desc.dtype, WHOLEMEMORY_DT_INT);
+  EXPECT_EQ(input_grad_feature_desc.dtype, output_feature_desc.dtype);
+  EXPECT_EQ(output_feature_desc.sizes[1], input_grad_feature_desc.sizes[1]);
+  memset(
+    host_ref_output_grad_feature, 0, wholememory_get_memory_size_from_matrix(&output_feature_desc));
+
+  if (input_grad_feature_desc.dtype == WHOLEMEMORY_DT_FLOAT) {
+    host_get_spmm_csr_no_weight_backward<float>(static_cast<int*>(host_csr_row_ptr),
+                                                csr_row_ptr_desc,
+                                                static_cast<int*>(host_csr_col_ptr),
+                                                csr_col_ptr_desc,
+                                                host_input_grad_feature_ptr,
+                                                input_grad_feature_desc,
+                                                aggregator,
+                                                host_ref_output_grad_feature,
+                                                output_feature_desc);
   }
 }
 

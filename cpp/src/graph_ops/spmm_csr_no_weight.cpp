@@ -75,3 +75,72 @@ wholememory_error_code_t spmm_csr_no_weight_forward(wholememory_tensor_t csr_row
                                                       output_desc,
                                                       static_cast<cudaStream_t>(stream));
 }
+
+wholememory_error_code_t spmm_csr_no_weight_backward(
+  wholememory_tensor_t csr_row_ptr_tensor,
+  wholememory_tensor_t csr_col_ptr_tensor,
+  wholememory_tensor_t input_grad_tensor,
+  int64_t aggregator,
+  wholememory_tensor_t output_grad_feature_tensor,
+  void* stream)
+{
+  wholememory_tensor_description_t csr_row_ptr_tensor_desc =
+    *wholememory_tensor_get_tensor_description(csr_row_ptr_tensor);
+  wholememory_tensor_description_t csr_col_ptr_tensor_desc =
+    *wholememory_tensor_get_tensor_description(csr_col_ptr_tensor);
+  wholememory_tensor_description_t input_grad_tensor_desc =
+    *wholememory_tensor_get_tensor_description(input_grad_tensor);
+  wholememory_tensor_description_t output_grad_feature_tensor_desc =
+    *wholememory_tensor_get_tensor_description(output_grad_feature_tensor);
+  if (csr_row_ptr_tensor_desc.dim != 1) {
+    WHOLEMEMORY_ERROR("Input csr_row_ptr should be 1D tensor");
+    return WHOLEMEMORY_INVALID_INPUT;
+  }
+  if (csr_col_ptr_tensor_desc.dim != 1) {
+    WHOLEMEMORY_ERROR("Input csr_col_ptr should be 1D tensor");
+    return WHOLEMEMORY_INVALID_INPUT;
+  }
+  if (input_grad_tensor_desc.dim != 2) {
+    WHOLEMEMORY_ERROR("Input input_grad_tensor should be 2D tensor");
+    return WHOLEMEMORY_INVALID_INPUT;
+  }
+  if (output_grad_feature_tensor_desc.dim != 2) {
+    WHOLEMEMORY_ERROR("Output output_grad_feature_tensor should be 2D tensor");
+    return WHOLEMEMORY_INVALID_INPUT;
+  }
+  wholememory_array_description_t csr_row_ptr_desc, csr_col_ptr_desc;
+  if (!wholememory_convert_tensor_desc_to_array(&csr_row_ptr_desc, &csr_row_ptr_tensor_desc)) {
+    WHOLEMEMORY_ERROR("Input csr_row_ptr_tensor convert to array failed.");
+    return WHOLEMEMORY_LOGIC_ERROR;
+  }
+
+  if (!wholememory_convert_tensor_desc_to_array(&csr_col_ptr_desc, &csr_col_ptr_tensor_desc)) {
+    WHOLEMEMORY_ERROR("Input csr_col_ptr_tensor convert to array failed.");
+    return WHOLEMEMORY_LOGIC_ERROR;
+  }
+
+  if (input_grad_tensor_desc.dtype != output_grad_feature_tensor_desc.dtype) {
+    WHOLEMEMORY_ERROR(
+      "output_grad_feature_tensor dtype should the same with input_grad_tensor dtype.");
+    return WHOLEMEMORY_LOGIC_ERROR;
+  }
+  if (input_grad_tensor_desc.sizes[1] != output_grad_feature_tensor_desc.sizes[1]) {
+    WHOLEMEMORY_ERROR("input_grad_tensor size[1] should the same with input_grad_tensor sizes[1].");
+    return WHOLEMEMORY_LOGIC_ERROR;
+  }
+
+  void* csr_row_ptr             = wholememory_tensor_get_data_pointer(csr_row_ptr_tensor);
+  void* csr_col_ptr             = wholememory_tensor_get_data_pointer(csr_col_ptr_tensor);
+  void* input_grad_ptr          = wholememory_tensor_get_data_pointer(input_grad_tensor);
+  void* output_grad_feature_ptr = wholememory_tensor_get_data_pointer(output_grad_feature_tensor);
+  return graph_ops::spmm_csr_no_weight_backward_mapped(csr_row_ptr,
+                                                       csr_row_ptr_desc,
+                                                       csr_col_ptr,
+                                                       csr_col_ptr_desc,
+                                                       input_grad_ptr,
+                                                       input_grad_tensor_desc,
+                                                       aggregator,
+                                                       output_grad_feature_ptr,
+                                                       output_grad_feature_tensor_desc,
+                                                       static_cast<cudaStream_t>(stream));
+}

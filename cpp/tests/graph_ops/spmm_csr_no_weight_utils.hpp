@@ -14,6 +14,7 @@ void gen_local_csr_graph(
   wholememory_array_description_t csr_weight_ptr_desc = wholememory_array_description_t{});
 
 void gen_features(void* feature_ptr, wholememory_matrix_description_t feature_desc);
+void gen_features(void* feature_ptr, wholememory_tensor_description_t feature_desc);
 void host_spmm_csr_no_weight_forward(void* host_csr_row_ptr,
                                      wholememory_array_description_t csr_row_ptr_desc,
                                      void* host_csr_col_ptr,
@@ -28,5 +29,18 @@ void host_check_float_matrix_same(void* input,
                                   wholememory_matrix_description_t input_matrix_desc,
                                   void* input_ref,
                                   wholememory_matrix_description_t input_ref_matrix_desc);
+void host_check_float_tensor_same(void* input,
+                                  wholememory_tensor_description_t input_tensor_desc,
+                                  void* input_ref,
+                                  wholememory_tensor_description_t input_ref_tensor_desc);
 
+void host_spmm_csr_no_weight_backward(void* host_csr_row_ptr,
+                                      wholememory_array_description_t csr_row_ptr_desc,
+                                      void* host_csr_col_ptr,
+                                      wholememory_array_description_t csr_col_ptr_desc,
+                                      void* host_input_grad_feature_ptr,
+                                      wholememory_matrix_description_t input_grad_feature_desc,
+                                      int aggregator,
+                                      void* host_ref_output_grad_feature,
+                                      wholememory_matrix_description_t output_feature_desc);
 }  // namespace graph_ops::testing
