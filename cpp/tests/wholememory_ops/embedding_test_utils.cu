@@ -505,4 +505,13 @@ void host_check_embedding_same(void* host_embedding,
   EXPECT_EQ(diff_count, 0);
 }
 
+void host_random_init_float(float* data, int64_t len, float max_value, float min_value)
+{
+  static std::default_random_engine e;
+  static std::uniform_real_distribution<> dis(-1.0, 1.0);  // rage 0 - 1
+  for (int64_t i = 0; i < len; i++) {
+    data[i] = dis(e);
+  }
+}
+
 }  // namespace wholememory_ops::testing

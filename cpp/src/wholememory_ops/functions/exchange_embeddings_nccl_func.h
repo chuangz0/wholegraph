@@ -27,4 +27,25 @@ wholememory_error_code_t exchange_embeddings_nccl_func(const void* dev_local_gat
                                                        wholememory_comm_t wm_comm,
                                                        cudaStream_t stream);
 
+/**
+ * Dedup indice and gradients
+ * @param indices : indices
+ * @param indice_desc : array description of indice
+ * @param grads : gradients
+ * @param grads_desc : matrix description of gradients
+ * @param dedup_indice : output indice
+ * @param dedup_grads : output gradients
+ * @param p_env_fn : env_fns
+ * @param stream : CUDA stream to use
+ * @return : deduped indice count
+ */
+int64_t dedup_indice_and_gradients(const void* indices,
+                                   wholememory_array_description_t indice_desc,
+                                   const float* grads,
+                                   wholememory_matrix_description_t grads_desc,
+                                   void* dedup_indice,
+                                   float* dedup_grads,
+                                   wholememory_env_func_t* p_env_fn,
+                                   cudaStream_t stream);
+
 }  // namespace wholememory_ops

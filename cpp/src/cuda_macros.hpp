@@ -77,6 +77,7 @@ struct cu_error : public raft::exception {
              __FILE__,                                             \
              __LINE__,                                             \
              cudaGetErrorString(status));                          \
+      abort();                                                     \
     }                                                              \
   } while (0)
 

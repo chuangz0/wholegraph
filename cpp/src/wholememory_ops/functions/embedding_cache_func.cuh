@@ -50,12 +50,13 @@ __device__ __forceinline__ int WarpFindMaxScaleSync(int scale)
 class CacheLineInfo {
  public:
   __device__ __forceinline__ CacheLineInfo() {}
-  __device__ __forceinline__ void LoadTag(uint16_t* tag_ptr) { tag_ = tag_ptr[threadIdx.x]; }
-  __device__ __forceinline__ void LoadInfo(uint16_t* tag_ptr, uint16_t* count_ptr)
+  __device__ __forceinline__ void LoadTag(const uint16_t* tag_ptr) { tag_ = tag_ptr[threadIdx.x]; }
+  __device__ __forceinline__ void LoadInfo(const uint16_t* tag_ptr, const uint16_t* count_ptr)
   {
     tag_       = tag_ptr[threadIdx.x];
     lfu_count_ = count_ptr[threadIdx.x];
   }
+  __device__ __forceinline__ void StoreTag(uint16_t* tag_ptr) const { tag_ptr[threadIdx.x] = tag_; }
   __device__ __forceinline__ void StoreInfo(uint16_t* tag_ptr, uint16_t* count_ptr) const
   {
     tag_ptr[threadIdx.x]   = tag_;
@@ -107,7 +108,6 @@ class CacheLineInfo {
     scale_lfu_count |= ((max_scale >> threadIdx.x) & 1) << kScaledCounterBits;
     lfu_count_ = scale_lfu_count;
   }
-  //
   __device__ __forceinline__ void SetLocalID(int local_id)
   {
     if (local_id >= 0) {
@@ -117,6 +117,10 @@ class CacheLineInfo {
     } else {
       tag_ = 0;
     }
+  }
+  __device__ __forceinline__ void SetModified(int local_id)
+  {
+    if (local_id >= 0 && local_id == LocalID()) { tag_ |= kModifiedMask; }
   }
   __device__ __forceinline__ void ClearCacheLine() { tag_ = 0; }
   __device__ __forceinline__ void ClearModify() { tag_ &= ~kModifiedMask; }

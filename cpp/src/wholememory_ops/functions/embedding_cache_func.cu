@@ -331,7 +331,8 @@ wholememory_error_code_t update_cache_direct_same_comm(
   WHOLEMEMORY_RETURN_ON_FAIL(wholememory_communicator_get_size(&world_size, wm_comm));
   WHOLEMEMORY_RETURN_ON_FAIL(wholememory_communicator_get_rank(&world_rank, wm_comm));
 
-  auto* raw_embedding_desc = wholememory_tensor_get_tensor_description(wm_raw_memory_embedding);
+  auto* raw_embedding_desc =
+    wholememory_tensor_get_tensor_description(wholememory_tensor_get_root(wm_raw_memory_embedding));
   size_t embedding_entry_count_per_rank = 0;
   WHOLEMEMORY_RETURN_ON_FAIL(wholememory_determine_entry_partition_plan(
     &embedding_entry_count_per_rank, raw_embedding_desc->sizes[0], world_size));
@@ -623,6 +624,95 @@ wholememory_error_code_t update_cache_different_comm(
   WHOLEMEMORY_RETURN_ON_FAIL(wholememory_destroy_tensor(scatter_indice_tensor));
 
   WM_CUDA_DEBUG_SYNC_STREAM(stream);
+
+  return WHOLEMEMORY_SUCCESS;
+}
+
+__global__ void WriteBackCacheDirectKernel(uint16_t* local_cache_line_tag,
+                                           int4* local_cached_data,
+                                           int4* local_memory_data,
+                                           int embedding_dim_in_int4,
+                                           int cache_set_coverage,
+                                           bool drop_all)
+{
+  static_assert(wholememory::embedding_cache_base::kCacheSetSize == 32);
+  int64_t const cache_set_lid = blockIdx.x;
+  local_cache_line_tag += cache_set_lid * wholememory::embedding_cache_base::kCacheSetSize;
+  local_cached_data +=
+    cache_set_lid * wholememory::embedding_cache_base::kCacheSetSize * embedding_dim_in_int4;
+  local_memory_data += cache_set_lid * cache_set_coverage * embedding_dim_in_int4;
+  CacheLineInfo cache_line_info;
+  cache_line_info.LoadTag(local_cache_line_tag);
+
+  bool is_modified = cache_line_info.IsModified() && cache_line_info.IsValid();
+  auto modify_mask = __ballot_sync(0xFFFFFFFF, static_cast<int>(is_modified));
+  while (modify_mask != 0) {
+    int lane_idx = __ffs(modify_mask) - 1;
+    int local_id = __shfl_sync(0xFFFFFFFF, cache_line_info.LocalID(), lane_idx, 32);
+    for (int idx = threadIdx.x; idx < embedding_dim_in_int4; idx += 32) {
+      local_memory_data[local_id * embedding_dim_in_int4 + idx] =
+        local_cached_data[lane_idx * embedding_dim_in_int4 + idx];
+    }
+    modify_mask ^= (1 << lane_idx);
+  }
+
+  if (drop_all) {
+    cache_line_info.ClearCacheLine();
+  } else {
+    cache_line_info.ClearModify();
+  }
+  cache_line_info.StoreTag(local_cache_line_tag);
+}
+
+wholememory_error_code_t writeback_cache_direct_same_comm(
+  wholememory_tensor_t wm_raw_memory_embedding,
+  const wholememory::embedding_cache_local_data* cache_local_data,
+  int cache_set_coverage,
+  bool drop_all,
+  cudaStream_t stream)
+{
+  int world_size = 1;
+  int world_rank = 0;
+  wholememory_handle_t wholememory_handle =
+    wholememory_tensor_get_memory_handle(wm_raw_memory_embedding);
+  wholememory_comm_t wm_comm;
+  WHOLEMEMORY_RETURN_ON_FAIL(wholememory_get_communicator(&wm_comm, wholememory_handle));
+  WHOLEMEMORY_RETURN_ON_FAIL(wholememory_communicator_get_size(&world_size, wm_comm));
+  WHOLEMEMORY_RETURN_ON_FAIL(wholememory_communicator_get_rank(&world_rank, wm_comm));
+
+  auto* raw_embedding_desc =
+    wholememory_tensor_get_tensor_description(wholememory_tensor_get_root(wm_raw_memory_embedding));
+  size_t embedding_entry_count_per_rank = 0;
+  WHOLEMEMORY_RETURN_ON_FAIL(wholememory_determine_entry_partition_plan(
+    &embedding_entry_count_per_rank, raw_embedding_desc->sizes[0], world_size));
+
+  WHOLEMEMORY_CHECK_NOTHROW(embedding_entry_count_per_rank % cache_set_coverage == 0);
+  wholememory_tensor_t raw_local_tensor;
+  WHOLEMEMORY_RETURN_ON_FAIL(
+    wholememory_tensor_map_local_tensor(wm_raw_memory_embedding, &raw_local_tensor));
+  int cache_set_count = wholememory::div_rounding_up_unsafe(
+    wholememory_tensor_get_tensor_description(raw_local_tensor)->sizes[0], cache_set_coverage);
+
+  int const embedding_dim = raw_embedding_desc->strides[0];
+  size_t const dtype_size = wholememory_dtype_get_element_size(raw_embedding_desc->dtype);
+  WHOLEMEMORY_CHECK_NOTHROW(embedding_dim * dtype_size % 16 == 0);
+  int const embedding_dim_in_int4 = embedding_dim * dtype_size / 16;
+
+  if (cache_set_count > 0) {
+    WriteBackCacheDirectKernel<<<cache_set_count, 32, 0, stream>>>(
+      static_cast<uint16_t*>(
+        wholememory_tensor_get_data_pointer(cache_local_data->cache_line_tag_)),
+      static_cast<int4*>(wholememory_tensor_get_data_pointer(cache_local_data->cache_line_data_)),
+      static_cast<int4*>(wholememory_tensor_get_data_pointer(raw_local_tensor)),
+      embedding_dim_in_int4,
+      cache_set_coverage,
+      drop_all);
+    WM_CUDA_CHECK_NO_THROW(cudaGetLastError());
+  }
+
+  WM_CUDA_DEBUG_SYNC_STREAM(stream);
+
+  WHOLEMEMORY_RETURN_ON_FAIL(wholememory_destroy_tensor(raw_local_tensor));
 
   return WHOLEMEMORY_SUCCESS;
 }

@@ -445,11 +445,12 @@ class global_mapped_host_wholememory_impl : public wholememory_impl {
     auto* mmap_ptr = mmap(
       nullptr, alloc_strategy_.total_alloc_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
     WHOLEMEMORY_CHECK(mmap_ptr != (void*)-1);
-    WHOLEMEMORY_CHECK(close(shm_fd) == 0);
-    WM_CUDA_CHECK(
+    memset(mmap_ptr, 0, alloc_strategy_.total_alloc_size);
+    WM_CUDA_CHECK_NO_THROW(
       cudaHostRegister(mmap_ptr, alloc_strategy_.total_alloc_size, cudaHostRegisterDefault));
+    WHOLEMEMORY_CHECK(close(shm_fd) == 0);
     void* dev_ptr = nullptr;
-    WM_CUDA_CHECK(cudaHostGetDevicePointer(&dev_ptr, mmap_ptr, 0));
+    WM_CUDA_CHECK_NO_THROW(cudaHostGetDevicePointer(&dev_ptr, mmap_ptr, 0));
     WHOLEMEMORY_CHECK(dev_ptr == mmap_ptr);
     shared_host_handle_.shared_host_memory_ptr = dev_ptr;
     local_partition_memory_pointer_ =

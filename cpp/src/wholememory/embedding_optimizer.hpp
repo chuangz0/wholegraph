@@ -4,6 +4,7 @@
 
 #include <functional>
 #include <map>
+#include <memory>
 #include <string>
 
 #include "embedding_cache.hpp"
@@ -26,19 +27,42 @@ class embedding_optimizer_impl_base;
 
 using optimizer_parameter_setter_fn_t = std::function<wholememory_error_code_t(const void*)>;
 
-class optimizer_state {
+class optimizer_state_t {
  public:
-  optimizer_state()  = default;
-  ~optimizer_state() = default;
-  struct state {
+  optimizer_state_t()  = default;
+  ~optimizer_state_t() = default;
+  // Per element optimizer states are cachable, like momentums.
+  // They are packed into same
+  struct cachable_state {
     // name of this state
     std::string name;
-    // local tensor, should NOT be WholeMemory Tensor but be local tensor of the WholeMemory Tensor.
-    wholememory_tensor_t local_raw_data_tensor         = nullptr;
-    wholememory_tensor_t local_cache_entry_meta_tensor = nullptr;
-    wholememory_tensor_t local_cache_entry_data_tensor = nullptr;
+    int start_dim;
+    int dim;
+    wholememory_tensor_t global_raw_state_tensor = nullptr;
   };
-  std::vector<state> states;
+  wholememory_embedding_t cachable_state_embedding = nullptr;
+
+  // wholememory_tensor_t global_cachable_raw_padded_tensor = nullptr;
+  wholememory_tensor_t global_cachable_raw_user_tensor = nullptr;
+  wholememory_tensor_t local_cachable_wm_tensor        = nullptr;
+
+  // wholememory_tensor_t global_cacheline_tag_wm_tensor    = nullptr;
+  // wholememory_tensor_t global_cacheline_data_wm_tensor   = nullptr;
+  // wholememory_tensor_t local_cacheline_tag_wm_tensor     = nullptr;
+  // wholememory_tensor_t local_cacheline_data_wm_tensor    = nullptr;
+  //  per embedding optimizers are uncachable, like betat1 and batat2 for momentums.
+  struct uncachable_state {
+    std::string name;
+    int dim;
+    wholememory_dtype_t dtype;
+    wholememory_tensor_t global_raw_padded_tensor = nullptr;
+    wholememory_tensor_t global_raw_sub_tensor    = nullptr;
+    wholememory_tensor_t local_tensor             = nullptr;
+  };
+  int64_t local_start_index                     = -1;
+  device_cache_for_host* device_cache_for_host_ = nullptr;
+  std::vector<cachable_state> cachable_states;
+  std::vector<uncachable_state> uncachable_states;
 };
 
 class embedding_optimizer_impl_base : public wholememory_embedding_optimizer_ {
@@ -54,24 +78,44 @@ class embedding_optimizer_impl_base : public wholememory_embedding_optimizer_ {
    *
    * @param indices : bucketed indices that belongs to current rank.
    * @param grads : bucketed gradients that belongs to current rank.
-   * @param indice_offset : start index offset of current rank.
-   * @param states : optimizer states
+   * @param local_embedding : local embedding of current rank.
    * @param lr : learning rate
+   * @param stream : cudaStream_t to use
    * @return : wholememory_error_code_t
    */
   virtual wholememory_error_code_t step(wholememory_tensor_t indices,
                                         wholememory_tensor_t grads,
-                                        int64_t indice_offset,
-                                        optimizer_state* states,
-                                        float lr) noexcept
+                                        wholememory_tensor_t local_embedding,
+                                        optimizer_state_t* optimizer_state,
+                                        float lr,
+                                        cudaStream_t stream) noexcept = 0;
+
+  virtual void create_optimizer_states(optimizer_state_t* optimizer_state,
+                                       int embedding_dim) noexcept
   {
-    return WHOLEMEMORY_NOT_IMPLEMENTED;
-  };
+  }
+
+  virtual wholememory_error_code_t init_optimizer_states(
+    optimizer_state_t* optimizer_state) noexcept
+  {
+    return WHOLEMEMORY_SUCCESS;
+  }
+  [[nodiscard]] const char* const* get_optimizer_state_names() const noexcept
+  {
+    return state_names_.data();
+  }
+  virtual wholememory_tensor_t get_optimizer_state(optimizer_state_t* optimizer_state,
+                                                   const char* state_name);
 
  protected:
   static optimizer_parameter_setter_fn_t get_float_setter(float* target_ptr);
+  static void zero_local_state_tensor(wholememory_tensor_t local_state_tensor);
+  static void set_float_local_state_tensor(wholememory_tensor_t local_state_tensor, float value);
+
   std::map<std::string, optimizer_parameter_setter_fn_t> setter_fns_;
   const char* name_ = nullptr;
+
+  std::vector<const char*> state_names_ = {nullptr};
 };
 
 wholememory_error_code_t create_embedding_optimizer(

@@ -58,4 +58,11 @@ wholememory_error_code_t update_cache_different_comm(
   wholememory_env_func_t* p_env_fns,
   cudaStream_t stream);
 
+wholememory_error_code_t writeback_cache_direct_same_comm(
+  wholememory_tensor_t wm_raw_memory_embedding,
+  const wholememory::embedding_cache_local_data* cache_local_data,
+  int cache_set_coverage,
+  bool drop_all,
+  cudaStream_t stream);
+
 }  // namespace wholememory_ops

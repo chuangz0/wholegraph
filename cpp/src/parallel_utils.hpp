@@ -7,14 +7,20 @@
 
 #include "logger.hpp"
 
-/*!
+/**
  * Run f with size threads
  * @param size : thread count
  * @param f : thread function
  */
 void MultiThreadRun(int size, std::function<void(int, int)> f);
 
-/*!
+/**
+ * Get processor count of the machine.
+ * @return : processor count
+ */
+int GetProcessorCount();
+
+/**
  * Run f with size processes
  * @note when using gtest with MultiProcessRun, ::testing::Test::HasFailure()
  * need to be called before f return and modify exit code according to if has

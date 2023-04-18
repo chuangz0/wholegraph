@@ -112,6 +112,14 @@ wholememory_error_code_t wholememory_destroy_embedding(
   wholememory_embedding_t wholememory_embedding);
 
 /**
+ * Get WholeMemory Tensor from WholeMemory Embedding.
+ * @param wholememory_embedding : WholeMemory Embedding
+ * @return : WholeMemory Tensor
+ */
+wholememory_tensor_t wholememory_embedding_get_embedding_tensor(
+  wholememory_embedding_t wholememory_embedding);
+
+/**
  * Gather from WholeMemory Embedding
  * @param wholememory_embedding : WholeMemory Embedding
  * @param indices : indices to gather
@@ -129,27 +137,31 @@ wholememory_error_code_t wholememory_embedding_gather(wholememory_embedding_t wh
                                                       int64_t stream_int);
 
 /**
- * Get WholeMemory Tensor from WholeMemory Embedding.
+ * Gather backward for WholeMemory Embedding
  * @param wholememory_embedding : WholeMemory Embedding
- * @return : WholeMemory Tensor
- */
-wholememory_tensor_t wholememory_embedding_get_embedding_tensor(
-  wholememory_embedding_t wholememory_embedding);
-
-/**
- * Initialize internal optimizer states.
- * @param wholememory_embedding : WholeMemory Embedding
+ * @param indices : indices to gather
+ * @param grads : gradient of output tensor
+ * @param adjust_cache : if we should adjust cache in this gather
+ * @param lr : learning rate of current step.
+ * @param p_env_fns : env fns
+ * @param stream_int : CUDA stream to use
  * @return : wholememory_error_code_t
  */
-wholememory_error_code_t wholememory_embedding_init_optimizer_states(
-  wholememory_embedding_t wholememory_embedding);
+wholememory_error_code_t wholememory_embedding_gather_gradient_apply(
+  wholememory_embedding_t wholememory_embedding,
+  wholememory_tensor_t indices,
+  wholememory_tensor_t grads,
+  bool adjust_cache,
+  float lr,
+  wholememory_env_func_t* p_env_fns,
+  int64_t stream_int);
 
 /**
  * Get optimizer internal state names
  * @param wholememory_embedding : WholeMemory Embedding
  * @return : nullptr terminated names.
  */
-const char** wholememory_embedding_get_optimizer_state_names(
+const char* const* wholememory_embedding_get_optimizer_state_names(
   wholememory_embedding_t wholememory_embedding);
 
 /**
@@ -164,10 +176,11 @@ wholememory_tensor_t wholememory_embedding_get_optimizer_state(
 /**
  * Flush WholeMemory Embedding
  * @param wholememory_embedding : WholeMemory Embedding
+ * @param stream_int : CUDA stream to use.
  * @return : wholememory_error_code_t
  */
-wholememory_error_code_t wholememory_embedding_flush_cache(
-  wholememory_embedding_t wholememory_embedding);
+wholememory_error_code_t wholememory_embedding_writeback_cache(
+  wholememory_embedding_t wholememory_embedding, int64_t stream_int);
 
 #ifdef __cplusplus
 }

@@ -5,9 +5,13 @@
 #include <wholememory/env_func_ptrs.h>
 #include <wholememory/wholememory_op.h>
 
+#include <memory>
+
 #include "cuda_macros.hpp"
+#include "embedding.hpp"
 #include "embedding_optimizer.hpp"
 #include "error.hpp"
+#include "integer_utils.hpp"
 #include "logger.hpp"
 #include "wholememory_ops/functions/embedding_cache_func.h"
 #include "wholememory_ops/functions/exchange_embeddings_nccl_func.h"
@@ -17,44 +21,16 @@
 #include "wholememory_ops/temp_memory_handle.hpp"
 #include "wholememory_ops/thrust_allocator.hpp"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-struct wholememory_embedding_ {
-  wholememory_tensor_t allocated_embedding          = nullptr;
-  wholememory_tensor_t user_embedding               = nullptr;  // subtensor of allocated_embedding
-  wholememory_embedding_cache_policy_t cache_policy = nullptr;
-  wholememory_embedding_optimizer_t optimizer       = nullptr;
-};
-
-#ifdef __cplusplus
-}
-#endif
-
 namespace wholememory {
 
-class embedding_base : public wholememory_embedding_ {
- public:
-  embedding_base()          = default;
-  virtual ~embedding_base() = default;
-  wholememory_error_code_t allocate(wholememory_matrix_description_t* embedding_description,
-                                    wholememory_comm_t comm,
-                                    wholememory_memory_type_t memory_type,
-                                    wholememory_memory_location_t memory_location,
-                                    wholememory_embedding_cache_policy_t policy,
-                                    wholememory_embedding_optimizer_t opt) noexcept;
-  void deallocate() noexcept;
-  virtual wholememory_error_code_t gather(wholememory_tensor_t indices,
-                                          wholememory_tensor_t output,
-                                          bool adjust_cache,
-                                          wholememory_env_func_t* p_env_fns,
-                                          cudaStream_t stream) noexcept = 0;
-  // virtual wholememory_error_code_t apply_gradients();
- protected:
-  wholememory_comm_t raw_embedding_comm_        = nullptr;
-  wholememory::embedding_cache_base* cache_ptr_ = nullptr;
-};
+static int64_t align_embedding_dim(int64_t embedding_dim, size_t element_size)
+{
+  int64_t const align_count      = 16 / element_size;
+  int64_t const embedding_stride = embedding_dim % align_count == 0
+                                     ? embedding_dim
+                                     : (embedding_dim / align_count + 1) * align_count;
+  return embedding_stride;
+}
 
 wholememory_error_code_t embedding_base::allocate(
   wholememory_matrix_description_t* embedding_description,
@@ -69,6 +45,10 @@ wholememory_error_code_t embedding_base::allocate(
   raw_embedding_comm_ = comm;
   wholememory_tensor_description_t padded_embedding_tensor_description;
   try {
+    if (optimizer != nullptr && embedding_description->dtype != WHOLEMEMORY_DT_FLOAT) {
+      WHOLEMEMORY_ERROR("Only float embedding supports training.");
+      return WHOLEMEMORY_NOT_IMPLEMENTED;
+    }
     if (cache_policy != nullptr) {
       WHOLEMEMORY_CHECK_NOTHROW(cache_policy->cache_comm != nullptr);
       if (cache_policy->cache_comm != comm) {
@@ -87,10 +67,7 @@ wholememory_error_code_t embedding_base::allocate(
                                              embedding_description);
       int64_t const embedding_dim = embedding_description->sizes[1];
       size_t const element_size = wholememory_dtype_get_element_size(embedding_description->dtype);
-      int64_t const align_count = 16 / element_size;
-      int64_t const embedding_stride                     = embedding_dim % align_count == 0
-                                                             ? embedding_dim
-                                                             : (embedding_dim / align_count + 1) * align_count;
+      int64_t const embedding_stride = align_embedding_dim(embedding_dim, element_size);
       padded_embedding_tensor_description.storage_offset = 0;
       padded_embedding_tensor_description.strides[0]     = embedding_stride;
       padded_embedding_tensor_description.strides[1]     = 1;
@@ -106,9 +83,9 @@ wholememory_error_code_t embedding_base::allocate(
       wholememory_tensor_get_subtensor(allocated_embedding, &starts[0], &ends[0], &user_embedding));
     if (cache_ptr_ != nullptr) { WHOLEMEMORY_RETURN_ON_FAIL(cache_ptr_->allocate(user_embedding)); }
     if (optimizer != nullptr) {
-      // TODO: optimizer states
-      WHOLEMEMORY_CHECK_NOTHROW(false);
-      return WHOLEMEMORY_NOT_IMPLEMENTED;
+      optimizer_impl_base_ = static_cast<embedding_optimizer_impl_base*>(optimizer);
+      WHOLEMEMORY_RETURN_ON_FAIL(create_optimizer_states());
+      WHOLEMEMORY_RETURN_ON_FAIL(init_optimizer_states());
     }
   } catch (std::bad_alloc& sba) {
     WHOLEMEMORY_ERROR("bad_alloc");
@@ -121,11 +98,296 @@ wholememory_error_code_t embedding_base::allocate(
   return WHOLEMEMORY_SUCCESS;
 }
 
+wholememory_error_code_t embedding_base::gather_gradient_apply(wholememory_tensor_t indices,
+                                                               wholememory_tensor_t grads,
+                                                               bool adjust_cache,
+                                                               float lr,
+                                                               wholememory_env_func_t* p_env_fns,
+                                                               cudaStream_t stream)
+{
+  auto* indice_desc    = wholememory_tensor_get_tensor_description(indices);
+  auto* grads_desc     = wholememory_tensor_get_tensor_description(grads);
+  auto* embedding_desc = wholememory_tensor_get_tensor_description(allocated_embedding);
+  WHOLEMEMORY_CHECK_NOTHROW(indice_desc->dim == 1);
+  wholememory_ops::temp_memory_handle host_recv_rank_id_count_handle(p_env_fns),
+    host_rank_id_count_handle(p_env_fns);
+  wholememory_ops::temp_memory_handle dev_recv_indices_buffer_handle(p_env_fns);
+  wholememory_ops::temp_memory_handle dev_raw_indice_handle(p_env_fns);
+  size_t const embedding_entry_count_per_rank =
+    wholememory_tensor_get_entry_per_partition(allocated_embedding);
+  wholememory_ops::wm_thrust_allocator thrust_allocator(p_env_fns);
+  int world_size = -1, world_rank = -1;
+  int64_t* host_recv_rank_id_count_ptr = nullptr;
+  int64_t* host_rank_id_count_ptr      = nullptr;
+  int64_t* dev_raw_indice_ptr          = nullptr;
+
+  WHOLEMEMORY_RETURN_ON_FAIL(wholememory_communicator_get_size(&world_size, raw_embedding_comm_));
+  WHOLEMEMORY_RETURN_ON_FAIL(wholememory_communicator_get_rank(&world_rank, raw_embedding_comm_));
+  host_recv_rank_id_count_ptr = static_cast<int64_t*>(
+    host_recv_rank_id_count_handle.pinned_malloc(world_size, WHOLEMEMORY_DT_INT64));
+  host_rank_id_count_ptr = static_cast<int64_t*>(
+    host_rank_id_count_handle.pinned_malloc(world_size, WHOLEMEMORY_DT_INT64));
+  dev_raw_indice_ptr = static_cast<int64_t*>(
+    dev_raw_indice_handle.device_malloc(indice_desc->sizes[0], WHOLEMEMORY_DT_INT64));
+  wholememory_array_description_t indice_array_desc;
+  WHOLEMEMORY_CHECK_NOTHROW(
+    wholememory_convert_tensor_desc_to_array(&indice_array_desc, indice_desc));
+  WHOLEMEMORY_RETURN_ON_FAIL(
+    wholememory_ops::bucket_and_exchange_ids_func(wholememory_tensor_get_data_pointer(indices),
+                                                  indice_array_desc,
+                                                  host_recv_rank_id_count_ptr,
+                                                  host_rank_id_count_ptr,
+                                                  &dev_recv_indices_buffer_handle,
+                                                  dev_raw_indice_ptr,
+                                                  embedding_entry_count_per_rank,
+                                                  raw_embedding_comm_,
+                                                  &thrust_allocator,
+                                                  p_env_fns,
+                                                  stream));
+
+  int64_t total_recv_count = 0;
+  for (int rank_id = 0; rank_id < world_size; rank_id++) {
+    total_recv_count += host_recv_rank_id_count_ptr[rank_id];
+  }
+
+  wholememory_ops::temp_memory_handle temp_grad_send_buffer_handle(p_env_fns),
+    temp_grad_recv_buffer_handle(p_env_fns);
+  void* temp_grad_send_buffer = temp_grad_send_buffer_handle.device_malloc(
+    grads_desc->sizes[0] * grads_desc->sizes[1], grads_desc->dtype);
+  void* temp_grad_recv_buffer = temp_grad_recv_buffer_handle.device_malloc(
+    total_recv_count * grads_desc->sizes[1], grads_desc->dtype);
+
+  auto grads_gref =
+    wholememory_create_continuous_global_reference(wholememory_tensor_get_data_pointer(grads));
+  wholememory_matrix_description_t grads_mat_desc, temp_grad_send_desc;
+  WHOLEMEMORY_CHECK_NOTHROW(wholememory_convert_tensor_desc_to_matrix(&grads_mat_desc, grads_desc));
+  temp_grad_send_desc        = grads_mat_desc;
+  temp_grad_send_desc.stride = temp_grad_send_desc.sizes[1];
+
+  wholememory_array_description_t raw_indice_desc = indice_array_desc;
+  raw_indice_desc.dtype                           = WHOLEMEMORY_DT_INT64;
+  raw_indice_desc.storage_offset                  = 0;
+
+  WHOLEMEMORY_RETURN_ON_FAIL(wholememory_ops::gather_func(grads_gref,
+                                                          grads_mat_desc,
+                                                          dev_raw_indice_ptr,
+                                                          raw_indice_desc,
+                                                          temp_grad_send_buffer,
+                                                          temp_grad_send_desc,
+                                                          stream));
+
+  WM_CUDA_DEBUG_SYNC_STREAM(stream);
+
+  WHOLEMEMORY_RETURN_ON_FAIL(wholememory_ops::exchange_embeddings_nccl_func(
+    temp_grad_send_buffer,
+    host_rank_id_count_ptr,
+    host_recv_rank_id_count_ptr,
+    temp_grad_recv_buffer,
+    grads_desc->sizes[1] * wholememory_dtype_get_element_size(grads_desc->dtype),
+    raw_embedding_comm_,
+    stream));
+
+  wholememory_ops::temp_memory_handle dedup_indice_recv_buffer_handle(p_env_fns);
+  wholememory_ops::temp_memory_handle dedup_grad_recv_buffer_handle(p_env_fns);
+  void* dedup_indice =
+    dedup_indice_recv_buffer_handle.device_malloc(total_recv_count, indice_desc->dtype);
+  float* dedup_grads = static_cast<float*>(dedup_grad_recv_buffer_handle.device_malloc(
+    total_recv_count * grads_desc->sizes[1], grads_desc->dtype));
+
+  wholememory_array_description_t recv_indice_array_desc = indice_array_desc;
+  recv_indice_array_desc.size                            = total_recv_count;
+  wholememory_matrix_description_t recv_grad_matrix_desc = grads_mat_desc;
+  recv_grad_matrix_desc.sizes[0]                         = total_recv_count;
+  recv_grad_matrix_desc.stride                           = grads_mat_desc.sizes[1];
+
+  int64_t const deduped_count =
+    wholememory_ops::dedup_indice_and_gradients(dev_recv_indices_buffer_handle.pointer(),
+                                                recv_indice_array_desc,
+                                                static_cast<const float*>(temp_grad_recv_buffer),
+                                                recv_grad_matrix_desc,
+                                                dedup_indice,
+                                                dedup_grads,
+                                                p_env_fns,
+                                                stream);
+
+  wholememory_array_description_t update_indice_desc = indice_array_desc;
+  update_indice_desc.size                            = deduped_count;
+  if (adjust_cache && cache_ptr_ != nullptr) {
+    WHOLEMEMORY_CHECK_NOTHROW(cache_ptr_ != nullptr);
+    WHOLEMEMORY_RETURN_ON_FAIL(
+      wholememory_ops::update_cache_direct_same_comm(dedup_indice,
+                                                     update_indice_desc,
+                                                     user_embedding,
+                                                     cache_ptr_->get_cache_local_data(),
+                                                     cache_ptr_->get_cache_set_coverage(),
+                                                     p_env_fns,
+                                                     stream));
+  }
+  auto* state_embedding = optimizer_state_->cachable_state_embedding;
+  if (adjust_cache && cache_ptr_ != nullptr && state_embedding != nullptr) {
+    WHOLEMEMORY_CHECK_NOTHROW(cache_ptr_ != nullptr);
+    WHOLEMEMORY_CHECK_NOTHROW(optimizer_state_.get() != nullptr);
+    WHOLEMEMORY_CHECK_NOTHROW(state_embedding != nullptr);
+    embedding_base* state_embedding_base = static_cast<embedding_base*>(state_embedding);
+    WHOLEMEMORY_CHECK_NOTHROW(state_embedding_base->cache_ptr_ != nullptr);
+    wholememory_embedding_get_embedding_tensor(state_embedding);
+    WHOLEMEMORY_RETURN_ON_FAIL(wholememory_ops::update_cache_direct_same_comm(
+      dedup_indice,
+      update_indice_desc,
+      wholememory_embedding_get_embedding_tensor(state_embedding),
+      state_embedding_base->cache_ptr_->get_cache_local_data(),
+      state_embedding_base->cache_ptr_->get_cache_set_coverage(),
+      p_env_fns,
+      stream));
+  }
+
+  WHOLEMEMORY_CHECK_NOTHROW(optimizer_impl_base_ != nullptr);
+  wholememory_tensor_t dedup_indice_tensor, dedup_grad_tensor;
+  wholememory_tensor_description_t recv_indice_tensor_desc = *indice_desc;
+  recv_indice_tensor_desc.sizes[0]                         = deduped_count;
+  WHOLEMEMORY_RETURN_ON_FAIL(wholememory_make_tensor_from_pointer(
+    &dedup_indice_tensor, dedup_indice, &recv_indice_tensor_desc));
+  wholememory_tensor_description_t recv_grad_tensor_desc = *grads_desc;
+  recv_grad_tensor_desc.sizes[0]                         = deduped_count;
+  recv_grad_tensor_desc.strides[0]                       = recv_grad_tensor_desc.sizes[1];
+  WHOLEMEMORY_RETURN_ON_FAIL(
+    wholememory_make_tensor_from_pointer(&dedup_grad_tensor, dedup_grads, &recv_grad_tensor_desc));
+
+  wholememory_tensor_t local_embedding;
+  WHOLEMEMORY_RETURN_ON_FAIL(wholememory_tensor_map_local_tensor(user_embedding, &local_embedding));
+
+  WHOLEMEMORY_RETURN_ON_FAIL(optimizer_impl_base_->step(
+    dedup_indice_tensor, dedup_grad_tensor, local_embedding, optimizer_state_.get(), lr, stream));
+  wholememory_destroy_tensor(dedup_indice_tensor);
+  wholememory_destroy_tensor(dedup_grad_tensor);
+
+  return WHOLEMEMORY_SUCCESS;
+}
+
+wholememory_error_code_t embedding_base::create_optimizer_states() noexcept
+{
+  wholememory_comm_t wm_raw_comm;
+  WHOLEMEMORY_RETURN_ON_FAIL(wholememory_get_communicator(
+    &wm_raw_comm, wholememory_tensor_get_memory_handle(allocated_embedding)));
+
+  int world_rank, world_size;
+  WHOLEMEMORY_RETURN_ON_FAIL(wholememory_communicator_get_rank(&world_rank, wm_raw_comm));
+  WHOLEMEMORY_RETURN_ON_FAIL(wholememory_communicator_get_size(&world_size, wm_raw_comm));
+
+  auto* allocated_tensor_desc = wholememory_tensor_get_tensor_description(allocated_embedding);
+  auto* user_tensor_desc      = wholememory_tensor_get_tensor_description(user_embedding);
+  int64_t start[2]            = {0, 0};
+  int64_t end[2]              = {user_tensor_desc->sizes[1], -1};
+
+  size_t entry_per_rank;
+  WHOLEMEMORY_RETURN_ON_FAIL(wholememory_determine_entry_partition_plan(
+    &entry_per_rank, allocated_tensor_desc->sizes[0], world_size));
+
+  optimizer_state_                    = std::make_unique<optimizer_state_t>();
+  optimizer_state_->local_start_index = entry_per_rank * world_rank;
+  optimizer_impl_base_->create_optimizer_states(optimizer_state_.get(), user_tensor_desc->sizes[1]);
+  bool const need_cachable_states = !optimizer_state_->cachable_states.empty();
+  wholememory_tensor_description_t cachable_state_desc;
+
+  if (cache_ptr_ != nullptr) {
+    try {
+      optimizer_state_->device_cache_for_host_ = dynamic_cast<device_cache_for_host*>(cache_ptr_);
+    } catch (...) {
+      WHOLEMEMORY_FAIL_NOTHROW("cast from embedding_cache_base* to device_cache_for_host* failed.");
+    }
+  }
+
+  if (need_cachable_states) {
+    std::vector<int> embedding_offset(optimizer_state_->cachable_states.size(), 0);
+    size_t element_size           = wholememory_dtype_get_element_size(user_tensor_desc->dtype);
+    int all_state_embedding_count = 0;
+    for (size_t i = 0; i < embedding_offset.size(); i++) {
+      auto& c_state             = optimizer_state_->cachable_states[i];
+      embedding_offset[i]       = all_state_embedding_count;
+      int state_embedding_dim   = c_state.dim;
+      int aligned_embedding_dim = align_embedding_dim(state_embedding_dim, element_size);
+      all_state_embedding_count += aligned_embedding_dim;
+    }
+    cachable_state_desc            = *user_tensor_desc;
+    cachable_state_desc.sizes[1]   = all_state_embedding_count;
+    cachable_state_desc.strides[0] = all_state_embedding_count;
+    auto allocated_handle          = wholememory_tensor_get_memory_handle(allocated_embedding);
+    auto memory_type               = wholememory_get_memory_type(allocated_handle);
+    auto memory_location           = wholememory_get_memory_location(allocated_handle);
+
+    WHOLEMEMORY_RETURN_ON_FAIL(
+      wholememory_create_embedding(&optimizer_state_->cachable_state_embedding,
+                                   &cachable_state_desc,
+                                   raw_embedding_comm_,
+                                   memory_type,
+                                   memory_location,
+                                   nullptr,
+                                   cache_policy));
+
+    optimizer_state_->global_cachable_raw_user_tensor =
+      wholememory_embedding_get_embedding_tensor(optimizer_state_->cachable_state_embedding);
+
+    WHOLEMEMORY_RETURN_ON_FAIL(
+      wholememory_tensor_map_local_tensor(optimizer_state_->global_cachable_raw_user_tensor,
+                                          &optimizer_state_->local_cachable_wm_tensor));
+    for (size_t i = 0; i < embedding_offset.size(); i++) {
+      auto& c_state     = optimizer_state_->cachable_states[i];
+      c_state.start_dim = embedding_offset[i];
+      start[1]          = embedding_offset[i];
+      end[1]            = start[1] + c_state.dim;
+      WHOLEMEMORY_RETURN_ON_FAIL(
+        wholememory_tensor_get_subtensor(optimizer_state_->global_cachable_raw_user_tensor,
+                                         start,
+                                         end,
+                                         &c_state.global_raw_state_tensor));
+    }
+  }
+  for (auto& uc_state : optimizer_state_->uncachable_states) {
+    auto uc_desc     = *allocated_tensor_desc;
+    uc_desc.dtype    = uc_state.dtype;
+    uc_desc.sizes[1] = uc_desc.strides[0] = uc_state.dim;
+    WHOLEMEMORY_RETURN_ON_FAIL(wholememory_create_tensor(&uc_state.global_raw_padded_tensor,
+                                                         &uc_desc,
+                                                         wm_raw_comm,
+                                                         WHOLEMEMORY_MT_DISTRIBUTED,
+                                                         WHOLEMEMORY_ML_DEVICE));
+    start[0] = 0;
+    start[1] = 0;
+    end[0]   = user_tensor_desc->sizes[0];
+    end[1]   = uc_state.dim;
+    WHOLEMEMORY_RETURN_ON_FAIL(wholememory_tensor_get_subtensor(
+      uc_state.global_raw_padded_tensor, start, end, &uc_state.global_raw_sub_tensor));
+    WHOLEMEMORY_RETURN_ON_FAIL(
+      wholememory_tensor_map_local_tensor(uc_state.global_raw_sub_tensor, &uc_state.local_tensor));
+  }
+
+  return WHOLEMEMORY_SUCCESS;
+}
+
+wholememory_error_code_t embedding_base::destroy_optimizer_states() noexcept
+{
+  for (auto& c_state : optimizer_state_->cachable_states) {
+    WHOLEMEMORY_RETURN_ON_FAIL(wholememory_destroy_tensor(c_state.global_raw_state_tensor));
+  }
+  WHOLEMEMORY_RETURN_ON_FAIL(
+    wholememory_destroy_tensor(optimizer_state_->local_cachable_wm_tensor));
+  WHOLEMEMORY_RETURN_ON_FAIL(
+    wholememory_destroy_tensor(optimizer_state_->global_cachable_raw_user_tensor));
+  WHOLEMEMORY_RETURN_ON_FAIL(
+    wholememory_destroy_embedding(optimizer_state_->cachable_state_embedding));
+  optimizer_state_->cachable_states.clear();
+  for (auto& uc_state : optimizer_state_->uncachable_states) {
+    WHOLEMEMORY_RETURN_ON_FAIL(wholememory_destroy_tensor(uc_state.local_tensor));
+    WHOLEMEMORY_RETURN_ON_FAIL(wholememory_destroy_tensor(uc_state.global_raw_sub_tensor));
+    WHOLEMEMORY_RETURN_ON_FAIL(wholememory_destroy_tensor(uc_state.global_raw_padded_tensor));
+  }
+  return WHOLEMEMORY_SUCCESS;
+}
+
 void embedding_base::deallocate() noexcept
 {
   if (optimizer != nullptr) {
-    // TODO: optimizer states
-    WHOLEMEMORY_CHECK_NOTHROW(false);
+    WHOLEMEMORY_CHECK_NOTHROW(destroy_optimizer_states() == WHOLEMEMORY_SUCCESS);
   }
   if (cache_ptr_ != nullptr) {
     delete cache_ptr_;
@@ -133,6 +395,29 @@ void embedding_base::deallocate() noexcept
   }
   WHOLEMEMORY_CHECK_NOTHROW(wholememory_destroy_tensor(user_embedding) == WHOLEMEMORY_SUCCESS);
   WHOLEMEMORY_CHECK_NOTHROW(wholememory_destroy_tensor(allocated_embedding) == WHOLEMEMORY_SUCCESS);
+}
+
+wholememory_error_code_t embedding_base::writeback_embedding_cache(
+  cudaStream_t stream) const noexcept
+{
+  if (cache_ptr_ != nullptr) {
+    WHOLEMEMORY_RETURN_ON_FAIL(cache_ptr_->writeback_all_cache(stream));
+  }
+  return WHOLEMEMORY_SUCCESS;
+}
+
+wholememory_error_code_t embedding_base::writeback_all_caches(cudaStream_t stream) const noexcept
+{
+  WHOLEMEMORY_RETURN_ON_FAIL(writeback_embedding_cache(stream));
+  if (optimizer_impl_base_ != nullptr) {
+    WHOLEMEMORY_CHECK_NOTHROW(optimizer_state_.get() != nullptr);
+    if (optimizer_state_->cachable_state_embedding != nullptr) {
+      WHOLEMEMORY_RETURN_ON_FAIL(
+        static_cast<embedding_base*>(optimizer_state_->cachable_state_embedding)
+          ->writeback_all_caches(stream));
+    }
+  }
+  return WHOLEMEMORY_SUCCESS;
 }
 
 class noncached_embedding : public embedding_base {
@@ -366,6 +651,7 @@ wholememory_error_code_t local_cached_global_readonly_embedding::gather(
   wholememory_env_func_t* p_env_fns,
   cudaStream_t stream) noexcept
 {
+  WHOLEMEMORY_CHECK_NOTHROW(cache_policy->cache_memory_type != WHOLEMEMORY_MT_DISTRIBUTED);
   auto* indice_desc = wholememory_tensor_get_tensor_description(indices);
   auto* output_desc = wholememory_tensor_get_tensor_description(output);
   WHOLEMEMORY_CHECK_NOTHROW(indice_desc->dim == 1);
@@ -381,8 +667,8 @@ wholememory_error_code_t local_cached_global_readonly_embedding::gather(
   int64_t* host_rank_id_count_ptr      = nullptr;
   int64_t* dev_raw_indice_ptr          = nullptr;
   int64_t total_recv_count             = 0;
-  // WHOLEMEMORY_MT_DISTRIBUTED is actully not supported now
-  if (adjust_cache || cache_policy->cache_memory_type == WHOLEMEMORY_MT_DISTRIBUTED) {
+  // Actually, WHOLEMEMORY_MT_DISTRIBUTED is actully not supported now
+  if (adjust_cache) {
     WHOLEMEMORY_RETURN_ON_FAIL(
       wholememory_communicator_get_size(&cache_world_size, cache_policy->cache_comm));
     WHOLEMEMORY_RETURN_ON_FAIL(
@@ -408,7 +694,8 @@ wholememory_error_code_t local_cached_global_readonly_embedding::gather(
                                                     &thrust_allocator,
                                                     p_env_fns,
                                                     stream));
-    if (adjust_cache) {
+    // adjust cache
+    {
       total_recv_count = 0;
       for (int i = 0; i < cache_world_size; i++) {
         total_recv_count += host_recv_rank_id_count_ptr[i];
@@ -598,6 +885,20 @@ wholememory_error_code_t wholememory_embedding_gather(wholememory_embedding_t wh
     indices, output, adjust_cache, p_env_fns, (cudaStream_t)stream_int);
 }
 
+wholememory_error_code_t wholememory_embedding_gather_gradient_apply(
+  wholememory_embedding_t wholememory_embedding,
+  wholememory_tensor_t indices,
+  wholememory_tensor_t grads,
+  bool adjust_cache,
+  float lr,
+  wholememory_env_func_t* p_env_fns,
+  int64_t stream_int)
+{
+  auto* embedding_impl_ptr = static_cast<wholememory::embedding_base*>(wholememory_embedding);
+  return embedding_impl_ptr->gather_gradient_apply(
+    indices, grads, adjust_cache, lr, p_env_fns, (cudaStream_t)stream_int);
+}
+
 wholememory_tensor_t wholememory_embedding_get_embedding_tensor(
   wholememory_embedding_t wholememory_embedding)
 {
@@ -606,32 +907,28 @@ wholememory_tensor_t wholememory_embedding_get_embedding_tensor(
   return embedding_impl_ptr->user_embedding;
 }
 
-wholememory_error_code_t wholememory_embedding_init_optimizer_states(
+const char* const* wholememory_embedding_get_optimizer_state_names(
   wholememory_embedding_t wholememory_embedding)
 {
-  // TODO: implemented it.
-  return WHOLEMEMORY_NOT_IMPLEMENTED;
-}
-
-const char** wholememory_embedding_get_optimizer_state_names(
-  wholememory_embedding_t wholememory_embedding)
-{
-  // TODO: implemented it.
-  return nullptr;
+  wholememory::embedding_base* embedding_impl_ptr =
+    static_cast<wholememory::embedding_base*>(wholememory_embedding);
+  return embedding_impl_ptr->get_optimizer_state_names();
 }
 
 wholememory_tensor_t wholememory_embedding_get_optimizer_state(
   wholememory_embedding_t wholememory_embedding, const char* name)
 {
-  // TODO: implemented it.
-  return nullptr;
+  wholememory::embedding_base* embedding_impl_ptr =
+    static_cast<wholememory::embedding_base*>(wholememory_embedding);
+  return embedding_impl_ptr->get_optimizer_state(name);
 }
 
-wholememory_error_code_t wholememory_embedding_flush_cache(
-  wholememory_embedding_t wholememory_embedding)
+wholememory_error_code_t wholememory_embedding_writeback_cache(
+  wholememory_embedding_t wholememory_embedding, int64_t stream_int)
 {
-  // TODO: implemented it.
-  return WHOLEMEMORY_NOT_IMPLEMENTED;
+  cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_int);
+  return static_cast<wholememory::embedding_base*>(wholememory_embedding)
+    ->writeback_all_caches(stream);
 }
 
 #ifdef __cplusplus

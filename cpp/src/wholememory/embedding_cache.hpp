@@ -53,6 +53,7 @@ class embedding_cache_base {
 
   wholememory_error_code_t allocate(wholememory_tensor_t raw_data_tensor) noexcept;
 
+  virtual wholememory_error_code_t writeback_all_cache(cudaStream_t stream) noexcept;
   wholememory_error_code_t drop_all_cache(cudaStream_t stream) noexcept;
   wholememory_error_code_t refill_all_cache(cudaStream_t stream) noexcept;
   wholememory_error_code_t adjust_cache(wholememory_tensor_t indices,
@@ -110,6 +111,7 @@ class device_cache_for_host : public embedding_cache_base {
     wholememory_comm_t comm,
     wholememory_memory_type_t memory_type,
     wholememory_memory_location_t memory_location) noexcept override;
+  wholememory_error_code_t writeback_all_cache(cudaStream_t stream) noexcept override;
 };
 
 class local_cache_for_global : public embedding_cache_base {

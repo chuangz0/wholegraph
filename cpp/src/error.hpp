@@ -114,9 +114,9 @@ struct logic_error : public raft::exception {
  * @param[in] X boolean expression to check
  * @throw always throws wholememory::logic_error
  */
-#define WHOLEMEMORY_CHECK(X)                                \
-  do {                                                      \
-    if (!(X)) { WHOLEMEMORY_FAIL("%s check failed.", #X); } \
+#define WHOLEMEMORY_CHECK(X)                                                                      \
+  do {                                                                                            \
+    if (!(X)) { WHOLEMEMORY_FAIL("File %s, line %d, %s check failed.", __FILE__, __LINE__, #X); } \
   } while (0)
 
 /**
@@ -124,7 +124,9 @@ struct logic_error : public raft::exception {
  *
  * @param[in] X boolean expression to check
  */
-#define WHOLEMEMORY_CHECK_NOTHROW(X)                                \
-  do {                                                              \
-    if (!(X)) { WHOLEMEMORY_FAIL_NOTHROW("%s check failed.", #X); } \
+#define WHOLEMEMORY_CHECK_NOTHROW(X)                                                          \
+  do {                                                                                        \
+    if (!(X)) {                                                                               \
+      WHOLEMEMORY_FAIL_NOTHROW("File %s, line %d, %s check failed.", __FILE__, __LINE__, #X); \
+    }                                                                                         \
   } while (0)

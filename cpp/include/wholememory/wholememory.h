@@ -21,14 +21,14 @@ enum wholememory_error_code_t {
   WHOLEMEMORY_OUT_OF_MEMORY,       /* out of memory */
 };
 
-#define WHOLEMEMORY_RETURN_ON_FAIL(X)                                        \
-  do {                                                                       \
-    auto err = X;                                                            \
-    if (err != WHOLEMEMORY_SUCCESS) {                                        \
-      const char* error_str = #X;                                            \
-      printf("File %s line %d %s failed.\n", __FILE__, __LINE__, error_str); \
-      return err;                                                            \
-    }                                                                        \
+#define WHOLEMEMORY_RETURN_ON_FAIL(X)                                                 \
+  do {                                                                                \
+    auto err = X;                                                                     \
+    if (err != WHOLEMEMORY_SUCCESS) {                                                 \
+      const char* error_str = #X;                                                     \
+      fprintf(stderr, "File %s line %d %s failed.\n", __FILE__, __LINE__, error_str); \
+      return err;                                                                     \
+    }                                                                                 \
   } while (0)
 
 enum wholememory_memory_type_t {

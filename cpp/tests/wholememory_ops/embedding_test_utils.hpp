@@ -45,4 +45,6 @@ void host_check_embedding_same(void* host_embedding,
                                void* host_reference,
                                wholememory_matrix_description_t reference_desc);
 
+void host_random_init_float(float* data, int64_t len, float max_value, float min_value);
+
 }  // namespace wholememory_ops::testing

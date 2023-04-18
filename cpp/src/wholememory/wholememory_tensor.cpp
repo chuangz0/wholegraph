@@ -218,6 +218,7 @@ wholememory_error_code_t wholememory_tensor_get_global_reference(
 wholememory_error_code_t wholememory_tensor_map_local_tensor(
   wholememory_tensor_t wholememory_tensor, wholememory_tensor_t* local_tensor)
 {
+  // NOTE: wholememory_tensor should NOT skip entry from front, but can skip from tail.
   if (local_tensor == nullptr || wholememory_tensor == nullptr) {
     return WHOLEMEMORY_INVALID_INPUT;
   }
@@ -228,17 +229,31 @@ wholememory_error_code_t wholememory_tensor_map_local_tensor(
   if (wm_desc->dim == 2 && wm_desc->storage_offset + wm_desc->sizes[1] > wm_desc->strides[0]) {
     return WHOLEMEMORY_INVALID_VALUE;
   }
+
+  wholememory_comm_t wm_comm;
+  int world_rank;
+
   void* local_ptr;
   size_t local_size, local_offset;
   auto* handle = wholememory_tensor_get_memory_handle(wholememory_tensor);
+  WHOLEMEMORY_RETURN_ON_FAIL(wholememory_get_communicator(&wm_comm, handle));
+  WHOLEMEMORY_RETURN_ON_FAIL(wholememory_communicator_get_rank(&world_rank, wm_comm));
+
+  size_t total_handle_memory_size = wholememory_get_total_size(handle);
   WHOLEMEMORY_RETURN_ON_FAIL(
     wholememory_get_local_memory(&local_ptr, &local_size, &local_offset, handle));
-  size_t const handle_elt_count = wholememory_get_memory_element_count_from_tensor(wm_desc);
-  size_t const element_size     = wholememory_dtype_get_element_size(wm_desc->dtype);
-  size_t const gran_size = wm_desc->dim == 1 ? element_size : element_size * wm_desc->strides[0];
+  size_t const element_size = wholememory_dtype_get_element_size(wm_desc->dtype);
+  size_t const gran_size    = wm_desc->dim == 1 ? element_size : element_size * wm_desc->strides[0];
+  size_t size_per_rank;
+  WHOLEMEMORY_RETURN_ON_FAIL(wholememory_get_partition_plan(&size_per_rank, handle));
+  WHOLEMEMORY_CHECK_NOTHROW(size_per_rank % gran_size == 0);
+  size_t entry_per_rank = size_per_rank / gran_size;
+  int64_t local_start   = std::min<int64_t>(entry_per_rank * world_rank, wm_desc->sizes[0]);
+  int64_t local_end     = std::min<int64_t>(entry_per_rank * (world_rank + 1), wm_desc->sizes[0]);
   if (local_size % gran_size != 0) return WHOLEMEMORY_LOGIC_ERROR;
   wholememory_tensor_description_t local_desc = *wm_desc;
-  local_desc.sizes[0]                         = local_size / gran_size;
+  // local_desc.sizes[0]                         = local_size / gran_size;
+  local_desc.sizes[0] = (local_end - local_start);
   WHOLEMEMORY_RETURN_ON_FAIL(
     wholememory_make_tensor_from_pointer(local_tensor, local_ptr, &local_desc));
 

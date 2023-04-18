@@ -38,6 +38,8 @@ void MultiThreadRun(int size, std::function<void(int, int)> f)
   }
 }
 
+int GetProcessorCount() { return static_cast<int>(sysconf(_SC_NPROCESSORS_ONLN)); }
+
 void MultiProcessRun(int world_size, std::function<void(int, int)> f, bool inline_single_process)
 {
   if (world_size == 1 && inline_single_process) {
