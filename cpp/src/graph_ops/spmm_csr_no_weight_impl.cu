@@ -11,6 +11,7 @@
 namespace graph_ops {
 
 REGISTER_DISPATCH_ONE_TYPE(SpMMCSRNoWeightForward, spmm_csr_no_weight_forward_func, HALF_FLOAT)
+REGISTER_DISPATCH_ONE_TYPE(SpMMCSRNoWeightBackward, spmm_csr_no_weight_backward_func, HALF_FLOAT)
 
 wholememory_error_code_t spmm_csr_no_weight_forward_mapped(
   void* csr_row_ptr,
@@ -36,6 +37,43 @@ wholememory_error_code_t spmm_csr_no_weight_forward_mapped(
                       aggregator,
                       output_ptr,
                       output_desc,
+                      stream);
+
+  } catch (const raft::cuda_error& rle) {
+    // WHOLEMEMORY_FAIL_NOTHROW("%s", rle.what());
+    return WHOLEMEMORY_LOGIC_ERROR;
+  } catch (const wholememory::logic_error& le) {
+    return WHOLEMEMORY_LOGIC_ERROR;
+  } catch (...) {
+    return WHOLEMEMORY_LOGIC_ERROR;
+  }
+  return WHOLEMEMORY_SUCCESS;
+}
+
+wholememory_error_code_t spmm_csr_no_weight_backward_mapped(
+  void* csr_row_ptr,
+  wholememory_array_description_t csr_row_ptr_desc,
+  void* csr_col_ptr,
+  wholememory_array_description_t csr_col_ptr_desc,
+  void* input_grad_ptr,
+  wholememory_tensor_description_t input_grad_tensor_desc,
+  int aggregator,
+  void* output_grad_feature_ptr,
+  wholememory_tensor_description_t output_grad_feature_tensor_desc,
+  cudaStream_t stream)
+{
+  try {
+    DISPATCH_ONE_TYPE(input_grad_tensor_desc.dtype,
+                      SpMMCSRNoWeightBackward,
+                      csr_row_ptr,
+                      csr_row_ptr_desc,
+                      csr_col_ptr,
+                      csr_col_ptr_desc,
+                      input_grad_ptr,
+                      input_grad_tensor_desc,
+                      aggregator,
+                      output_grad_feature_ptr,
+                      output_grad_feature_tensor_desc,
                       stream);
 
   } catch (const raft::cuda_error& rle) {

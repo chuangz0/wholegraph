@@ -124,7 +124,7 @@ wholememory_error_code_t wholememory_make_tensor_from_pointer(
   if (p_wholememory_tensor == nullptr || tensor_description == nullptr) {
     return WHOLEMEMORY_INVALID_INPUT;
   }
-  if (tensor_description->dim < 0 || tensor_description->dim > 2) {
+  if (tensor_description->dim < 0) {
     WHOLEMEMORY_ERROR("tensor_description->dim=%d", tensor_description->dim);
     return WHOLEMEMORY_INVALID_INPUT;
   }
