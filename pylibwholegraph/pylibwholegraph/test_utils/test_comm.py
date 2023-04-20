@@ -4,15 +4,15 @@ from pylibwholegraph.torch.dlpack_utils import torch_import_from_dlpack
 from packaging import version
 
 
-def gen_csr_format_from_dense_matrix(matrix_tensor, graph_node_count, graph_edge_count, csr_col_dtype, weight_dtype):
+def gen_csr_format_from_dense_matrix(matrix_tensor, graph_node_count, graph_edge_count, neighbor_node_count, csr_row_dtype, csr_col_dtype, weight_dtype):
     row_num = matrix_tensor.shape[0]
     col_num = matrix_tensor.shape[1]
     assert row_num == graph_node_count
-    assert row_num == col_num
-    csr_row_ptr = torch.zeros((graph_node_count + 1, ), dtype = torch.int64)
+    assert col_num == neighbor_node_count
+    csr_row_ptr = torch.zeros((graph_node_count + 1, ), dtype = csr_row_dtype)
     for i in range(row_num):
         csr_row_ptr[i + 1] = torch.count_nonzero(matrix_tensor[i]).item()
-    csr_row_ptr = torch.cumsum(csr_row_ptr, dim = 0, dtype = torch.int64)
+    csr_row_ptr = torch.cumsum(csr_row_ptr, dim = 0, dtype = csr_row_dtype)
     assert csr_row_ptr[graph_node_count] == graph_edge_count
     csr_col_ptr = torch.nonzero(matrix_tensor, as_tuple=True)[1]
     csr_weight_ptr = torch.empty((graph_edge_count,), dtype = weight_dtype)
@@ -30,8 +30,10 @@ def gen_csr_format_from_dense_matrix(matrix_tensor, graph_node_count, graph_edge
 
 
 
-def gen_csr_graph(graph_node_count, graph_edge_count, csr_col_dtype = torch.int32, weight_dtype = torch.float32):
-    all_count = graph_node_count * graph_node_count
+def gen_csr_graph(graph_node_count, graph_edge_count, neighbor_node_count = None, csr_row_dtype = torch.int64, csr_col_dtype = torch.int32, weight_dtype = torch.float32):
+    if neighbor_node_count is None:
+        neighbor_node_count = graph_node_count 
+    all_count = graph_node_count * neighbor_node_count
     matrix_tensor = torch.rand(
             all_count, dtype=weight_dtype, device=torch.device("cpu")
     ) + 1
@@ -39,7 +41,7 @@ def gen_csr_graph(graph_node_count, graph_edge_count, csr_col_dtype = torch.int3
             : all_count - graph_edge_count
     ]
     matrix_tensor[choice_zero_idxs] = 0
-    matrix_tensor.resize_(graph_node_count, graph_node_count)
+    matrix_tensor.resize_(graph_node_count, neighbor_node_count)
     target_torch_version = "1.13.0a"
     
     if version.parse(torch.__version__) >=  version.parse(target_torch_version):
@@ -51,9 +53,11 @@ def gen_csr_graph(graph_node_count, graph_edge_count, csr_col_dtype = torch.int3
         assert(csr_col_ptr.dtype == torch.int64)
         if (csr_col_dtype == torch.int32):
             csr_col_ptr = csr_col_ptr.int()
+        if (csr_row_dtype == torch.int32):
+            csr_row_ptr = csr_row_ptr.int()
         return csr_row_ptr, csr_col_ptr, csr_weight_ptr
     else:
-        return gen_csr_format_from_dense_matrix(matrix_tensor, graph_node_count, graph_edge_count, csr_col_dtype, weight_dtype)
+        return gen_csr_format_from_dense_matrix(matrix_tensor, graph_node_count, graph_edge_count, neighbor_node_count, csr_row_dtype, csr_col_dtype, weight_dtype)
 
 
 def host_sample_all_neighbors(host_csr_row_ptr, host_csr_col_ptr, center_nodes, output_sample_offset_tensor, col_id_dtype, total_sample_count):

@@ -28,3 +28,51 @@ def append_unique(
     else:
         return output_unique_node_context.get_tensor()
     
+
+def spmm_no_weight_forward(
+        csr_row_ptr_tensor: torch.Tensor,
+        csr_col_ptr_tensor: torch.Tensor,
+        feature_tensor: torch.Tensor,
+        aggregator: torch.int64):
+    assert csr_row_ptr_tensor.dim() == 1
+    assert csr_col_ptr_tensor.dim() == 1
+    assert feature_tensor.dim() == 2
+    assert csr_row_ptr_tensor.dtype == torch.int32
+    assert csr_col_ptr_tensor.dtype == torch.int32
+
+    output_feature_tensor = torch.empty((csr_row_ptr_tensor.shape[0] - 1, feature_tensor.shape[1]), device = 'cuda', dtype = feature_tensor.dtype)
+
+    wmb.spmm_no_weight_forward(
+        wrap_torch_tensor(csr_row_ptr_tensor),
+        wrap_torch_tensor(csr_col_ptr_tensor),
+        wrap_torch_tensor(feature_tensor),
+        aggregator,
+        wrap_torch_tensor(output_feature_tensor),
+        get_stream())
+    
+    return output_feature_tensor
+
+def spmm_no_weight_backward(
+        csr_row_ptr_tensor: torch.Tensor,
+        csr_col_ptr_tensor: torch.Tensor,
+        input_grad_feature_tensor: torch.Tensor,
+        input_cout: torch.int64,
+        aggregator: torch.int64):
+    assert csr_row_ptr_tensor.dim() == 1
+    assert csr_col_ptr_tensor.dim() == 1
+    assert csr_row_ptr_tensor.dtype == torch.int32
+    assert csr_col_ptr_tensor.dtype == torch.int32
+
+    output_grad_feature_tensor = torch.empty((input_cout, input_grad_feature_tensor.shape[1]), device = 'cuda', dtype = input_grad_feature_tensor.dtype)
+
+    wmb.spmm_no_weight_backward(
+        wrap_torch_tensor(csr_row_ptr_tensor),
+        wrap_torch_tensor(csr_col_ptr_tensor),
+        wrap_torch_tensor(input_grad_feature_tensor),
+        aggregator,
+        wrap_torch_tensor(output_grad_feature_tensor),
+        get_stream())
+
+    return output_grad_feature_tensor
+        
+

@@ -1617,6 +1617,21 @@ cdef extern from "wholememory/graph_op.h":
                                         wholememory_env_func_t * p_env_fns, 
                                         void* stream)
 
+    cdef wholememory_error_code_t spmm_csr_no_weight_forward(wholememory_tensor_t csr_row_ptr_tensor,
+                                                             wholememory_tensor_t csr_col_ptr_tensor,
+                                                             wholememory_tensor_t feature_tensor,
+                                                             int64_t aggregator,
+                                                             wholememory_tensor_t output_feature_tensor,
+                                                             void* stream)
+    
+    cdef wholememory_error_code_t spmm_csr_no_weight_backward(wholememory_tensor_t csr_row_ptr_tensor,
+                                                              wholememory_tensor_t csr_col_ptr_tensor,
+                                                              wholememory_tensor_t input_grad_tensor,
+                                                              int64_t aggregator,
+                                                              wholememory_tensor_t output_grad_feature_tensor,
+                                                              void* stream)
+
+
 cpdef void append_unique(
         WrappedLocalTensor target_node_tensor,
         WrappedLocalTensor neighbor_node_tensor,
@@ -1630,6 +1645,38 @@ cpdef void append_unique(
         <void*> output_unique_node_memory_handle,
          <wholememory_tensor_t> <int64_t> output_neighbor_raw_to_unique_mapping_tensor.get_c_handle(),
         <wholememory_env_func_t *> p_env_fns_int,
-        <void *> stream_int
-    ))
+        <void *> stream_int))
+
+cpdef void spmm_no_weight_forward(
+        WrappedLocalTensor csr_row_ptr_tensor,
+        WrappedLocalTensor csr_col_ptr_tensor,
+        WrappedLocalTensor feature_tensor,
+        int64_t aggregator,
+        WrappedLocalTensor output_feature_tensor,
+        int64_t stream_int):
+    check_wholememory_error_code(
+        spmm_csr_no_weight_forward(
+          <wholememory_tensor_t> <int64_t> csr_row_ptr_tensor.get_c_handle(),
+          <wholememory_tensor_t> <int64_t> csr_col_ptr_tensor.get_c_handle(),
+          <wholememory_tensor_t> <int64_t> feature_tensor.get_c_handle(),
+          <int64_t> aggregator,
+          <wholememory_tensor_t> <int64_t> output_feature_tensor.get_c_handle(),
+          <void*> stream_int))
+
+cpdef void spmm_no_weight_backward(
+    WrappedLocalTensor csr_row_ptr_tensor,
+    WrappedLocalTensor csr_col_ptr_tensor,
+    WrappedLocalTensor input_grad_tensor,
+    int64_t aggregator,
+    WrappedLocalTensor output_grad_feature_tensor,
+    int64_t stream_int):
+    check_wholememory_error_code(spmm_csr_no_weight_backward(
+       <wholememory_tensor_t> <int64_t> csr_row_ptr_tensor.get_c_handle(),
+       <wholememory_tensor_t> <int64_t> csr_col_ptr_tensor.get_c_handle(),
+       <wholememory_tensor_t> <int64_t> input_grad_tensor.get_c_handle(),
+       <int64_t> aggregator,
+       <wholememory_tensor_t> <int64_t> output_grad_feature_tensor.get_c_handle(),
+       <void*> stream_int))
+
+
     
