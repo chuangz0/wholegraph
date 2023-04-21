@@ -1642,6 +1642,15 @@ cdef extern from "wholememory/graph_op.h":
                                                          wholememory_tensor_t output_grad_edge_weight_left_tensor,
                                                          wholememory_tensor_t output_grad_edge_weight_right_tensor,
                                                          void* stream)
+    cdef wholememory_error_code_t edge_weight_softmax_csr_forward(wholememory_tensor_t csr_row_ptr_tensor,
+                                                                  wholememory_tensor_t edge_weight_tensor,
+                                                                  wholememory_tensor_t output_edge_weight_softmax_tensor,
+                                                                  void* stream)
+    cdef wholememory_error_code_t edge_weight_softmax_csr_backward(wholememory_tensor_t csr_row_ptr_tensor,
+                                                                   wholememory_tensor_t edge_weight_tensor,
+                                                                   wholememory_tensor_t grad_edge_weight_softmax_tensor,
+                                                                   wholememory_tensor_t output_edge_weight_tensor,
+                                                                   void* stream)
 
 
 cpdef void append_unique(
@@ -1722,4 +1731,26 @@ cpdef void spadd_gat_backward(
         <wholememory_tensor_t> <int64_t> output_grad_edge_weight_right_tensor.get_c_handle(),
         <void*> stream_int))
 
-    
+cpdef void edge_weight_softmax_forward(
+    WrappedLocalTensor csr_row_ptr_tensor,
+    WrappedLocalTensor edge_weight_tensor,
+    WrappedLocalTensor output_edge_weight_softmax_tensor,
+    int64_t stream_int):
+    check_wholememory_error_code(edge_weight_softmax_csr_forward(
+          <wholememory_tensor_t> <int64_t> csr_row_ptr_tensor.get_c_handle(),
+          <wholememory_tensor_t> <int64_t> edge_weight_tensor.get_c_handle(),
+          <wholememory_tensor_t> <int64_t> output_edge_weight_softmax_tensor.get_c_handle(),
+          <void*> stream_int))
+
+cpdef void edge_weight_softmax_backward(
+    WrappedLocalTensor csr_row_ptr_tensor,
+    WrappedLocalTensor edge_weight_tensor,
+    WrappedLocalTensor grad_edge_weight_softmax_tensor,
+    WrappedLocalTensor output_grad_edge_weight_tensor,
+    int64_t stream_int):
+    check_wholememory_error_code(edge_weight_softmax_csr_backward(
+        <wholememory_tensor_t> <int64_t> csr_row_ptr_tensor.get_c_handle(),
+        <wholememory_tensor_t> <int64_t> edge_weight_tensor.get_c_handle(),
+        <wholememory_tensor_t> <int64_t> grad_edge_weight_softmax_tensor.get_c_handle(),
+        <wholememory_tensor_t> <int64_t> output_grad_edge_weight_tensor.get_c_handle(),
+        <void*> stream_int))

@@ -157,11 +157,11 @@ TEST_P(EdgeWeightSoftmaxBackwardParameterTests, EdgeWeightSoftmaxBackwardParamet
   EXPECT_EQ(wholememory_make_tensor_from_pointer(
               &output_grad_weight_tensor, dev_output_grad_weight_ptr, &weight_tensor_desc),
             WHOLEMEMORY_SUCCESS);
-  EXPECT_EQ(edge_weight_softmax_backward(csr_row_ptr_tensor,
-                                         weight_tensor,
-                                         grad_weight_softmax_tensor,
-                                         output_grad_weight_tensor,
-                                         stream),
+  EXPECT_EQ(edge_weight_softmax_csr_backward(csr_row_ptr_tensor,
+                                             weight_tensor,
+                                             grad_weight_softmax_tensor,
+                                             output_grad_weight_tensor,
+                                             stream),
             WHOLEMEMORY_SUCCESS);
   EXPECT_EQ(cudaMemcpyAsync(host_output_grad_weight_ptr,
                             dev_output_grad_weight_ptr,

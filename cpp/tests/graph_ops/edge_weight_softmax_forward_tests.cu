@@ -138,9 +138,9 @@ TEST_P(EdgeWeightSoftmaxForwardParameterTests, EdgeWeightSoftmaxForwarParameterT
   EXPECT_EQ(wholememory_make_tensor_from_pointer(
               &output_weight_tensor, dev_output_weight_ptr, &weight_tensor_desc),
             WHOLEMEMORY_SUCCESS);
-  EXPECT_EQ(
-    edge_weight_softmax_forward(csr_row_ptr_tensor, weight_tensor, output_weight_tensor, stream),
-    WHOLEMEMORY_SUCCESS);
+  EXPECT_EQ(edge_weight_softmax_csr_forward(
+              csr_row_ptr_tensor, weight_tensor, output_weight_tensor, stream),
+            WHOLEMEMORY_SUCCESS);
   EXPECT_EQ(cudaMemcpyAsync(host_output_weight_ptr,
                             dev_output_weight_ptr,
                             wholememory_get_memory_size_from_matrix(&weight_matrix_desc),

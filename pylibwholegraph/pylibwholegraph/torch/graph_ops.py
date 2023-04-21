@@ -10,6 +10,8 @@ def append_unique(
         need_neighbor_raw_to_unique: bool = False):
     assert target_node_tensor.dim() == 1
     assert neighbor_node_tensor.dim() == 1
+    assert target_node_tensor.is_cuda
+    assert neighbor_node_tensor.is_cuda
 
     output_unique_node_context = TorchMemoryContext()
     output_unique_node_tensor_id = id(output_unique_node_context)
@@ -39,6 +41,9 @@ def spmm_no_weight_forward(
     assert feature_tensor.dim() == 2
     assert csr_row_ptr_tensor.dtype == torch.int32
     assert csr_col_ptr_tensor.dtype == torch.int32
+    assert csr_row_ptr_tensor.is_cuda
+    assert csr_col_ptr_tensor.is_cuda
+    assert feature_tensor.is_cuda
 
     output_feature_tensor = torch.empty((csr_row_ptr_tensor.shape[0] - 1, feature_tensor.shape[1]), device = 'cuda', dtype = feature_tensor.dtype)
 
@@ -62,6 +67,9 @@ def spmm_no_weight_backward(
     assert csr_col_ptr_tensor.dim() == 1
     assert csr_row_ptr_tensor.dtype == torch.int32
     assert csr_col_ptr_tensor.dtype == torch.int32
+    assert csr_row_ptr_tensor.is_cuda
+    assert csr_col_ptr_tensor.is_cuda
+    assert input_grad_feature_tensor.is_cuda
 
     output_grad_feature_tensor = torch.empty((input_cout, input_grad_feature_tensor.shape[1]), device = 'cuda', dtype = input_grad_feature_tensor.dtype)
 
@@ -89,6 +97,10 @@ def spadd_gat_forward(
     assert edge_weight_right_tensor.dim() == 2
     assert edge_weight_right_tensor.shape[1] == edge_weight_left_tensor.shape[1]
     assert edge_weight_left_tensor.shape[0] == csr_row_ptr_tensor.shape[0] - 1
+    assert csr_row_ptr_tensor.is_cuda
+    assert csr_col_ptr_tensor.is_cuda
+    assert edge_weight_left_tensor.is_cuda
+    assert edge_weight_right_tensor.is_cuda
 
     output_score_tensor = torch.empty((csr_col_ptr_tensor.shape[0], edge_weight_left_tensor.shape[1]), device='cuda', dtype = edge_weight_left_tensor.dtype)
     wmb.spadd_gat_forward(
@@ -111,6 +123,9 @@ def spadd_gat_backward(
     assert csr_col_ptr_tensor.dtype == torch.int32 
     assert grad_score_tensor.dim() == 2
     assert grad_score_tensor.shape[0] == csr_col_ptr_tensor.shape[0]
+    assert csr_row_ptr_tensor.is_cuda
+    assert csr_col_ptr_tensor.is_cuda
+    assert grad_score_tensor.is_cuda
 
     output_edge_weight_left_tensor = torch.empty((csr_row_ptr_tensor.shape[0] - 1, grad_score_tensor.shape[1]), device='cuda', dtype = grad_score_tensor.dtype)
     output_edge_weight_right_tensor = torch.empty((neighbor_node_count, grad_score_tensor.shape[1]), device='cuda', dtype=grad_score_tensor.dtype)
@@ -125,4 +140,41 @@ def spadd_gat_backward(
     
     return output_edge_weight_left_tensor,output_edge_weight_right_tensor
 
+def edge_weight_softmax_forward(csr_row_ptr_tensor: torch.Tensor,
+                                edge_weight_tensor: torch.Tensor):
+    assert csr_row_ptr_tensor.dim() == 1
+    assert edge_weight_tensor.dim() == 2
+    assert csr_row_ptr_tensor.is_cuda
+    assert edge_weight_tensor.is_cuda
+
+    output_edge_weight_softmax_tensor = torch.empty((edge_weight_tensor.shape[0], edge_weight_tensor.shape[1]), device='cuda', dtype = edge_weight_tensor.dtype)
+
+    wmb.edge_weight_softmax_forward(
+        wrap_torch_tensor(csr_row_ptr_tensor),
+        wrap_torch_tensor(edge_weight_tensor),
+        wrap_torch_tensor(output_edge_weight_softmax_tensor),
+        get_stream())
     
+    return output_edge_weight_softmax_tensor
+
+
+def edge_weight_softmax_backward(csr_row_ptr_tensor: torch.Tensor,
+                                 edge_weight_tensor: torch.Tensor,
+                                 grad_edge_weight_softmax_tensor: torch.Tensor):
+    assert csr_row_ptr_tensor.dim() == 1
+    assert edge_weight_tensor.dim() == 2
+    assert grad_edge_weight_softmax_tensor.dim() == 2
+    assert edge_weight_tensor.dtype == grad_edge_weight_softmax_tensor.dtype
+    assert csr_row_ptr_tensor.is_cuda
+    assert edge_weight_tensor.is_cuda
+    assert grad_edge_weight_softmax_tensor.is_cuda
+
+    output_grad_edge_wieght_tensor = torch.empty((edge_weight_tensor.shape[0], edge_weight_tensor.shape[1]), device='cuda', dtype = edge_weight_tensor.dtype)
+    wmb.edge_weight_softmax_backward(
+        wrap_torch_tensor(csr_row_ptr_tensor),
+        wrap_torch_tensor(edge_weight_tensor),
+        wrap_torch_tensor(grad_edge_weight_softmax_tensor),
+        wrap_torch_tensor(output_grad_edge_wieght_tensor),
+        get_stream())
+    
+    return output_grad_edge_wieght_tensor
