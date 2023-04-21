@@ -178,3 +178,94 @@ def edge_weight_softmax_backward(csr_row_ptr_tensor: torch.Tensor,
         get_stream())
     
     return output_grad_edge_wieght_tensor
+
+def add_csr_self_loop(csr_row_ptr_tensor: torch.Tensor,
+                      csr_col_ptr_tensor: torch.Tensor):
+    assert csr_row_ptr_tensor.dim() == 1
+    assert csr_col_ptr_tensor.dim() == 1
+    assert csr_row_ptr_tensor.is_cuda
+    assert csr_col_ptr_tensor.is_cuda
+
+    output_csr_row_ptr_tensor = torch.empty((csr_row_ptr_tensor.shape[0],), device='cuda', dtype = csr_row_ptr_tensor.dtype)
+    output_csr_col_ptr_tensor = torch.empty((csr_col_ptr_tensor.shape[0] + csr_row_ptr_tensor.shape[0] - 1,), device='cuda', dtype = csr_col_ptr_tensor.dtype)
+    wmb.add_csr_self_loop(wrap_torch_tensor(csr_row_ptr_tensor),
+                          wrap_torch_tensor(csr_col_ptr_tensor),
+                          wrap_torch_tensor(output_csr_row_ptr_tensor),
+                          wrap_torch_tensor(output_csr_col_ptr_tensor),
+                          get_stream())
+    return output_csr_row_ptr_tensor,output_csr_col_ptr_tensor
+
+
+def gspmm_weighted_forward(csr_row_ptr_tensor: torch.Tensor,
+                           csr_col_ptr_tensor: torch.Tensor,
+                           edge_weight_tensor: torch.Tensor,
+                           feature_tensor: torch.Tensor):
+    assert csr_row_ptr_tensor.dim() == 1
+    assert csr_col_ptr_tensor.dim() == 1
+    assert edge_weight_tensor.dim() == 2
+    assert feature_tensor.dim() == 3
+    assert edge_weight_tensor.shape[1] == feature_tensor.shape[1]
+    assert edge_weight_tensor.shape[0] == csr_col_ptr_tensor.shape[0]
+    assert edge_weight_tensor.dtype == feature_tensor.dtype
+    assert csr_row_ptr_tensor.is_cuda
+    assert csr_col_ptr_tensor.is_cuda
+    assert edge_weight_tensor.is_cuda
+    assert feature_tensor.is_cuda
+
+    output_feature_tensor = torch.empty((csr_row_ptr_tensor.shape[0] - 1, feature_tensor.shape[1], feature_tensor.shape[2]), device='cuda', dtype = feature_tensor.dtype)
+    wmb.gspmm_weighted_forward(wrap_torch_tensor(csr_row_ptr_tensor),
+                               wrap_torch_tensor(csr_col_ptr_tensor),
+                               wrap_torch_tensor(edge_weight_tensor),
+                               wrap_torch_tensor(feature_tensor),
+                               wrap_torch_tensor(output_feature_tensor),
+                               get_stream())
+    return output_feature_tensor
+
+def gspmm_weighted_backward(csr_row_ptr_tensor: torch.Tensor,
+                            csr_col_ptr_tensor: torch.Tensor,
+                            edge_weight_tensor: torch.Tensor,
+                            feature_tensor: torch.Tensor,
+                            grad_feature_tensor: torch.Tensor,
+                            need_grad_edge_weight: bool = False,
+                            need_grad_feature: bool = False):
+    assert csr_row_ptr_tensor.dim() == 1
+    assert csr_col_ptr_tensor.dim() == 1
+    assert edge_weight_tensor.dim() == 2
+    assert feature_tensor.dim() == 3
+    assert edge_weight_tensor.shape[1] == feature_tensor.shape[1]
+    assert edge_weight_tensor.shape[0] == csr_col_ptr_tensor.shape[0]
+    assert edge_weight_tensor.dtype == feature_tensor.dtype
+    assert grad_feature_tensor.dtype == feature_tensor.dtype
+    assert grad_feature_tensor.shape[0] == csr_row_ptr_tensor.shape[0] - 1
+    assert grad_feature_tensor.shape[1] == feature_tensor.shape[1]
+    assert grad_feature_tensor.shape[2] == feature_tensor.shape[2]
+    assert csr_row_ptr_tensor.is_cuda
+    assert csr_col_ptr_tensor.is_cuda
+    assert edge_weight_tensor.is_cuda
+    assert feature_tensor.is_cuda
+    assert grad_feature_tensor.is_cuda
+    
+    output_grad_edge_weight_tensor = None
+    output_grad_feature_tensor = None
+    if need_grad_edge_weight:
+        output_grad_edge_weight_tensor = torch.empty((edge_weight_tensor.shape[0], edge_weight_tensor.shape[1]), device='cuda', dtype=edge_weight_tensor.dtype)
+
+    if need_grad_feature:
+        output_grad_feature_tensor = torch.empty((feature_tensor.shape[0], feature_tensor.shape[1], feature_tensor.shape[2]), device='cuda', dtype=feature_tensor.dtype)
+    
+    wmb.gspmm_weighted_backward(wrap_torch_tensor(csr_row_ptr_tensor),
+                                wrap_torch_tensor(csr_col_ptr_tensor),
+                                wrap_torch_tensor(edge_weight_tensor),
+                                wrap_torch_tensor(feature_tensor),
+                                wrap_torch_tensor(grad_feature_tensor),
+                                wrap_torch_tensor(output_grad_edge_weight_tensor),
+                                wrap_torch_tensor(output_grad_feature_tensor),
+                                get_stream())
+    if need_grad_edge_weight and need_grad_feature:
+        return output_grad_edge_weight_tensor, output_grad_feature_tensor
+    elif need_grad_feature:
+        return output_grad_feature_tensor
+    elif need_grad_edge_weight:
+        return output_grad_edge_weight_tensor
+    else:
+        return None

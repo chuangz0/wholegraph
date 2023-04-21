@@ -20,7 +20,8 @@ void host_get_csr_add_self_loop(int* host_csr_row_ptr,
       host_ref_output_csr_col_ptr[j + row_id + 1] = host_csr_col_ptr[j];
     }
   }
-  host_ref_output_csr_row_ptr[csr_row_ptr_array_desc.size - 1] += csr_row_ptr_array_desc.size - 1;
+  host_ref_output_csr_row_ptr[csr_row_ptr_array_desc.size - 1] =
+    host_csr_row_ptr[csr_row_ptr_array_desc.size - 1] + csr_row_ptr_array_desc.size - 1;
 }
 
 void host_csr_add_self_loop(void* host_csr_row_ptr,

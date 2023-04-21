@@ -242,7 +242,8 @@ void gspmm_csr_weighted_backward_func(
     if (output_grad_edge_weight_ptr) {
       fn = gSpmmCsrWeightedFusedSharedMemoryBackwardFunc<WeightType, false, true>;
     } else {
-      fn = nullptr;
+      // fn = nullptr;
+      return;
     }
   }
   fn(csr_row_ptr,
