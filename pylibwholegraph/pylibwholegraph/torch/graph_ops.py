@@ -76,3 +76,53 @@ def spmm_no_weight_backward(
     return output_grad_feature_tensor
         
 
+def spadd_gat_forward(
+        csr_row_ptr_tensor: torch.Tensor,
+        csr_col_ptr_tensor: torch.Tensor,
+        edge_weight_left_tensor: torch.Tensor,
+        edge_weight_right_tensor: torch.Tensor):
+    assert csr_row_ptr_tensor.dim() == 1
+    assert csr_col_ptr_tensor.dim() == 1
+    assert csr_row_ptr_tensor.dtype == torch.int32
+    assert csr_col_ptr_tensor.dtype == torch.int32 
+    assert edge_weight_left_tensor.dim() == 2
+    assert edge_weight_right_tensor.dim() == 2
+    assert edge_weight_right_tensor.shape[1] == edge_weight_left_tensor.shape[1]
+    assert edge_weight_left_tensor.shape[0] == csr_row_ptr_tensor.shape[0] - 1
+
+    output_score_tensor = torch.empty((csr_col_ptr_tensor.shape[0], edge_weight_left_tensor.shape[1]), device='cuda', dtype = edge_weight_left_tensor.dtype)
+    wmb.spadd_gat_forward(
+        wrap_torch_tensor(csr_row_ptr_tensor),
+        wrap_torch_tensor(csr_col_ptr_tensor),
+        wrap_torch_tensor(edge_weight_left_tensor),
+        wrap_torch_tensor(edge_weight_right_tensor),
+        wrap_torch_tensor(output_score_tensor),
+        get_stream())
+    return output_score_tensor
+
+def spadd_gat_backward(
+        csr_row_ptr_tensor: torch.Tensor,
+        csr_col_ptr_tensor: torch.Tensor,
+        grad_score_tensor: torch.Tensor,
+        neighbor_node_count: torch.int64):
+    assert csr_row_ptr_tensor.dim() == 1
+    assert csr_col_ptr_tensor.dim() == 1
+    assert csr_row_ptr_tensor.dtype == torch.int32
+    assert csr_col_ptr_tensor.dtype == torch.int32 
+    assert grad_score_tensor.dim() == 2
+    assert grad_score_tensor.shape[0] == csr_col_ptr_tensor.shape[0]
+
+    output_edge_weight_left_tensor = torch.empty((csr_row_ptr_tensor.shape[0] - 1, grad_score_tensor.shape[1]), device='cuda', dtype = grad_score_tensor.dtype)
+    output_edge_weight_right_tensor = torch.empty((neighbor_node_count, grad_score_tensor.shape[1]), device='cuda', dtype=grad_score_tensor.dtype)
+
+    wmb.spadd_gat_backward(
+        wrap_torch_tensor(csr_row_ptr_tensor),
+        wrap_torch_tensor(csr_col_ptr_tensor),
+        wrap_torch_tensor(grad_score_tensor),
+        wrap_torch_tensor(output_edge_weight_left_tensor),
+        wrap_torch_tensor(output_edge_weight_right_tensor),
+        get_stream())
+    
+    return output_edge_weight_left_tensor,output_edge_weight_right_tensor
+
+    

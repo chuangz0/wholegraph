@@ -34,6 +34,7 @@ def gen_csr_graph(graph_node_count, graph_edge_count, neighbor_node_count = None
     if neighbor_node_count is None:
         neighbor_node_count = graph_node_count 
     all_count = graph_node_count * neighbor_node_count
+    assert all_count >= graph_edge_count
     matrix_tensor = torch.rand(
             all_count, dtype=weight_dtype, device=torch.device("cpu")
     ) + 1

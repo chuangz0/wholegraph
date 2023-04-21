@@ -52,9 +52,9 @@ def routine_func(**kwargs):
     assert torch.allclose(output_grad_feature_tensor, output_grad_feature_tensor_ref, 1e-03)
 
 
-@pytest.mark.parametrize('target_node_count', [10, 113])
+@pytest.mark.parametrize('target_node_count', [101, 113])
 @pytest.mark.parametrize('neighbor_node_count', [189, 1987])
-@pytest.mark.parametrize('edge_num', [1001, 23002])
+@pytest.mark.parametrize('edge_num', [1001, 2302])
 @pytest.mark.parametrize('feature_dim', [128])
 @pytest.mark.parametrize('feature_dtype', [torch.float32]) 
 @pytest.mark.parametrize('aggregator', [0, 1, 2]) # 0: sum, 1: mean, 2: gcn_mean
