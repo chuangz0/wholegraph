@@ -331,6 +331,7 @@ void host_get_spmm_csr_no_weight_backward(int* host_csr_row_ptr,
     for (int emb_id = 0; emb_id < emb_dim; emb_id++) {
       WeightType value =
         static_cast<WeightType>(input_grad_feature_ptr[i * emb_dim + emb_id] * scale);
+      if (aggregator == GCN_AGGREGATOR) { output_grad_feature_ptr[i * emb_dim + emb_id] += value; }
       for (int j = start; j < end; j++) {
         int col_id = host_csr_col_ptr[j];
         output_grad_feature_ptr[col_id * emb_dim + emb_id] += value;

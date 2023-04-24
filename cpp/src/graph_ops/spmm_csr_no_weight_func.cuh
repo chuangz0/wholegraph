@@ -130,13 +130,13 @@ __global__ void SpmmCsrNoWeightAtomicBackwardInputKernel(const int* csr_row_ptr,
     }
     if (AGG == 2) {
       if (agg_count > 0) { value /= (agg_count + 1); }
+      atomicAdd(grad_x + (int64_t)row_idx * grad_x_stride + emb_idx, (T)value);
     }
     for (int row_ptr = row_ptr_start; row_ptr < row_ptr_end; row_ptr++) {
       int col_idx = csr_col_ind[row_ptr];
       assert(col_idx >= 0 && col_idx < input_count);
       atomicAdd(grad_x + (int64_t)col_idx * grad_x_stride + emb_idx, (T)value);
     }
-    if (blockIdx.x == 0 && threadIdx.x == 0) { printf("value = %f\n", value); }
   }
 }
 

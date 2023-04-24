@@ -3,7 +3,7 @@
 #include <graph_ops/edge_weight_softmax_impl.h>
 #include <wholememory/graph_op.h>
 
-wholememory_error_code_t edge_weight_softmax_forward(
+wholememory_error_code_t edge_weight_softmax_csr_forward(
   wholememory_tensor_t csr_row_ptr_tensor,
   wholememory_tensor_t edge_weight_tensor,
   wholememory_tensor_t output_edge_weight_softmax_tensor,
@@ -81,7 +81,7 @@ wholememory_error_code_t edge_weight_softmax_forward(
                                                      static_cast<cudaStream_t>(stream));
 }
 
-wholememory_error_code_t edge_weight_softmax_backward(
+wholememory_error_code_t edge_weight_softmax_csr_backward(
   wholememory_tensor_t csr_row_ptr_tensor,
   wholememory_tensor_t edge_weight_tensor,
   wholememory_tensor_t grad_edge_weight_softmax_tensor,
