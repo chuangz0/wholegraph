@@ -244,6 +244,11 @@ wholememory_error_code_t embedding_cache_base::writeback_all_cache(cudaStream_t 
   return WHOLEMEMORY_SUCCESS;
 }
 
+wholememory_error_code_t embedding_cache_base::drop_all_cache(cudaStream_t stream) noexcept
+{
+  return WHOLEMEMORY_SUCCESS;
+}
+
 device_cache_for_host::device_cache_for_host(wholememory_embedding_cache_policy_t cache_policy)
   : embedding_cache_base(cache_policy)
 {
@@ -309,6 +314,18 @@ wholememory_error_code_t device_cache_for_host::writeback_all_cache(cudaStream_t
   return WHOLEMEMORY_SUCCESS;
 }
 
+wholememory_error_code_t device_cache_for_host::drop_all_cache(cudaStream_t stream) noexcept
+{
+  WHOLEMEMORY_RETURN_ON_FAIL(wholememory_ops::writeback_cache_direct_same_comm(
+    padded_raw_tensor_, &local_cache_, cache_set_coverage_, true, stream));
+  WM_CUDA_CHECK_NO_THROW(cudaStreamSynchronize(stream));
+  wholememory_comm_t wm_comm;
+  WHOLEMEMORY_RETURN_ON_FAIL(wholememory_get_communicator(
+    &wm_comm, wholememory_tensor_get_memory_handle(padded_raw_tensor_)));
+  WHOLEMEMORY_RETURN_ON_FAIL(wholememory_communicator_barrier(wm_comm));
+  return WHOLEMEMORY_SUCCESS;
+}
+
 local_cache_for_global::local_cache_for_global(wholememory_embedding_cache_policy_t cache_policy)
   : embedding_cache_base(cache_policy)
 {
@@ -358,6 +375,19 @@ wholememory_error_code_t local_cache_for_global::get_embedding_requirement(
   raw_comm_            = comm;
   raw_memory_location_ = memory_location;
   raw_memory_type_     = memory_type;
+  return WHOLEMEMORY_SUCCESS;
+}
+
+wholememory_error_code_t local_cache_for_global::drop_all_cache(cudaStream_t stream) noexcept
+{
+  wholememory_tensor_t local_tag_tensor = local_cache_.cache_line_tag_;
+  size_t local_cache_line_size          = wholememory_get_memory_size_from_tensor(
+    wholememory_tensor_get_tensor_description(local_tag_tensor));
+  WM_CUDA_CHECK_NO_THROW(cudaMemsetAsync(
+    wholememory_tensor_get_data_pointer(local_tag_tensor), 0, local_cache_line_size, stream));
+  WM_CUDA_CHECK_NO_THROW(cudaStreamSynchronize(stream));
+
+  WHOLEMEMORY_RETURN_ON_FAIL(wholememory_communicator_barrier(cache_policy_->cache_comm));
   return WHOLEMEMORY_SUCCESS;
 }
 

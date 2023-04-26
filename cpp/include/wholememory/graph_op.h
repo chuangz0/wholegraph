@@ -88,8 +88,9 @@ wholememory_error_code_t spadd_gat_csr_foward(wholememory_tensor_t csr_row_ptr_t
  * @param csr_row_ptr_tensor : Wholememory Tensor of local graph csr_row_ptr
  * @param csr_col_ptr_tensor : Wholememory Tensor of local graph csr_col_ptr
  * @param grad_score_tensor : Wholememory Tensor of grad_score_tensor
- * @param output_edge_weight_left_tensor : Wholememory Tensor of output_edge_weight_left_tensor
- * @param output_edge_weight_right_tensor : Wholememory Tensor of output_edge_weight_right_tensor
+ * @param output_grad_edge_weight_left_tensor : Wholememory Tensor of output_edge_weight_left_tensor
+ * @param output_grad_edge_weight_right_tensor : Wholememory Tensor of
+ * output_edge_weight_right_tensor
  * @param stream : CUDA stream to use
  * @return : wholememory_error_code_t
  */

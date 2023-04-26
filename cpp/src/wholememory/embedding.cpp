@@ -83,6 +83,9 @@ wholememory_error_code_t embedding_base::allocate(
       wholememory_tensor_get_subtensor(allocated_embedding, &starts[0], &ends[0], &user_embedding));
     if (cache_ptr_ != nullptr) { WHOLEMEMORY_RETURN_ON_FAIL(cache_ptr_->allocate(user_embedding)); }
     if (optimizer != nullptr) {
+      if (cache_policy != nullptr) {
+        WHOLEMEMORY_CHECK_NOTHROW(cache_policy->access_type == WHOLEMEMORY_AT_READWRITE);
+      }
       optimizer_impl_base_ = static_cast<embedding_optimizer_impl_base*>(optimizer);
       WHOLEMEMORY_RETURN_ON_FAIL(create_optimizer_states());
       WHOLEMEMORY_RETURN_ON_FAIL(init_optimizer_states());
@@ -415,6 +418,26 @@ wholememory_error_code_t embedding_base::writeback_all_caches(cudaStream_t strea
       WHOLEMEMORY_RETURN_ON_FAIL(
         static_cast<embedding_base*>(optimizer_state_->cachable_state_embedding)
           ->writeback_all_caches(stream));
+    }
+  }
+  return WHOLEMEMORY_SUCCESS;
+}
+
+wholememory_error_code_t embedding_base::drop_embedding_cache(cudaStream_t stream) const noexcept
+{
+  if (cache_ptr_ != nullptr) { WHOLEMEMORY_RETURN_ON_FAIL(cache_ptr_->drop_all_cache(stream)); }
+  return WHOLEMEMORY_SUCCESS;
+}
+
+wholememory_error_code_t embedding_base::drop_all_caches(cudaStream_t stream) const noexcept
+{
+  WHOLEMEMORY_RETURN_ON_FAIL(drop_embedding_cache(stream));
+  if (optimizer_impl_base_ != nullptr) {
+    WHOLEMEMORY_CHECK_NOTHROW(optimizer_state_.get() != nullptr);
+    if (optimizer_state_->cachable_state_embedding != nullptr) {
+      WHOLEMEMORY_RETURN_ON_FAIL(
+        static_cast<embedding_base*>(optimizer_state_->cachable_state_embedding)
+          ->drop_all_caches(stream));
     }
   }
   return WHOLEMEMORY_SUCCESS;
@@ -929,6 +952,13 @@ wholememory_error_code_t wholememory_embedding_writeback_cache(
   cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_int);
   return static_cast<wholememory::embedding_base*>(wholememory_embedding)
     ->writeback_all_caches(stream);
+}
+
+wholememory_error_code_t wholememory_embedding_drop_all_cache(
+  wholememory_embedding_t wholememory_embedding, int64_t stream_int)
+{
+  cudaStream_t stream = reinterpret_cast<cudaStream_t>(stream_int);
+  return static_cast<wholememory::embedding_base*>(wholememory_embedding)->drop_all_caches(stream);
 }
 
 #ifdef __cplusplus

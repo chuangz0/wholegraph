@@ -62,6 +62,8 @@ class embedding_base : public wholememory_embedding_ {
   }
   virtual wholememory_error_code_t writeback_embedding_cache(cudaStream_t stream) const noexcept;
   virtual wholememory_error_code_t writeback_all_caches(cudaStream_t stream) const noexcept;
+  virtual wholememory_error_code_t drop_embedding_cache(cudaStream_t stream) const noexcept;
+  virtual wholememory_error_code_t drop_all_caches(cudaStream_t stream) const noexcept;
 
   wholememory::embedding_cache_base* get_cache_ptr() const { return cache_ptr_; }
 

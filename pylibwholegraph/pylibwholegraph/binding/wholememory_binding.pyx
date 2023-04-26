@@ -43,6 +43,8 @@ cdef extern from "Python.h":
 
     const char * PyUnicode_AsUTF8(object unicode)
 
+    PyObject * PyUnicode_FromString(const char * u)
+
 
 cdef extern from "wholememory/wholememory.h":
     ctypedef enum wholememory_error_code_t:
@@ -360,10 +362,8 @@ cdef class GlobalContextWrapper:
         self.env_func.output_fns.malloc_fn = &python_cb_wrapper_output_malloc
         self.env_func.output_fns.free_fn = &python_cb_wrapper_output_free
         self.env_func.output_fns.global_context = <PyObject *> self
-        #fprintf(stderr, "in create_context, output_malloc_fn=%ld\n", <int64_t>self.output_malloc_fn)
 
     cpdef int64_t get_env_fns(self):
-        #fprintf(stderr, "in get_env_fns: env_func_ptrs=%ld, self=%ld\n", <int64_t>&self.env_func, <int64_t>id(self))
         return <int64_t> (&self.env_func)
 
 cdef void python_cb_wrapper_temp_create_context(void** memory_context,
@@ -378,7 +378,6 @@ cdef void python_cb_wrapper_temp_create_context(void** memory_context,
         PyTuple_SetItem(args, 0, <object> python_global_context)
         py_memory_context = PyObject_CallObject(<object> python_fn, <object> args)
         ret_memory_context = <PyObject *> py_memory_context
-        #fprintf(stderr, "in python_cb_wrapper_temp_create_context ret_memory_context=%ld\n", <int64_t>ret_memory_context)
         Py_DECREF(args)
         Py_INCREF(ret_memory_context)
         (<PyObject **> memory_context)[0] = ret_memory_context
@@ -445,12 +444,6 @@ cdef void * python_cb_wrapper_output_malloc(wholememory_tensor_description_t * t
                                             wholememory_memory_allocation_type_t malloc_type,
                                             void * memory_context,
                                             void * global_context) nogil:
-    #fprintf(stderr, "in python_cb_wrapper_output_malloc\n")
-    #fprintf(stderr, "tensor_desc dim=%d, size=(%ld, %ld), stride=(%ld, %ld), offset=%ld\n",
-    #        tensor_desc.dim, tensor_desc.sizes[0], tensor_desc.sizes[1],
-    #        tensor_desc.strides[0], tensor_desc.strides[1], tensor_desc.storage_offset)
-    #fprintf(stderr, "malloc_type=%d\n", <int>malloc_type)
-    #fprintf(stderr, "memory_context=%ld, global_context=%ld\n", <intptr_t>memory_context, <intptr_t>global_context)
     cdef int64_t res_ptr = 0
     with gil:
         wrapped_global_context = <GlobalContextWrapper> <PyObject *> global_context
@@ -460,12 +453,6 @@ cdef void * python_cb_wrapper_output_malloc(wholememory_tensor_description_t * t
         py_malloc_type.set_type(malloc_type)
         python_fn = wrapped_global_context.output_malloc_fn
         python_global_context = wrapped_global_context.output_global_context
-        #fprintf(stderr, "in python_cb_wrapper_output_malloc before args\n")
-        #fprintf(stderr, "py_tensor_desc=%ld, py_malloc_type=%ld, memory_context=%ld, python_global_context=%ld\n",
-        #        <int64_t>id(py_tensor_desc), <int64_t>id(py_malloc_type), <int64_t>memory_context, <int64_t>python_global_context)
-        #fprintf(stderr, "py_tensor_desc.tensor_description dim=%d, size=(%ld, %ld), stride=(%ld, %ld), offset=%ld\n",
-        #        py_tensor_desc.tensor_description.dim, py_tensor_desc.tensor_description.sizes[0], py_tensor_desc.tensor_description.sizes[1],
-        #        py_tensor_desc.tensor_description.strides[0], py_tensor_desc.tensor_description.strides[1], py_tensor_desc.tensor_description.storage_offset)
         args = PyTuple_New(4)
         Py_INCREF(py_tensor_desc)
         PyTuple_SetItem(args, 0, <object> <PyObject *> py_tensor_desc)
@@ -475,10 +462,7 @@ cdef void * python_cb_wrapper_output_malloc(wholememory_tensor_description_t * t
         PyTuple_SetItem(args, 2, <object> <PyObject *> memory_context)
         Py_INCREF(<object> <PyObject *> python_global_context)
         PyTuple_SetItem(args, 3, <object> <PyObject *> python_global_context)
-        #fprintf(stderr, "in python_cb_wrapper_output_malloc before calling, python_fn=%ld, ref_count=%ld\n",
-        #        <int64_t>python_fn, <int64_t>Py_REFCNT(python_fn))
         res_ptr = PyLong_AsLongLong(PyObject_CallObject(<object> python_fn, <object> args))
-        #fprintf(stderr, "in python_cb_wrapper_output_malloc after calling, res_ptr=%ld\n", <int64_t>res_ptr)
         Py_DECREF(args)
     return <void *> res_ptr
 
@@ -576,6 +560,14 @@ cdef extern from "wholememory/embedding.h":
         WHOLEMEMORY_OPT_RMSPROP             "WHOLEMEMORY_OPT_RMSPROP"
         WHOLEMEMORY_OPT_ADAGRAD             "WHOLEMEMORY_OPT_ADAGRAD"
 
+    cdef wholememory_error_code_t wholememory_create_embedding_optimizer(
+            wholememory_embedding_optimizer_t * optimizer, wholememory_optimizer_type_t optimizer_type)
+
+    cdef wholememory_error_code_t wholememory_optimizer_set_parameter(
+            wholememory_embedding_optimizer_t optimizer, const char * parameter_name, void * value)
+
+    cdef void wholememory_destroy_embedding_optimizer(wholememory_embedding_optimizer_t optimizer)
+
     cdef wholememory_error_code_t wholememory_create_embedding_cache_policy(
             wholememory_embedding_cache_policy_t * cache_policy,
             wholememory_comm_t cache_level_comm,
@@ -606,8 +598,249 @@ cdef extern from "wholememory/embedding.h":
                                                                wholememory_env_func_t * p_env_fns,
                                                                int64_t stream_int)
 
+    cdef wholememory_error_code_t wholememory_embedding_gather_gradient_apply(
+            wholememory_embedding_t wholememory_embedding,
+            wholememory_tensor_t indices,
+            wholememory_tensor_t grads,
+            bool adjust_cache,
+            float lr,
+            wholememory_env_func_t * p_env_fns,
+            int64_t stream_int)
+
     cdef wholememory_tensor_t wholememory_embedding_get_embedding_tensor(
             wholememory_embedding_t wholememory_embedding)
+
+    cdef const char * const * wholememory_embedding_get_optimizer_state_names(
+            wholememory_embedding_t wholememory_embedding)
+
+    cdef wholememory_tensor_t wholememory_embedding_get_optimizer_state(
+            wholememory_embedding_t wholememory_embedding, const char * name)
+
+    cdef wholememory_error_code_t wholememory_embedding_writeback_cache(
+            wholememory_embedding_t wholememory_embedding, int64_t stream_int)
+
+    cdef wholememory_error_code_t wholememory_embedding_drop_all_cache(
+            wholememory_embedding_t wholememory_embedding, int64_t stream_int)
+
+
+cpdef enum WholeMemoryAccessType:
+    AtNone = WHOLEMEMORY_AT_NONE
+    AtReadOnly = WHOLEMEMORY_AT_READONLY
+    AtReadWrite = WHOLEMEMORY_AT_READWRITE
+
+cpdef enum WholeMemoryOptimizerType:
+    OptNone = WHOLEMEMORY_OPT_NONE
+    OptSgd = WHOLEMEMORY_OPT_SGD
+    OptLazyAdam = WHOLEMEMORY_OPT_LAZY_ADAM
+    OptAdaGrad = WHOLEMEMORY_OPT_ADAGRAD
+    OptRmsProp = WHOLEMEMORY_OPT_RMSPROP
+
+cdef class WholeMemoryOptimizer:
+    cdef wholememory_embedding_optimizer_t wm_optimizer
+    cdef wholememory_optimizer_type_t optimizer_type
+    cdef public dict param_dict
+
+    def __cinit__(self):
+        self.wm_optimizer = NULL
+        self.optimizer_type = WHOLEMEMORY_OPT_NONE
+
+    def __init__(self):
+        self.param_dict = {}
+
+    def create_optimizer(self,
+                         WholeMemoryOptimizerType optimizer_type,
+                         dict param_dict):
+        cdef str param_key
+        cdef float param_value
+        self.optimizer_type = <wholememory_optimizer_type_t> <int> optimizer_type
+        self.param_dict = param_dict
+        check_wholememory_error_code(wholememory_create_embedding_optimizer(&self.wm_optimizer, self.optimizer_type))
+        for param_key, param_value in self.param_dict.items():
+            key_bytes = param_key.encode('utf-8')
+            check_wholememory_error_code(
+                wholememory_optimizer_set_parameter(self.wm_optimizer, key_bytes, &param_value))
+
+    def destroy_optimizer(self):
+        if self.wm_optimizer == NULL:
+            return
+        wholememory_destroy_embedding_optimizer(self.wm_optimizer)
+        self.wm_optimizer = NULL
+        self.optimizer_type = WHOLEMEMORY_OPT_NONE
+        self.param_dict = None
+
+def create_optimizer(WholeMemoryOptimizerType optimizer_type,
+                     dict param_dict):
+    wm_optimizer = WholeMemoryOptimizer()
+    wm_optimizer.create_optimizer(optimizer_type, param_dict)
+    return wm_optimizer
+
+def create_non_optimizer():
+    return WholeMemoryOptimizer()
+
+cdef class WholeMemoryCachePolicy:
+    cdef wholememory_embedding_cache_policy_t cache_policy
+    cdef wholememory_memory_type_t memory_type
+    cdef wholememory_memory_location_t memory_location
+    cdef wholememory_access_type_t access_type
+    cdef float ratio
+    cdef PyWholeMemoryComm comm
+
+    def __cinit__(self):
+        self.cache_policy = NULL
+        self.memory_type = WHOLEMEMORY_MT_NONE
+        self.memory_location = WHOLEMEMORY_ML_NONE
+        self.access_type = WHOLEMEMORY_AT_NONE
+        self.ratio = 0.5
+        self.comm = None
+
+    def create_policy(self,
+                      PyWholeMemoryComm comm,
+                      WholeMemoryMemoryType memory_type,
+                      WholeMemoryMemoryLocation memory_location,
+                      WholeMemoryAccessType access_type,
+                      float ratio):
+        self.memory_type = <wholememory_memory_type_t> <int> memory_type
+        self.memory_location = <wholememory_memory_location_t> <int> memory_location
+        self.access_type = <wholememory_access_type_t> <int> access_type
+        self.ratio = ratio
+        check_wholememory_error_code(wholememory_create_embedding_cache_policy(&self.cache_policy,
+                                                                               comm.comm_id,
+                                                                               self.memory_type,
+                                                                               self.memory_location,
+                                                                               self.access_type,
+                                                                               self.ratio))
+
+    def destroy_policy(self):
+        if self.cache_policy == NULL:
+            return
+        check_wholememory_error_code(wholememory_destroy_embedding_cache_policy(self.cache_policy))
+        self.cache_policy = NULL
+        self.memory_type = WHOLEMEMORY_MT_NONE
+        self.memory_location = WHOLEMEMORY_ML_NONE
+        self.access_type = WHOLEMEMORY_AT_NONE
+        self.ratio = 0.5
+        self.comm = None
+
+def create_cache_policy(PyWholeMemoryComm comm,
+                        WholeMemoryMemoryType memory_type,
+                        WholeMemoryMemoryLocation memory_location,
+                        WholeMemoryAccessType access_type,
+                        float ratio):
+    cache_policy = WholeMemoryCachePolicy()
+    cache_policy.create_policy(comm, memory_type, memory_location, access_type, ratio)
+    return cache_policy
+
+def create_non_cache_policy():
+    return WholeMemoryCachePolicy()
+
+cdef class PyWholeMemoryEmbedding:
+    cdef wholememory_embedding_t wm_embedding
+    cdef wholememory_memory_type_t memory_type
+    cdef wholememory_memory_location_t memory_location
+
+    def __cinit__(self):
+        self.wm_embedding = NULL
+        self.memory_type = WHOLEMEMORY_MT_NONE
+        self.memory_location = WHOLEMEMORY_ML_NONE
+
+    def create_embedding(self,
+                         PyWholeMemoryTensorDescription tensor_desc,
+                         PyWholeMemoryComm comm,
+                         WholeMemoryMemoryType memory_type,
+                         WholeMemoryMemoryLocation memory_location,
+                         WholeMemoryOptimizer optimizer,
+                         WholeMemoryCachePolicy cache_policy):
+        self.memory_type = <wholememory_memory_type_t> <int> memory_type
+        self.memory_location = <wholememory_memory_location_t> <int> memory_location
+        check_wholememory_error_code(wholememory_create_embedding(&self.wm_embedding,
+                                                                  &tensor_desc.tensor_description,
+                                                                  comm.comm_id,
+                                                                  self.memory_type,
+                                                                  self.memory_location,
+                                                                  optimizer.wm_optimizer,
+                                                                  cache_policy.cache_policy))
+
+    def destroy_embedding(self):
+        check_wholememory_error_code(wholememory_destroy_embedding(self.wm_embedding))
+
+    def writeback_all_cache(self,
+                            int64_t stream):
+        check_wholememory_error_code(wholememory_embedding_writeback_cache(self.wm_embedding, stream))
+
+    def drop_all_cache(self,
+                       int64_t stream):
+        check_wholememory_error_code(wholememory_embedding_drop_all_cache(self.wm_embedding, stream))
+
+    def get_embedding_tensor(self):
+        cdef wholememory_tensor_t wm_tensor
+        wm_tensor = wholememory_embedding_get_embedding_tensor(self.wm_embedding)
+        py_wm_tensor = PyWholeMemoryTensor()
+        py_wm_tensor.from_c_handle(wm_tensor)
+        return py_wm_tensor
+
+    def get_optimizer_state_names(self):
+        cdef int i = 0
+        result = []
+        cdef const char * const * state_names
+        state_names = wholememory_embedding_get_optimizer_state_names(self.wm_embedding)
+        while state_names[i] != NULL:
+            result.append(<object> PyUnicode_FromString(state_names[i]))
+            i += 1
+        return result
+
+    def get_optimizer_state(self,
+                            state_name):
+        cdef wholememory_tensor_t state_tensor
+        state_tensor = wholememory_embedding_get_optimizer_state(
+            self.wm_embedding,
+            PyUnicode_AsUTF8(state_name))
+        py_state_tensor = PyWholeMemoryTensor()
+        py_state_tensor.from_c_handle(state_tensor)
+        return py_state_tensor
+
+def create_embedding(PyWholeMemoryTensorDescription tensor_desc,
+                     PyWholeMemoryComm comm,
+                     WholeMemoryMemoryType memory_type,
+                     WholeMemoryMemoryLocation memory_location,
+                     WholeMemoryOptimizer optimizer,
+                     WholeMemoryCachePolicy cache_policy):
+    wm_embedding = PyWholeMemoryEmbedding()
+    wm_embedding.create_embedding(tensor_desc,
+                                  comm,
+                                  memory_type,
+                                  memory_location,
+                                  optimizer,
+                                  cache_policy)
+    return wm_embedding
+
+cpdef void EmbeddingGatherForward(PyWholeMemoryEmbedding wm_embedding,
+                                  WrappedLocalTensor indice,
+                                  WrappedLocalTensor output,
+                                  bool adjust_cache,
+                                  int64_t p_env_fns_int,
+                                  int64_t stream_int):
+    check_wholememory_error_code(wholememory_embedding_gather(wm_embedding.wm_embedding,
+                                                              <wholememory_tensor_t> <int64_t> indice.get_c_handle(),
+                                                              <wholememory_tensor_t> <int64_t> output.get_c_handle(),
+                                                              adjust_cache,
+                                                              <wholememory_env_func_t *> <void *> p_env_fns_int,
+                                                              stream_int))
+
+cpdef void EmbeddingGatherGradientApply(PyWholeMemoryEmbedding wm_embedding,
+                                        WrappedLocalTensor indice,
+                                        WrappedLocalTensor grads,
+                                        bool adjust_cache,
+                                        float lr,
+                                        int64_t p_env_fns_int,
+                                        int64_t stream_int):
+    check_wholememory_error_code(wholememory_embedding_gather_gradient_apply(
+        wm_embedding.wm_embedding,
+        <wholememory_tensor_t> <int64_t> indice.get_c_handle(),
+        <wholememory_tensor_t> <int64_t> grads.get_c_handle(),
+        adjust_cache,
+        lr,
+        <wholememory_env_func_t *> <void *> p_env_fns_int,
+        stream_int))
 
 ######################################################################
 # dlpack
@@ -1042,10 +1275,10 @@ cdef class PyWholeMemoryHandle:
         return chunked_tensors, toffsets
 
     def from_filelist(self,
-                       int64_t memory_offset,
-                       int64_t memory_entry_size,
-                       int64_t file_entry_size,
-                       file_list):
+                      int64_t memory_offset,
+                      int64_t memory_entry_size,
+                      int64_t file_entry_size,
+                      file_list):
         load_wholememory_handle_from_filelist(<int64_t> self.wholememory_handle,
                                               memory_offset,
                                               memory_entry_size,
@@ -1062,7 +1295,6 @@ cdef class PyWholeMemoryHandle:
                                          memory_entry_size,
                                          file_entry_size,
                                          file_name)
-
 
 cdef class PyWholeMemoryTensorDescription:
     cdef wholememory_tensor_description_t tensor_description
@@ -1144,6 +1376,11 @@ cdef class PyWholeMemoryTensor:
     def __cinit__(self):
         self.wholememory_tensor = NULL
 
+    cdef from_c_handle(self,
+                       wholememory_tensor_t wm_tensor):
+        self.wholememory_tensor = wm_tensor
+        self.tensor_description = wholememory_tensor_get_tensor_description(wm_tensor)[0]
+
     def get_c_handle(self):
         return <int64_t> self.wholememory_tensor
 
@@ -1202,7 +1439,7 @@ cdef class PyWholeMemoryTensor:
         check_wholememory_error_code(
             wholememory_tensor_get_subtensor(self.wholememory_tensor, start_array, end_array,
                                              &sub_tensor.wholememory_tensor))
-        sub_tensor.tensor_description = wholememory_tensor_get_tensor_description(sub_tensor.wholememory_tensor)[0]
+        sub_tensor.from_c_handle(sub_tensor.wholememory_tensor)
         return sub_tensor
 
     def get_tensor_in_window(self,
@@ -1394,6 +1631,7 @@ def create_wholememory_tensor(PyWholeMemoryTensorDescription tensor_description,
     if tensor_description.storage_offset() != 0:
         raise ValueError('storage_offset be 0 when created')
     wholememory_tensor = PyWholeMemoryTensor()
+    wholememory_tensor.tensor_description = tensor_description.tensor_description
     check_wholememory_error_code(wholememory_create_tensor(&wholememory_tensor.wholememory_tensor,
                                                            &wholememory_tensor.tensor_description,
                                                            comm.comm_id,
@@ -1409,6 +1647,7 @@ def make_tensor_as_wholememory(PyWholeMemoryTensorDescription tensor_description
     check_wholememory_error_code(wholememory_make_tensor_from_pointer(&wholememory_tensor.wholememory_tensor,
                                                                       <void *> data_ptr,
                                                                       &tensor_description.tensor_description))
+    wholememory_tensor.from_c_handle(wholememory_tensor.wholememory_tensor)
     return wholememory_tensor
 
 def make_handle_as_wholememory(PyWholeMemoryTensorDescription tensor_description,
@@ -1419,6 +1658,7 @@ def make_handle_as_wholememory(PyWholeMemoryTensorDescription tensor_description
     check_wholememory_error_code(wholememory_make_tensor_from_handle(&wholememory_tensor.wholememory_tensor,
                                                                      handle.wholememory_handle,
                                                                      &tensor_description.tensor_description))
+    wholememory_tensor.from_c_handle(wholememory_tensor.wholememory_tensor)
     return wholememory_tensor
 
 def destroy_wholememory_tensor(PyWholeMemoryTensor wholememory_tensor):
@@ -1611,11 +1851,11 @@ cpdef void csr_weighted_sample_without_replacement(
 
 cdef extern from "wholememory/graph_op.h":
     cdef wholememory_error_code_t graph_append_unique(wholememory_tensor_t target_nodes_tensor,
-                                        wholememory_tensor_t neighbor_nodes_tensor,
-                                        void* output_unique_node_memory_context,
-                                        wholememory_tensor_t output_neighbor_raw_to_unique_mapping_tensor, 
-                                        wholememory_env_func_t * p_env_fns, 
-                                        void* stream)
+                                                      wholememory_tensor_t neighbor_nodes_tensor,
+                                                      void * output_unique_node_memory_context,
+                                                      wholememory_tensor_t output_neighbor_raw_to_unique_mapping_tensor,
+                                                      wholememory_env_func_t * p_env_fns,
+                                                      void * stream)
 
 cpdef void append_unique(
         WrappedLocalTensor target_node_tensor,
@@ -1627,9 +1867,8 @@ cpdef void append_unique(
     check_wholememory_error_code(graph_append_unique(
         <wholememory_tensor_t> <int64_t> target_node_tensor.get_c_handle(),
         <wholememory_tensor_t> <int64_t> neighbor_node_tensor.get_c_handle(),
-        <void*> output_unique_node_memory_handle,
-         <wholememory_tensor_t> <int64_t> output_neighbor_raw_to_unique_mapping_tensor.get_c_handle(),
+        <void *> output_unique_node_memory_handle,
+        <wholememory_tensor_t> <int64_t> output_neighbor_raw_to_unique_mapping_tensor.get_c_handle(),
         <wholememory_env_func_t *> p_env_fns_int,
         <void *> stream_int
     ))
-    

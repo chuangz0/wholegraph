@@ -3,9 +3,18 @@ import torch
 import torch.distributed as dist
 import torch.utils.dlpack
 import pylibwholegraph.binding.wholememory_binding as wmb
+from . import utils
+from .comm import WholeMemoryCommunicator, create_group_communicator
 
 
-def init_torch_env_and_create_wm_comm(world_rank: int, world_size: int):
+def init_torch_env(world_rank: int, world_size: int, local_rank: int, local_size: int):
+    r"""Init WholeGraph environment for PyTorch.
+    :param world_rank: world rank of current process
+    :param world_size: world size of all processes
+    :param local_rank: local rank of current process
+    :param local_size: local size
+    :return: None
+    """
     os.environ["RANK"] = str(world_rank)
     os.environ["WORLD_SIZE"] = str(world_size)
     os.environ["MASTER_ADDR"] = 'localhost'
@@ -13,19 +22,34 @@ def init_torch_env_and_create_wm_comm(world_rank: int, world_size: int):
 
     wmb.init(0)
     torch.set_num_threads(1)
-    torch.cuda.set_device(world_rank)
+    torch.cuda.set_device(local_rank)
     torch.distributed.init_process_group(backend="nccl", init_method="env://")
-    if world_rank == 0:
-        wm_uid = wmb.create_unique_id()
-    else:
-        wm_uid = wmb.PyWholeMemoryUniqueID()
-    uid_th = torch.utils.dlpack.from_dlpack(wm_uid.__dlpack__())
-    uid_th_cuda = uid_th.cuda()
-    dist.broadcast(uid_th_cuda, 0)
-    uid_th.copy_(uid_th_cuda.cpu())
 
-    wm_comm = wmb.create_communicator(wm_uid, world_rank, world_size)
-    return wm_comm
+
+def init_torch_env_and_create_wm_comm(world_rank: int, world_size: int, local_rank: int, local_size: int):
+    r"""Init WholeGraph environment for PyTorch and create single communicator for all ranks.
+    :param world_rank: world rank of current process
+    :param world_size: world size of all processes
+    :param local_rank: local rank of current process
+    :param local_size: local size
+    :return: global and local Communicator
+    """
+    init_torch_env(world_rank, world_size, local_rank, local_size)
+    global_comm = create_group_communicator()
+
+    if local_size < world_size:
+        local_comm = wgth.create_group_communicator(local_size)
+    else:
+        local_comm = global_comm
+
+    return global_comm, local_comm
+
+
+def finalize():
+    r"""Finalize WholeGraph.
+    :return: None
+    """
+    wmb.finalize()
 
 
 def load_wholegraph_op_libraries():

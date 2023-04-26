@@ -174,12 +174,21 @@ wholememory_tensor_t wholememory_embedding_get_optimizer_state(
   wholememory_embedding_t wholememory_embedding, const char* name);
 
 /**
- * Flush WholeMemory Embedding
+ * Writeback all cache WholeMemory Embedding
  * @param wholememory_embedding : WholeMemory Embedding
  * @param stream_int : CUDA stream to use.
  * @return : wholememory_error_code_t
  */
 wholememory_error_code_t wholememory_embedding_writeback_cache(
+  wholememory_embedding_t wholememory_embedding, int64_t stream_int);
+
+/**
+ * Drop all cache in WholeMemory Embedding
+ * @param wholememory_embedding : WholeMemory Embedding
+ * @param stream_int : CUDA stream to use.
+ * @return : wholememory_error_code_t
+ */
+wholememory_error_code_t wholememory_embedding_drop_all_cache(
   wholememory_embedding_t wholememory_embedding, int64_t stream_int);
 
 #ifdef __cplusplus

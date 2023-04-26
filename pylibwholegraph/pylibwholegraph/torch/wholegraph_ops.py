@@ -1,6 +1,6 @@
 import torch
 import pylibwholegraph.binding.wholememory_binding as wmb
-from .wholegraph_env import get_stream, wholememory_dtype_to_pytorch_dtype, TorchMemoryContext, get_wholegraph_env_fns, wrap_torch_tensor
+from .wholegraph_env import get_stream, TorchMemoryContext, get_wholegraph_env_fns, wrap_torch_tensor
 from typing import Union
 import random
 

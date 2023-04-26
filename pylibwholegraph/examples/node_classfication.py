@@ -1,0 +1,141 @@
+import datetime
+import os
+import time
+from optparse import OptionParser
+
+import apex
+import torch
+import torch.nn.functional as F
+from apex.parallel import DistributedDataParallel as DDP
+from torch.utils.data import DataLoader
+
+import pylibwholegraph.torch as wgth
+
+parser = OptionParser()
+
+wgth.add_distributed_launch_options(parser)
+wgth.add_training_options(parser)
+wgth.add_common_graph_options(parser)
+wgth.add_common_model_options(parser)
+wgth.add_common_sampler_options(parser)
+wgth.add_node_classfication_options(parser)
+wgth.add_dataloader_options(parser)
+
+(options, args) = parser.parse_args()
+
+
+def valid_test(dataloader, model, name):
+    total_correct = 0
+    total_valid_sample = 0
+    if comm.get_rank() == 0:
+        print("%s..." % (name,))
+    for i, (idx, label) in enumerate(dataloader):
+        label = torch.reshape(label, (-1,)).cuda()
+        model.eval()
+        logits = model(idx)
+        pred = torch.argmax(logits, 1)
+        correct = (pred == label).sum()
+        total_correct += correct.cpu()
+        total_valid_sample += label.shape[0]
+    if comm.get_rank() == 0:
+        print(
+            "[%s] [%s] accuracy=%5.2f%%"
+            % (
+                datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                name,
+                100.0 * total_correct / total_valid_sample,
+            )
+        )
+
+
+def valid(valid_dataloader, model):
+    valid_test(valid_dataloader, model, "VALID")
+
+
+def test(test_dataset, model):
+    test_dataloader = wgth.get_valid_test_dataloader(test_dataset, options.batchsize)
+    valid_test(test_dataloader, model, "TEST")
+
+
+def train(train_data, valid_data, model, optimizer, global_comm):
+    if comm.get_rank() == 0:
+        print("start training...")
+    train_dataloader = wgth.get_train_dataloader(
+        train_data, options.batchsize, replica_id=wgth.get_rank(), num_replicas=wgth.get_world_size(),
+        num_workers=options.dataloaderworkers
+    )
+    valid_dataloader = wgth.get_valid_test_dataloader(valid_data, options.batchsize)
+
+    train_step = 0
+    epoch = 0
+    loss_fcn = torch.nn.CrossEntropyLoss()
+    train_start_time = time.time()
+    while epoch < options.epochs:
+        for i, (idx, label) in enumerate(train_dataloader):
+            label = torch.reshape(label, (-1,)).cuda()
+            optimizer.zero_grad()
+            model.train()
+            logits = model(idx)
+            loss = loss_fcn(logits, label)
+            loss.backward()
+            optimizer.step()
+            if comm.get_rank() == 0 and train_step % 100 == 0:
+                print(
+                    "[%s] [LOSS] step=%d, loss=%f"
+                    % (
+                        datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        train_step,
+                        loss.cpu().item(),
+                    )
+                )
+            train_step = train_step + 1
+        epoch = epoch + 1
+    global_comm.barrier()
+    train_end_time = time.time()
+    train_time = train_end_time - train_start_time
+    if comm.get_rank() == 0:
+        print(
+            "[%s] [TRAIN_TIME] train time is %.2f seconds"
+            % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), train_time)
+        )
+        print(
+            "[EPOCH_TIME] %.2f seconds."
+            % ((train_end_time - train_start_time) / options.epochs,)
+        )
+    valid(valid_dataloader, model)
+
+
+def main_func():
+    print(f'Rank={wgth.get_rank()}, local_rank={wgth.get_local_rank()}')
+    global_comm, local_comm = wgth.init_torch_env_and_create_wm_comm(wgth.get_rank(),
+                                                                     wgth.get_world_size(),
+                                                                     wgth.get_local_rank(),
+                                                                     wgth.get_local_size())
+
+    train_ds, valid_ds, test_ds = wgth.create_node_claffication_datasets(options.pickle_data_path)
+
+    graph_structure = wgth.GraphStructure()
+    csr_row_ptr_wm_tensor = wgth.create_wholememory_tensor_from_filelist(
+        local_comm, 'chunked', 'cuda', os.path.join(options.root_dir, 'homograph_csr_row_ptr'), torch.int64)
+    csr_col_ind_wm_tensor = wgth.create_wholememory_tensor_from_filelist(
+        local_comm, 'chunked', 'cuda', os.path.join(options.root_dir, 'homograph_csr_col_idx'), torch.int)
+    graph_structure.set_csr_graph(csr_row_ptr_wm_tensor, csr_col_ind_wm_tensor)
+
+    feature_comm = global_comm if options.use_global_embedding else local_comm
+    node_feat_wm_tensor = wgth.create_embedding_from_filelist(
+        feature_comm, 'chunked', 'cuda', os.path.join(options.root_dir, 'node_feat.bin'), torch.float, options.feat_dim)
+    wgth.set_framework(options.framework)
+    model = wgth.HomoGNNModel(graph_structure, node_feat_wm_tensor, options)
+    model.cuda()
+    model = DDP(model, delay_allreduce=True)
+    optimizer = apex.optimizers.FusedAdam(model.parameters(), lr=options.lr)
+
+    train(train_ds, valid_ds, model, optimizer, global_comm)
+    test(test_ds, model)
+
+    wgth.finalize()
+
+
+if __name__ == "__main__":
+    wgth.distributed_launch(options, main_func)
+

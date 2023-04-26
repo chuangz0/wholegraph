@@ -3,6 +3,7 @@ import pylibwholegraph.binding.wholememory_binding as wmb
 from enum import IntEnum
 import sys
 from typing import Union
+from .utils import wholememory_dtype_to_torch_dtype, torch_dtype_to_wholememory_dtype
 
 
 default_cuda_stream_int_ptr = None
@@ -23,48 +24,6 @@ def get_stream(use_default = True):
     else:
         cuda_stream_int_ptr = default_cuda_stream_int_ptr
     return cuda_stream_int_ptr
-
-
-def wholememory_dtype_to_pytorch_dtype(wm_dtype: wmb.WholeMemoryDataType):
-    if wm_dtype == wmb.WholeMemoryDataType.DtFloat:
-        return torch.float
-    elif wm_dtype == wmb.WholeMemoryDataType.DtHalf:
-        return torch.half
-    elif wm_dtype == wmb.WholeMemoryDataType.DtBF16:
-        return torch.bfloat16
-    elif wm_dtype == wmb.WholeMemoryDataType.DtInt:
-        return torch.int
-    elif wm_dtype == wmb.WholeMemoryDataType.DtInt64:
-        return torch.int64
-    elif wm_dtype == wmb.WholeMemoryDataType.DtInt8:
-        return torch.int8
-    elif wm_dtype == wmb.WholeMemoryDataType.DtDouble:
-        return torch.double
-    elif wm_dtype == wmb.WholeMemoryDataType.DtInt16:
-        return torch.int16
-    else:
-        raise ValueError('Invalid wmb.WholeMemoryDataType')
-
-
-def pytorch_dtype_to_wholememory_dtype(th_dtype: torch.dtype):
-    if th_dtype == torch.float:
-        return wmb.WholeMemoryDataType.DtFloat
-    elif th_dtype == torch.half:
-        return wmb.WholeMemoryDataType.DtHalf
-    elif th_dtype == torch.bfloat16:
-        return wmb.WholeMemoryDataType.DtBF16
-    elif th_dtype == torch.int:
-        return wmb.WholeMemoryDataType.DtInt
-    elif th_dtype == torch.int64:
-        return wmb.WholeMemoryDataType.DtInt64
-    elif th_dtype == torch.int8:
-        return wmb.WholeMemoryDataType.DtInt8
-    elif th_dtype == torch.double:
-        return wmb.WholeMemoryDataType.DtDouble
-    elif th_dtype == torch.int16:
-        return wmb.WholeMemoryDataType.DtInt16
-    else:
-        raise ValueError('Not supported torch.dtype')
 
 
 class TorchEmptyGlobalContext(object):
@@ -164,7 +123,7 @@ def wrap_torch_tensor(t: Union[torch.Tensor, None]) -> wmb.WrappedLocalTensor:
     wm_t = wmb.WrappedLocalTensor()
     if t is None:
         return wm_t.wrap_tensor(py_desc, 0)
-    py_desc.set_dtype(pytorch_dtype_to_wholememory_dtype(t.dtype))
+    py_desc.set_dtype(torch_dtype_to_wholememory_dtype(t.dtype))
     py_desc.set_storage_offset(0)
     py_desc.set_shape(tuple(t.shape))
     py_desc.set_stride(tuple(t.stride()))
