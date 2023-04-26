@@ -111,7 +111,7 @@ wholememory_error_code_t spadd_gat_csr_backward(
  * @param stream : CUDA stream to use
  * @return : wholememory_error_code_t
  */
-wholememory_error_code_t edge_weight_softmax_forward(
+wholememory_error_code_t edge_weight_softmax_csr_forward(
   wholememory_tensor_t csr_row_ptr_tensor,
   wholememory_tensor_t edge_weight_tensor,
   wholememory_tensor_t output_edge_weight_softmax_tensor,
@@ -126,7 +126,7 @@ wholememory_error_code_t edge_weight_softmax_forward(
  * @param stream : CUDA stream to use
  * @return : wholememory_error_code_t
  */
-wholememory_error_code_t edge_weight_softmax_backward(
+wholememory_error_code_t edge_weight_softmax_csr_backward(
   wholememory_tensor_t csr_row_ptr_tensor,
   wholememory_tensor_t edge_weight_tensor,
   wholememory_tensor_t grad_edge_weight_softmax_tensor,

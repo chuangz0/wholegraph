@@ -169,7 +169,6 @@ TEST_P(GraphCsrAddSelfLoopParameterTests, CsrAddSelfLoopParameterTest)
                                                      output_csr_col_ptr_array_desc,
                                                      host_ref_output_csr_col_ptr,
                                                      output_csr_col_ptr_array_desc);
-
   EXPECT_EQ(cudaFree(dev_csr_row_ptr), cudaSuccess);
   EXPECT_EQ(cudaFree(dev_csr_col_ptr), cudaSuccess);
   EXPECT_EQ(cudaFree(dev_output_csr_row_ptr), cudaSuccess);
