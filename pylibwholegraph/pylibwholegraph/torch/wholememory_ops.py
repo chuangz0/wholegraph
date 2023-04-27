@@ -1,6 +1,7 @@
 import torch
 import pylibwholegraph.binding.wholememory_binding as wmb
-from .wholegraph_env import get_stream, wholememory_dtype_to_pytorch_dtype, TorchMemoryContext, get_wholegraph_env_fns, wrap_torch_tensor
+from .wholegraph_env import get_stream, TorchMemoryContext, get_wholegraph_env_fns, wrap_torch_tensor
+from .utils import wholememory_dtype_to_torch_dtype
 
 
 def wholememory_gather_forward_functor(wholememory_tensor: wmb.PyWholeMemoryTensor,
@@ -10,7 +11,7 @@ def wholememory_gather_forward_functor(wholememory_tensor: wmb.PyWholeMemoryTens
     assert indices_tensor.dim() == 1
     assert indices_tensor.dtype == torch.int32 or indices_tensor.dtype == torch.int64
     if torch_output_dtype is None:
-        torch_output_dtype = wholememory_dtype_to_pytorch_dtype(wholememory_tensor.dtype)
+        torch_output_dtype = wholememory_dtype_to_torch_dtype(wholememory_tensor.dtype)
     output_tensor = torch.empty([indices_tensor.shape[0], wholememory_tensor.shape[1]], device='cuda',
                                 dtype=torch_output_dtype, requires_grad=requires_grad)
     wmb.wholememory_gather_op(wholememory_tensor, wrap_torch_tensor(indices_tensor), wrap_torch_tensor(output_tensor),

@@ -186,4 +186,4 @@ add_subdirectory(pylibwholegraph/binding)
 # export LIBWHOLEGRAPH_DIR=`pwd`/../../cpp/build/install
 # cmake ../ -DSKBUILD=ON
 
-#add_subdirectory(wholegraph_torch)
+add_subdirectory(wholegraph_torch)

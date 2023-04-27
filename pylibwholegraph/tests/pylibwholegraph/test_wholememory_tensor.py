@@ -65,7 +65,8 @@ def matrix_test_case(wm_comm, dt, mt, ml, mat_size):
 
 
 def routine_func(world_rank: int, world_size: int):
-    wm_comm = init_torch_env_and_create_wm_comm(world_rank, world_size)
+    wm_comm, _ = init_torch_env_and_create_wm_comm(world_rank, world_size, world_rank, world_size)
+    wm_comm = wm_comm.wmb_comm
 
     single_array_size = 128 * 1024 * 1024 * world_size
     single_matrix_size = (1024 * 1024 * world_size, 128)

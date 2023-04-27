@@ -84,7 +84,8 @@ def host_unweighted_sample_without_replacement(host_csr_row_ptr, host_csr_col_pt
 
 
 def routine_func(world_rank: int, world_size: int, **kwargs):
-    wm_comm = init_torch_env_and_create_wm_comm(world_rank, world_size)
+    wm_comm, _ = init_torch_env_and_create_wm_comm(world_rank, world_size, world_rank, world_size)
+    wm_comm = wm_comm.wmb_comm
     load_wholegraph_op_libraries()
     host_csr_row_ptr = kwargs['host_csr_row_ptr']
     host_csr_col_ptr = kwargs['host_csr_col_ptr']

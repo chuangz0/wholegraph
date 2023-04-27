@@ -88,7 +88,8 @@ def scatter_gather_test_cast(wm_comm, dt, mt, ml, embedding_count, embedding_dim
 
 
 def routine_func(world_rank: int, world_size: int):
-    wm_comm = init_torch_env_and_create_wm_comm(world_rank, world_size)
+    wm_comm, _ = init_torch_env_and_create_wm_comm(world_rank, world_size, world_rank, world_size)
+    wm_comm = wm_comm.wmb_comm
 
     load_wholegraph_op_libraries()
 

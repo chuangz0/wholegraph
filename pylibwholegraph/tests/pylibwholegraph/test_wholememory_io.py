@@ -41,7 +41,8 @@ def load_routine_func(world_rank: int,
                       embedding_dim,
                       embedding_stride,
                       storage_offset):
-    wm_comm = init_torch_env_and_create_wm_comm(world_rank, world_size)
+    wm_comm, _ = init_torch_env_and_create_wm_comm(world_rank, world_size, world_rank, world_size)
+    wm_comm = wm_comm.wmb_comm
     data_type = wmb.WholeMemoryDataType.DtInt
     file_list = [None] * file_part_count
 
@@ -131,7 +132,8 @@ def store_routine_func(world_rank: int,
                        embedding_dim,
                        embedding_stride,
                        storage_offset):
-    wm_comm = init_torch_env_and_create_wm_comm(world_rank, world_size)
+    wm_comm,  = init_torch_env_and_create_wm_comm(world_rank, world_size, world_rank, world_size)
+    wm_comm = wm_comm.wmb_comm
     data_type = wmb.WholeMemoryDataType.DtInt
 
     mt = wmb.WholeMemoryMemoryType.MtContinuous

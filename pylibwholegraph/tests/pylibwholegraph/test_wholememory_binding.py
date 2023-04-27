@@ -64,7 +64,8 @@ def single_test_case(wm_comm, mt, ml, malloc_size, granularity):
 
 
 def routine_func(world_rank: int, world_size: int):
-    wm_comm = init_torch_env_and_create_wm_comm(world_rank, world_size)
+    wm_comm, _ = init_torch_env_and_create_wm_comm(world_rank, world_size, world_rank, world_size)
+    wm_comm = wm_comm.wmb_comm
 
     single_rank_size = 1024 * 1024 * 1024
     malloc_size = single_rank_size * world_size
