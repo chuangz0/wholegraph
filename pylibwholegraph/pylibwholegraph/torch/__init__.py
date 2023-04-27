@@ -1,7 +1,8 @@
 from .comm import WholeMemoryCommunicator, create_group_communicator, destroy_communicator
+from .comm import get_global_communicator, get_local_node_communicator, get_local_device_communicator
 
 from .embedding import WholeMemoryOptimizer, create_wholememory_optimizer, destroy_wholememory_optimizer
-from .embedding import WholeMemoryCachePolicy, create_wholememory_cache_policy, destroy_wholememory_cache_policy
+from .embedding import WholeMemoryCachePolicy, create_builtin_cache_policy, create_wholememory_cache_policy, destroy_wholememory_cache_policy
 from .embedding import WholeMemoryEmbedding, create_embedding, create_embedding_from_filelist, destroy_embedding
 from .embedding import WholeMemoryEmbeddingModule
 

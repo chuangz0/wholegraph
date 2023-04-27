@@ -75,7 +75,7 @@ def torch_malloc_env_fn(tensor_desc: wmb.PyWholeMemoryTensorDescription,
     #print('torch_malloc_env_fn after config', file=sys.stderr)
     shape = tensor_desc.shape
     #print('torch_malloc_env_fn after shape', file=sys.stderr)
-    dtype = wholememory_dtype_to_pytorch_dtype(tensor_desc.dtype)
+    dtype = wholememory_dtype_to_torch_dtype(tensor_desc.dtype)
     #print('torch_malloc_env_fn after dtype', file=sys.stderr)
     t = torch.empty(shape,
                     dtype=dtype,

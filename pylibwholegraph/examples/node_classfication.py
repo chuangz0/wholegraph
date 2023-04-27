@@ -27,7 +27,7 @@ wgth.add_dataloader_options(parser)
 def valid_test(dataloader, model, name):
     total_correct = 0
     total_valid_sample = 0
-    if comm.get_rank() == 0:
+    if wgth.get_rank() == 0:
         print("%s..." % (name,))
     for i, (idx, label) in enumerate(dataloader):
         label = torch.reshape(label, (-1,)).cuda()
@@ -37,7 +37,7 @@ def valid_test(dataloader, model, name):
         correct = (pred == label).sum()
         total_correct += correct.cpu()
         total_valid_sample += label.shape[0]
-    if comm.get_rank() == 0:
+    if wgth.get_rank() == 0:
         print(
             "[%s] [%s] accuracy=%5.2f%%"
             % (
@@ -57,14 +57,15 @@ def test(test_dataset, model):
     valid_test(test_dataloader, model, "TEST")
 
 
-def train(train_data, valid_data, model, optimizer, global_comm):
-    if comm.get_rank() == 0:
+def train(train_data, valid_data, model, optimizer, wm_optimizer, global_comm):
+    if wgth.get_rank() == 0:
         print("start training...")
     train_dataloader = wgth.get_train_dataloader(
         train_data, options.batchsize, replica_id=wgth.get_rank(), num_replicas=wgth.get_world_size(),
         num_workers=options.dataloaderworkers
     )
     valid_dataloader = wgth.get_valid_test_dataloader(valid_data, options.batchsize)
+    valid(valid_dataloader, model)
 
     train_step = 0
     epoch = 0
@@ -79,7 +80,9 @@ def train(train_data, valid_data, model, optimizer, global_comm):
             loss = loss_fcn(logits, label)
             loss.backward()
             optimizer.step()
-            if comm.get_rank() == 0 and train_step % 100 == 0:
+            if wm_optimizer is not None:
+                wm_optimizer.step(options.lr * 0.1)
+            if wgth.get_rank() == 0 and train_step % 100 == 0:
                 print(
                     "[%s] [LOSS] step=%d, loss=%f"
                     % (
@@ -93,7 +96,7 @@ def train(train_data, valid_data, model, optimizer, global_comm):
     global_comm.barrier()
     train_end_time = time.time()
     train_time = train_end_time - train_start_time
-    if comm.get_rank() == 0:
+    if wgth.get_rank() == 0:
         print(
             "[%s] [TRAIN_TIME] train time is %.2f seconds"
             % (datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), train_time)
@@ -115,22 +118,55 @@ def main_func():
     train_ds, valid_ds, test_ds = wgth.create_node_claffication_datasets(options.pickle_data_path)
 
     graph_structure = wgth.GraphStructure()
+    graph_structure_wholememory_type = 'chunked'
+    graph_structure_wholememory_location = 'cuda'
     csr_row_ptr_wm_tensor = wgth.create_wholememory_tensor_from_filelist(
-        local_comm, 'chunked', 'cuda', os.path.join(options.root_dir, 'homograph_csr_row_ptr'), torch.int64)
+        local_comm, graph_structure_wholememory_type, graph_structure_wholememory_location,
+        os.path.join(options.root_dir, 'homograph_csr_row_ptr'), torch.int64)
     csr_col_ind_wm_tensor = wgth.create_wholememory_tensor_from_filelist(
-        local_comm, 'chunked', 'cuda', os.path.join(options.root_dir, 'homograph_csr_col_idx'), torch.int)
+        local_comm, graph_structure_wholememory_type, graph_structure_wholememory_location,
+        os.path.join(options.root_dir, 'homograph_csr_col_idx'), torch.int)
     graph_structure.set_csr_graph(csr_row_ptr_wm_tensor, csr_col_ind_wm_tensor)
 
     feature_comm = global_comm if options.use_global_embedding else local_comm
-    node_feat_wm_tensor = wgth.create_embedding_from_filelist(
-        feature_comm, 'chunked', 'cuda', os.path.join(options.root_dir, 'node_feat.bin'), torch.float, options.feat_dim)
+
+    embedding_wholememory_type = options.embedding_memory_type
+    embedding_wholememory_location = 'cpu' if options.cache_type != 'none' or options.cache_ratio == 0.0 else 'cuda'
+    if options.cache_ratio == 0.0:
+        options.cache_type = 'none'
+    access_type = 'readonly' if options.train_embedding is False else 'readwrite'
+    if wgth.get_rank() == 0:
+        print(f'graph_structure: type={graph_structure_wholememory_type}, '
+              f'location={graph_structure_wholememory_location}\n'
+              f'embedding: type={embedding_wholememory_type}, location={embedding_wholememory_location}, '
+              f'cache_type={options.cache_type}, cache_ratio={options.cache_ratio}, '
+              f'trainable={options.train_embedding}')
+    cache_policy = wgth.create_builtin_cache_policy(options.cache_type,
+                                                    embedding_wholememory_type,
+                                                    embedding_wholememory_location,
+                                                    access_type,
+                                                    options.cache_ratio)
+
+    wm_optimizer = None if options.train_embedding is False else wgth.create_wholememory_optimizer('adam', {})
+
+    if wm_optimizer is None:
+        node_feat_wm_embedding = wgth.create_embedding_from_filelist(
+            feature_comm, embedding_wholememory_type, embedding_wholememory_location,
+            os.path.join(options.root_dir, 'node_feat.bin'), torch.float,
+            options.feat_dim, optimizer = wm_optimizer, cache_policy = cache_policy)
+    else:
+        node_feat_wm_embedding = wgth.create_embedding(
+            feature_comm, embedding_wholememory_type, embedding_wholememory_location,
+            torch.float, [graph_structure.node_count, options.feat_dim],
+            optimizer=wm_optimizer, cache_policy=cache_policy, random_init=True
+        )
     wgth.set_framework(options.framework)
-    model = wgth.HomoGNNModel(graph_structure, node_feat_wm_tensor, options)
+    model = wgth.HomoGNNModel(graph_structure, node_feat_wm_embedding, options)
     model.cuda()
     model = DDP(model, delay_allreduce=True)
     optimizer = apex.optimizers.FusedAdam(model.parameters(), lr=options.lr)
 
-    train(train_ds, valid_ds, model, optimizer, global_comm)
+    train(train_ds, valid_ds, model, optimizer, wm_optimizer, global_comm)
     test(test_ds, model)
 
     wgth.finalize()

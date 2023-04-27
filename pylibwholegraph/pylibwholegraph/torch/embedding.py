@@ -6,6 +6,7 @@ from .utils import str_to_wmb_wholememory_location, str_to_wmb_wholememory_memor
 from .utils import str_to_wmb_wholememory_optimizer_type, str_to_wmb_wholememory_access_type
 from typing import Union, List
 from .comm import WholeMemoryCommunicator
+from .comm import get_global_communicator, get_local_node_communicator, get_local_device_communicator
 from .wholegraph_env import get_stream
 from .tensor import WholeMemoryTensor
 from .wholegraph_env import wrap_torch_tensor, get_wholegraph_env_fns, get_stream
@@ -14,9 +15,9 @@ from .wholegraph_env import wrap_torch_tensor, get_wholegraph_env_fns, get_strea
 class WholeMemoryOptimizer(object):
     def __init__(self, global_comm: WholeMemoryCommunicator):
         super().__init__()
-        self.wmb_opt = None
+        self.wmb_opt = wmb.WholeMemoryOptimizer()
         self.embeddings = []
-        self.global_comm = None
+        self.global_comm = global_comm
 
     def add_embedding(self, wm_embedding):
         self.embeddings.append(wm_embedding)
@@ -24,13 +25,14 @@ class WholeMemoryOptimizer(object):
     def step(self, lr: float):
         for wm_embedding in self.embeddings:
             if wm_embedding.need_apply:
-                wm_embedding.apply_gradient(lr)
+                wm_embedding.apply_gradients(lr)
         self.global_comm.barrier()
 
 
-def create_wholememory_optimizer(global_comm: WholeMemoryCommunicator, optimizer_type: str, param_dict: dict):
-    wm_optimizer = WholeMemoryOptimizer(global_comm)
+def create_wholememory_optimizer(optimizer_type: str, param_dict: dict):
+    wm_optimizer = WholeMemoryOptimizer(get_global_communicator())
     wm_optimizer.wmb_opt.create_optimizer(str_to_wmb_wholememory_optimizer_type(optimizer_type), param_dict)
+    return wm_optimizer
 
 
 def destroy_wholememory_optimizer(optimizer: WholeMemoryOptimizer):
@@ -39,9 +41,9 @@ def destroy_wholememory_optimizer(optimizer: WholeMemoryOptimizer):
 
 
 class WholeMemoryCachePolicy(object):
-    def __init__(self):
+    def __init__(self, wmb_cache_policy: wmb.WholeMemoryCachePolicy):
         super().__init__()
-        self.wmb_cache_policy = None
+        self.wmb_cache_policy = wmb_cache_policy
 
 
 def create_wholememory_cache_policy(cache_comm: WholeMemoryCommunicator,
@@ -56,38 +58,106 @@ def create_wholememory_cache_policy(cache_comm: WholeMemoryCommunicator,
                                    str_to_wmb_wholememory_location(memory_location),
                                    str_to_wmb_wholememory_access_type(access_type),
                                    ratio)
-    return wmb_cache_policy
+    return WholeMemoryCachePolicy(wmb_cache_policy)
 
-def destroy_wholememory_cache_policy(wmb_cache_policy: WholeMemoryCachePolicy):
+
+def destroy_wholememory_cache_policy(cache_policy: WholeMemoryCachePolicy):
+    wmb_cache_policy = cache_policy.wmb_cache_policy
     wmb_cache_policy.destroy_policy()
-    wmb_cache_policy.wmb_cache_policy = None
+    cache_policy.wmb_cache_policy = None
+
+
+def create_builtin_cache_policy(builtin_cache_type: str,
+                                embedding_memory_type: str,
+                                embedding_memory_location: str,
+                                access_type: str,
+                                cache_ratio: float,
+                                *,
+                                cache_memory_type: str = "",
+                                cache_memory_location: str = ""):
+    r"""Create builtin cache policy
+
+    :param builtin_cache_type: supported types are none, local_device, local_node and all_devices
+    :param embedding_memory_type: WholeMemory type of raw embedding
+    :param embedding_memory_location: WholeMemory location of raw embedding
+    :param access_type: Access type needed
+    :param cache_ratio: ratio of cache
+    :param cache_memory_type: WholeMemory type of cache
+    :param cache_memory_location: WholeMemory location of cache
+    :return: WholeMemoryCachePolicy or None
+    """
+
+    if embedding_memory_type != 'continuous' and embedding_memory_type != 'chunked' and embedding_memory_type != 'distributed':
+        raise ValueError(f'embedding_memory_type={embedding_memory_type} is not valid')
+
+    if embedding_memory_location != 'cpu' and embedding_memory_location != 'cuda':
+        raise ValueError(f'embedding_memory_location={embedding_memory_location} is not valid')
+
+    if builtin_cache_type == 'none':
+        return None
+
+    if cache_memory_location != '' and cache_memory_location != 'cpu' and cache_memory_location != 'cuda':
+        raise ValueError(f'cache_memory_location is {cache_memory_location}, should be empty or cpu, cuda')
+    cache_memory_location = "cuda" if cache_memory_location == '' else cache_memory_location
+    if builtin_cache_type == 'all_devices':
+        if embedding_memory_location == 'cuda':
+            print(f'[WARNING] Seems you are using device cache for device memory, '
+                  f'this may consume more memory and have low performance than use none cache')
+        cache_memory_type = embedding_memory_type if cache_memory_type == '' else cache_memory_type
+        return create_wholememory_cache_policy(get_global_communicator(),
+                                               memory_type=cache_memory_type,
+                                               memory_location=cache_memory_location,
+                                               access_type=access_type,
+                                               ratio=cache_ratio)
+
+    if builtin_cache_type == 'local_node':
+        cache_memory_type = 'chunked' if cache_memory_type == '' else cache_memory_type
+        return create_wholememory_cache_policy(get_local_node_communicator(),
+                                               memory_type=cache_memory_type,
+                                               memory_location=cache_memory_location,
+                                               access_type=access_type,
+                                               ratio=cache_ratio)
+
+    if builtin_cache_type == 'local_device':
+        cache_memory_type = 'continuous'
+        return create_wholememory_cache_policy(get_local_device_communicator(),
+                                               memory_type=cache_memory_type,
+                                               memory_location=cache_memory_location,
+                                               access_type=access_type,
+                                               ratio=cache_ratio)
+
+    raise ValueError(f'builtin_cache_type={builtin_cache_type} not supported, '
+                     f'should be none, local_device, local_node or all_devices')
 
 
 class EmbeddingLookupFn(torch.autograd.Function):
     @staticmethod
     def forward(ctx,
                 indice: torch.Tensor,
+                dummy_input: torch.Tensor,
                 wm_embedding,
+                is_training: bool = False,
                 force_dtype: Union[torch.dtype, None] = None):
-        output_tensor = wm_embedding.gather(indice, force_dtype)
-        if wm_embedding.need_grad():
-            ctx.save_for_backward(indice, output_tensor)
+        output_tensor = wm_embedding.gather(indice, is_training=is_training, force_dtype=force_dtype)
+        if is_training and wm_embedding.need_grad():
+            ctx.save_for_backward(indice, output_tensor, dummy_input)
             ctx.wm_embedding = wm_embedding
         return output_tensor
 
     @staticmethod
     def backward(ctx,
                  grad_outputs: torch.Tensor):
-        indice, output_tensor = ctx.saved_tensors
+        indice, output_tensor, dummy_input = ctx.saved_tensors
         wm_embedding = ctx.wm_embedding
-        wm_embedding.add_gradients(indice, wm_embedding)
+        wm_embedding.add_gradients(indice, grad_outputs)
         ctx.wm_embedding = None
-        return None
+        return None, torch.zeros_like(dummy_input), None, None, None
 
 
 class WholeMemoryEmbedding(object):
     r"""WholeMemory Embedding
     """
+
     def __init__(self,
                  wmb_embedding: wmb.PyWholeMemoryEmbedding,
                  wmb_optimizer: Union[WholeMemoryOptimizer, None],
@@ -102,39 +172,62 @@ class WholeMemoryEmbedding(object):
 
         self.adjust_cache = True if self.wmb_cache_policy is not None else False
 
+        dummy_input_need_grad = True if self.wmb_optimizer is not None else False
+        self.dummy_input = torch.nn.Parameter(
+                torch.zeros(1), requires_grad=dummy_input_need_grad
+            )
+
         self.need_apply = False
         self.sparse_indices = []
         self.sparse_grads = []
+
+    def dim(self):
+        return self.get_embedding_tensor().dim()
+
+    @property
+    def shape(self):
+        return self.get_embedding_tensor().shape
 
     def set_adjust_cache(self, adjust_cache: bool):
         self.adjust_cache = adjust_cache if self.wmb_cache_policy is not None else False
 
     def need_grad(self):
-        return self.wmb_optimizer is not None and torch.is_grad_enabled()
+        return self.wmb_embedding is not None
 
     def gather(self,
                indice: torch.Tensor,
+               *,
+               is_training : bool = False,
                force_dtype: Union[torch.dtype, None] = None):
         assert indice.dim() == 1
         embedding_dim = self.get_embedding_tensor().shape[1]
         embedding_count = indice.shape[0]
-        current_cuda_device = 'cuda:%d' % (torch.cuda.current_device(), )
+        current_cuda_device = 'cuda:%d' % (torch.cuda.current_device(),)
         output_dtype = force_dtype if force_dtype is not None else self.embedding_tensor.dtype
-        need_grad = self.need_grad()
+        need_grad = self.need_grad() and is_training
         output_tensor = torch.empty([embedding_count, embedding_dim],
                                     device=current_cuda_device,
                                     dtype=output_dtype,
                                     requires_grad=need_grad)
         if need_grad:
             self.need_apply = True
+        wmb.EmbeddingGatherForward(self.wmb_embedding,
+                                   wrap_torch_tensor(indice),
+                                   wrap_torch_tensor(output_tensor),
+                                   self.adjust_cache,
+                                   get_wholegraph_env_fns(),
+                                   get_stream())
+        return output_tensor
 
     def add_gradients(self, indice: torch.Tensor, grad_outputs: torch.Tensor):
+        #print(f'adding gradients sparse_indices={indice}, sparse_grads={grad_outputs}')
         self.sparse_indices.append(indice)
         self.sparse_grads.append(grad_outputs)
 
     def apply_gradients(self, lr: float):
         sparse_indices = torch.cat(self.sparse_indices)
         sparse_grads = torch.cat(self.sparse_grads)
+        #print(f'applying gradients sparse_indices={sparse_indices}, sparse_grads={sparse_grads}')
         wmb.EmbeddingGatherGradientApply(self.wmb_embedding,
                                          wrap_torch_tensor(sparse_indices),
                                          wrap_torch_tensor(sparse_grads),
@@ -184,8 +277,10 @@ def create_embedding(comm: WholeMemoryCommunicator,
                      memory_location: str,
                      dtype: torch.dtype,
                      sizes: List[int],
+                     *,
                      optimizer: Union[WholeMemoryOptimizer, None] = None,
-                     cache_policy: Union[WholeMemoryCachePolicy, None] = None):
+                     cache_policy: Union[WholeMemoryCachePolicy, None] = None,
+                     random_init: bool=False):
     r"""
     Create embedding
     :param comm: WholeMemoryCommunicator
@@ -221,6 +316,10 @@ def create_embedding(comm: WholeMemoryCommunicator,
         cache_policy)
     if optimizer is not None:
         optimizer.add_embedding(wm_embedding)
+    if random_init is True:
+        local_tensor, local_offset = wm_embedding.get_embedding_tensor().get_local_tensor()
+        torch.nn.init.xavier_uniform_(local_tensor)
+    comm.barrier()
     return wm_embedding
 
 
@@ -230,6 +329,7 @@ def create_embedding_from_filelist(comm: WholeMemoryCommunicator,
                                    filelist: Union[List[str], str],
                                    dtype: torch.dtype,
                                    last_dim_size: int,
+                                   *,
                                    optimizer: Union[WholeMemoryOptimizer, None] = None,
                                    cache_policy: Union[WholeMemoryCachePolicy, None] = None):
     r"""
@@ -261,8 +361,8 @@ def create_embedding_from_filelist(comm: WholeMemoryCommunicator,
                                     memory_location,
                                     dtype,
                                     [total_entry_count, last_dim_size],
-                                    optimizer,
-                                    cache_policy)
+                                    optimizer = optimizer,
+                                    cache_policy = cache_policy)
     wm_embedding.get_embedding_tensor().from_filelist(filelist)
     return wm_embedding
 
@@ -278,5 +378,6 @@ class WholeMemoryEmbeddingModule(torch.nn.Module):
         self.wm_embedding = wm_embedding
         self.embedding_gather_fn = EmbeddingLookupFn.apply
 
-    def forward(self, indice: torch.Tensor, force_dtype: Union[torch.dtype, None] = None):
-        return self.embedding_gather_fn(indice, self.wm_embedding, force_dtype)
+    def forward(self, indice: torch.Tensor,
+                force_dtype: Union[torch.dtype, None] = None):
+        return self.embedding_gather_fn(indice, self.wm_embedding.dummy_input, self.wm_embedding, self.training, force_dtype)

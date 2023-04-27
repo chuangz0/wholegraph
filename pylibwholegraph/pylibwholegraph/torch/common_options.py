@@ -9,6 +9,17 @@ def add_training_options(parser: OptionParser):
         "-b", "--batchsize", type="int", dest="batchsize", default=1024, help="batch size"
     )
     parser.add_option("--lr", type="float", dest="lr", default=0.003, help="learning rate")
+    parser.add_option("--embedding-memory-type",
+                      dest="embedding_memory_type",
+                      default="chunked",
+                      help="Embedding memory type, should be: continuous, chunked or distributed")
+    parser.add_option("--cache-type",
+                      dest="cache_type",
+                      default="none",
+                      help="Embedding cache type, should be: none, local_device, local_node or all_devices")
+    parser.add_option("--cache-ratio", type="float", dest="cache_ratio", default=0.5, help="cache ratio")
+    parser.add_option("--train-embedding", action="store_true", dest='train_embedding', default=False,
+                      help="Whether to train embedding")
 
 
 def add_common_graph_options(parser: OptionParser):
@@ -52,7 +63,7 @@ def add_common_model_options(parser: OptionParser):
         "-f",
         "--framework",
         dest="framework",
-        default="wg",
+        default="cugraph",
         help="framework type, valid values are: dgl, pyg, wg, cugraph",
     )
     parser.add_option("--heads", type="int", dest="heads", default=1, help="num heads")

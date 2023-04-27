@@ -109,7 +109,7 @@ wholememory_error_code_t load_file_to_handle(wholememory_handle_t wholememory_ha
     file_total_size += file_sizes[i];
   }
 
-  if (file_total_size != expected_file_size) {
+  if (file_total_size > expected_file_size) {
     WHOLEMEMORY_ERROR("all %d input file size is %ld, but expected %ld",
                       file_count,
                       file_total_size,
@@ -238,7 +238,7 @@ wholememory_error_code_t load_file_to_handle(wholememory_handle_t wholememory_ha
       file_entry_offset += file_entry_count;
     }
     WHOLEMEMORY_INFO(
-      "Rank=%d done reading total %d bytes from needed files.", wm_rank, total_read_bytes);
+      "Rank=%d done reading total %ld bytes from needed files.", wm_rank, total_read_bytes);
     wm_comm->barrier();
   } catch (wholememory::logic_error& wle) {
     WHOLEMEMORY_ERROR("Logic error: %s", wle.what());

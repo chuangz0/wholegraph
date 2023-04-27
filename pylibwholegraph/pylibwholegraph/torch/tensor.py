@@ -45,31 +45,31 @@ class WholeMemoryTensor(object):
     def get_local_tensor(self, host_view: bool = False):
         if host_view:
             return self.wmb_tensor.get_local_tensor(torch_import_from_dlpack,
-                                                    WholeMemoryMemoryLocation.WHOLEMEMORY_ML_HOST,
+                                                    WholeMemoryMemoryLocation.MlHost,
                                                     -1)
         else:
             return self.wmb_tensor.get_local_tensor(torch_import_from_dlpack,
-                                                    WholeMemoryMemoryLocation.WHOLEMEMORY_ML_DEVICE,
+                                                    WholeMemoryMemoryLocation.MlDevice,
                                                     torch.cuda.current_device())
 
     def get_global_tensor(self, host_view: bool = False):
         if host_view:
             return self.wmb_tensor.get_global_tensor(torch_import_from_dlpack,
-                                                     WholeMemoryMemoryLocation.WHOLEMEMORY_ML_HOST,
+                                                     WholeMemoryMemoryLocation.MlHost,
                                                      -1)
         else:
             return self.wmb_tensor.get_global_tensor(torch_import_from_dlpack,
-                                                     WholeMemoryMemoryLocation.WHOLEMEMORY_ML_DEVICE,
+                                                     WholeMemoryMemoryLocation.MlDevice,
                                                      torch.cuda.current_device())
 
     def get_all_chunked_tensor(self, host_view: bool = False):
         if host_view:
             return self.wmb_tensor.get_global_tensorget_all_chunked_tensor(torch_import_from_dlpack,
-                                                                           WholeMemoryMemoryLocation.WHOLEMEMORY_ML_HOST,
+                                                                           WholeMemoryMemoryLocation.MlHost,
                                                                            -1)
         else:
             return self.wmb_tensor.get_global_tensorget_all_chunked_tensor(torch_import_from_dlpack,
-                                                                           WholeMemoryMemoryLocation.WHOLEMEMORY_ML_DEVICE,
+                                                                           WholeMemoryMemoryLocation.MlDevice,
                                                                            torch.cuda.current_device())
 
     def from_filelist(self, filelist: Union[List[str], str]):

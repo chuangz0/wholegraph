@@ -95,9 +95,9 @@ class GraphStructure(object):
         for i in range(hops - 1, -1, -1):
             if weight_name is None:
                 (
-                    neighboor_gids_offset,
-                    neighboor_gids_vdata,
-                    neighboor_src_lids,
+                    neighbor_gids_offset,
+                    neighbor_gids_vdata,
+                    neighbor_src_lids,
                 ) = self.unweighted_sample_without_replacement_one_hop(
                     target_gids[i + 1],
                     max_neighbors[hops - i - 1],
@@ -105,9 +105,9 @@ class GraphStructure(object):
                 )
             else:
                 (
-                    neighboor_gids_offset,
-                    neighboor_gids_vdata,
-                    neighboor_src_lids,
+                    neighbor_gids_offset,
+                    neighbor_gids_vdata,
+                    neighbor_src_lids,
                 ) = self.weighted_sample_without_replacement_one_hop(
                     weight_name,
                     target_gids[i + 1],
@@ -117,16 +117,16 @@ class GraphStructure(object):
             (
                 unique_gids,
                 neighbor_raw_to_unique_mapping,
-            ) = append_unique(
-                target_gids[i + 1], neighboor_gids_vdata, need_neighbor_raw_to_unique=True
+            ) = graph_ops.append_unique(
+                target_gids[i + 1], neighbor_gids_vdata, need_neighbor_raw_to_unique=True
             )
-            csr_row_ptr[i] = neighboor_gids_offset
+            csr_row_ptr[i] = neighbor_gids_offset
             csr_col_ind[i] = neighbor_raw_to_unique_mapping
-            neighboor_count = neighboor_gids_vdata.size()[0]
+            neighbor_count = neighbor_gids_vdata.size()[0]
             edge_indice[i] = torch.cat(
                 [
-                    torch.reshape(neighbor_raw_to_unique_mapping, (1, neighboor_count)),
-                    torch.reshape(neighboor_src_lids, (1, neighboor_count)),
+                    torch.reshape(neighbor_raw_to_unique_mapping, (1, neighbor_count)),
+                    torch.reshape(neighbor_src_lids, (1, neighbor_count)),
                 ]
             )
             target_gids[i] = unique_gids

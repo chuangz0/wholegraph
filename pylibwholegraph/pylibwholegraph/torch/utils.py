@@ -80,9 +80,9 @@ def str_to_wmb_wholememory_location(str_wmb_location: str):
 
 def str_to_wmb_wholememory_access_type(str_wmb_access: str):
     if str_wmb_access == 'readonly' or str_wmb_access == 'ro':
-        return wmb.WholeMemoryAccessType.WHOLEMEMORY_AT_READONLY
+        return wmb.WholeMemoryAccessType.AtReadOnly
     elif str_wmb_access == 'readwrite' or str_wmb_access == 'rw':
-        return wmb.WholeMemoryAccessType.WHOLEMEMORY_AT_READWRITE
+        return wmb.WholeMemoryAccessType.AtReadWrite
     else:
         raise ValueError('WholeMemory access %s not supported, should be (readonly, ro, readwrite, rw)'
                          % (str_wmb_access,))
@@ -90,13 +90,13 @@ def str_to_wmb_wholememory_access_type(str_wmb_access: str):
 
 def str_to_wmb_wholememory_optimizer_type(str_wmb_optimizer: str):
     if str_wmb_optimizer == 'sgd':
-        return wmb.WholeMemoryOptimizerType.WHOLEMEMORY_OPT_SGD
+        return wmb.WholeMemoryOptimizerType.OptSgd
     elif str_wmb_optimizer == 'adam':
-        return wmb.WholeMemoryOptimizerType.WHOLEMEMORY_OPT_LAZY_ADAM
+        return wmb.WholeMemoryOptimizerType.OptLazyAdam
     elif str_wmb_optimizer == 'adagrad':
-        return wmb.WholeMemoryOptimizerType.WHOLEMEMORY_OPT_ADAGRAD
+        return wmb.WholeMemoryOptimizerType.OptAdaGrad
     elif str_wmb_optimizer == 'rmsprop':
-        return wmb.WholeMemoryOptimizerType.WHOLEMEMORY_OPT_RMSPROP
+        return wmb.WholeMemoryOptimizerType.OptRmsProp
     else:
         raise ValueError('WholeMemory optimizer %s not supported, should be (sgd, adam, adagrad, rmsprop)'
                          % (str_wmb_optimizer,))

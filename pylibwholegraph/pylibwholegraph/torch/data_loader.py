@@ -54,8 +54,8 @@ def get_train_dataloader(train_dataset,
         batch_size=batch_size,
         num_workers=num_workers,
         pin_memory=True,
-        prefetch_factor = 8,
-        persistent_workers=True,
+        prefetch_factor = 8 if num_workers > 0 else None,
+        persistent_workers=True if num_workers > 0 else None,
         sampler=train_sampler,
     )
     return train_dataloader
@@ -75,6 +75,7 @@ def get_valid_test_dataloader(valid_test_dataset,
         pin_memory=True,
         sampler=valid_test_sampler,
     )
+    return valid_test_dataloader
 
 
 

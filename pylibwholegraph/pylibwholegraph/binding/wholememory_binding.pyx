@@ -1444,7 +1444,7 @@ cdef class PyWholeMemoryTensor:
 
     def get_tensor_in_window(self,
                              flatten_tensor,
-                             int storage_window_offset):
+                             int64_t storage_window_offset):
         if self.tensor_description.dim == 1:
             start_indice = max(0, self.tensor_description.storage_offset - storage_window_offset)
             end_indice = min(flatten_tensor.shape[0],
