@@ -65,6 +65,7 @@ dependencies:
           - nccl
           - cxx-compiler
           - nanobind>=0.2.0
+          - cython
           - doxygen=1.8.20
           - scikit-build
     specific:
@@ -156,13 +157,12 @@ dependencies:
     common:
       - output_types: [conda, requirements]
         packages:
-          - jupyter
           - numpy>=1.17
-          - pandas
           - pytest
           - pytest-forked
           - pytest-xdist
           - unzip
+          - nccl
           - wget
     specific:
       - output_types: [conda, requirements]

@@ -180,12 +180,12 @@ if hasArg pylibwholegraph; then
     if ! hasArg --compile-cmd; then
         cd ${REPODIR}/pylibwholegraph
         env LIBWHOLEGRAPH_DIR=${LIBWHOLEGRAPH_DIR} \
-        python setup.py build_ext --inplace \
+        ${PYTHON} setup.py build_ext --inplace \
             --build-type=${BUILD_TYPE} \
             ${EXTRA_CMAKE_ARGS}
         if ! hasArg -n; then
             env LIBWHOLEGRAPH_DIR=${LIBWHOLEGRAPH_DIR} \
-            python setup.py install \
+            ${PYTHON} setup.py install \
                 --build-type=${BUILD_TYPE} \
                 ${EXTRA_CMAKE_ARGS}
         fi

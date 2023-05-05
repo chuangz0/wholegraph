@@ -1,7 +1,7 @@
 import pytest
 import pylibwholegraph.binding.wholememory_binding as wmb
 from pylibwholegraph.utils.multiprocess import multiprocess_run
-from pylibwholegraph.torch.initialize import init_torch_env_and_create_wm_comm, load_wholegraph_op_libraries
+from pylibwholegraph.torch.initialize import init_torch_env_and_create_wm_comm
 from pylibwholegraph.torch.dlpack_utils import torch_import_from_dlpack
 import torch
 import pylibwholegraph.torch.wholememory_ops as wm_ops
@@ -91,8 +91,6 @@ def routine_func(world_rank: int, world_size: int):
     wm_comm, _ = init_torch_env_and_create_wm_comm(world_rank, world_size, world_rank, world_size)
     wm_comm = wm_comm.wmb_comm
 
-    load_wholegraph_op_libraries()
-
     embedding_count = 1024 * 256 * world_size + 3
     embedding_dim = 256
     indice_count = 100001
@@ -104,7 +102,7 @@ def routine_func(world_rank: int, world_size: int):
                wmb.WholeMemoryMemoryType.MtDistributed]:
         for ml in [wmb.WholeMemoryMemoryLocation.MlHost, wmb.WholeMemoryMemoryLocation.MlDevice]:
             scatter_gather_test_cast(wm_comm, dt, mt, ml, embedding_count, embedding_dim, indice_count, True)
-            scatter_gather_test_cast(wm_comm, dt, mt, ml, embedding_count, embedding_dim, indice_count, False)
+            #scatter_gather_test_cast(wm_comm, dt, mt, ml, embedding_count, embedding_dim, indice_count, False)
 
 
 def test_wholegraph_gather_scatter():

@@ -42,6 +42,7 @@ project(PYLIBWHOLEGRAPH VERSION ${WHOLEGRAPH_VERSION} LANGUAGES C CXX CUDA)
 # - User Options  ------------------------------------------------------------
 
 option(DETECT_CONDA_ENV "Enable detection of conda environment for dependencies" ON)
+option(BUILD_OPS_WITH_TORCH_C10_API "Whether to build torch ops with c10 API" ON)
 
 ##############################################################################
 # - Base Rapids Options  -----------------------------------------------------
@@ -186,4 +187,6 @@ add_subdirectory(pylibwholegraph/binding)
 # export LIBWHOLEGRAPH_DIR=`pwd`/../../cpp/build/install
 # cmake ../ -DSKBUILD=ON
 
-add_subdirectory(wholegraph_torch)
+if (BUILD_OPS_WITH_TORCH_C10_API)
+    add_subdirectory(wholegraph_torch)
+endif()
