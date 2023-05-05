@@ -3,7 +3,6 @@
 #include <random>
 #include <thrust/scan.h>
 
-#include <raft/util/cudart_utils.hpp>
 #include <raft/util/integer_utils.hpp>
 #include <wholememory/device_reference.cuh>
 #include <wholememory/env_func_ptrs.h>

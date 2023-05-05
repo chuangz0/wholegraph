@@ -26,7 +26,7 @@ wholememory_error_code_t csr_add_self_loop_impl(
                            output_csr_col_ptr_array_desc,
                            stream);
 
-  } catch (const raft::cuda_error& rle) {
+  } catch (const wholememory::cuda_error& rle) {
     // WHOLEMEMORY_FAIL_NOTHROW("%s", rle.what());
     return WHOLEMEMORY_LOGIC_ERROR;
   } catch (const wholememory::logic_error& le) {

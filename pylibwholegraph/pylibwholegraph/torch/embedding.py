@@ -20,9 +20,17 @@ class WholeMemoryOptimizer(object):
         self.global_comm = global_comm
 
     def add_embedding(self, wm_embedding):
+        r"""Add WholeMemory Embedding to this optimizer
+        NOTE: you don't need to call this method, it is automatic called when WholeMemory Embedding is created.
+        :param wm_embedding: WholeMemory Embedding that use this optimizer
+        :return: None
+        """
         self.embeddings.append(wm_embedding)
 
     def step(self, lr: float):
+        r"""Apply gradients to all WholeMemory Embedding that use this optimizer.
+        :param lr: learing rate.
+        """
         for wm_embedding in self.embeddings:
             if wm_embedding.need_apply:
                 wm_embedding.apply_gradients(lr)

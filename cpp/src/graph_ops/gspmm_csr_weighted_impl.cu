@@ -35,7 +35,7 @@ wholememory_error_code_t gspmm_csr_weighted_forward_impl(
                       output_feature_tensor_desc,
                       stream);
 
-  } catch (const raft::cuda_error& rle) {
+  } catch (const wholememory::cuda_error& rle) {
     // WHOLEMEMORY_FAIL_NOTHROW("%s", rle.what());
     return WHOLEMEMORY_LOGIC_ERROR;
   } catch (const wholememory::logic_error& le) {
@@ -82,7 +82,7 @@ wholememory_error_code_t gspmm_csr_weighted_backward_impl(
                       output_grad_feature_tensor_desc,
                       stream);
 
-  } catch (const raft::cuda_error& rle) {
+  } catch (const wholememory::cuda_error& rle) {
     // WHOLEMEMORY_FAIL_NOTHROW("%s", rle.what());
     return WHOLEMEMORY_LOGIC_ERROR;
   } catch (const wholememory::logic_error& le) {

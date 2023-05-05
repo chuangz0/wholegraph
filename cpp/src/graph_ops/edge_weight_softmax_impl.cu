@@ -27,7 +27,7 @@ wholememory_error_code_t edge_weight_softmax_forward_impl(
                       output_edge_weight_matrix_desc,
                       stream);
 
-  } catch (const raft::cuda_error& rle) {
+  } catch (const wholememory::cuda_error& rle) {
     // WHOLEMEMORY_FAIL_NOTHROW("%s", rle.what());
     return WHOLEMEMORY_LOGIC_ERROR;
   } catch (const wholememory::logic_error& le) {
@@ -61,7 +61,7 @@ wholememory_error_code_t edge_weight_softmax_backward_impl(
                       output_grad_edge_weight_matrix_desc,
                       stream);
 
-  } catch (const raft::cuda_error& rle) {
+  } catch (const wholememory::cuda_error& rle) {
     // WHOLEMEMORY_FAIL_NOTHROW("%s", rle.what());
     return WHOLEMEMORY_LOGIC_ERROR;
   } catch (const wholememory::logic_error& le) {

@@ -30,7 +30,7 @@ wholememory_error_code_t graph_append_unique(void* target_nodes_ptr,
                       p_env_fns,
                       stream);
 
-  } catch (const raft::cuda_error& rle) {
+  } catch (const wholememory::cuda_error& rle) {
     // WHOLEMEMORY_FAIL_NOTHROW("%s", rle.what());
     return WHOLEMEMORY_LOGIC_ERROR;
   } catch (const wholememory::logic_error& le) {

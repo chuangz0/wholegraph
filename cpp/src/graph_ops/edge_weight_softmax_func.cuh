@@ -1,8 +1,9 @@
 #pragma once
 
+#include <assert.h>
+
 #include "cuda_macros.hpp"
 #include "error.hpp"
-#include <raft/util/cudart_utils.hpp>
 #include <raft/util/integer_utils.hpp>
 #include <wholememory/tensor_description.h>
 

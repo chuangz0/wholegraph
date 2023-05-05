@@ -32,16 +32,16 @@ nccl_comms::nccl_comms(ncclComm_t nccl_comm, int num_ranks, int rank, cudaStream
 
 void nccl_comms::initialize()
 {
-  CUDA_CHECK(cudaMallocHost(&host_send_buffer_, HOST_BUFFER_SIZE_PER_RANK * num_ranks_));
-  CUDA_CHECK(cudaMallocHost(&host_recv_buffer_, HOST_BUFFER_SIZE_PER_RANK * num_ranks_));
-  CUDA_CHECK(cudaMalloc(&buf_, sizeof(int)));
+  WM_CUDA_CHECK(cudaMallocHost(&host_send_buffer_, HOST_BUFFER_SIZE_PER_RANK * num_ranks_));
+  WM_CUDA_CHECK(cudaMallocHost(&host_recv_buffer_, HOST_BUFFER_SIZE_PER_RANK * num_ranks_));
+  WM_CUDA_CHECK(cudaMalloc(&buf_, sizeof(int)));
 }
 
 nccl_comms::~nccl_comms()
 {
-  CUDA_CHECK_NO_THROW(cudaFreeHost(host_send_buffer_));
-  CUDA_CHECK_NO_THROW(cudaFreeHost(host_recv_buffer_));
-  CUDA_CHECK_NO_THROW(cudaFree(buf_));
+  WM_CUDA_CHECK_NO_THROW(cudaFreeHost(host_send_buffer_));
+  WM_CUDA_CHECK_NO_THROW(cudaFreeHost(host_recv_buffer_));
+  WM_CUDA_CHECK_NO_THROW(cudaFree(buf_));
 }
 
 static size_t get_nccl_datatype_size(ncclDataType_t datatype)
@@ -67,7 +67,7 @@ static size_t get_nccl_datatype_size(ncclDataType_t datatype)
 void nccl_comms::barrier() const
 {
   allreduce(buf_, buf_, 1, ncclInt32, ncclSum, rmm_stream_);
-  CUDA_CHECK(cudaStreamSynchronize(rmm_stream_));
+  WM_CUDA_CHECK(cudaStreamSynchronize(rmm_stream_));
 }
 
 void nccl_comms::allreduce(const void* sendbuff,
@@ -92,7 +92,7 @@ void nccl_comms::host_allreduce(
                 elt_count * datatype_size);
     RAFT_NCCL_TRY(ncclAllReduce(
       host_send_buffer_, host_recv_buffer_, elt_count, datatype, op, nccl_comm_, rmm_stream_));
-    CUDA_CHECK(cudaStreamSynchronize(rmm_stream_));
+    WM_CUDA_CHECK(cudaStreamSynchronize(rmm_stream_));
     std::memcpy(static_cast<char*>(recvbuff) + datatype_size * offset,
                 host_recv_buffer_,
                 elt_count * datatype_size);
@@ -127,7 +127,7 @@ void nccl_comms::host_bcast(
                 elt_count * datatype_size);
     RAFT_NCCL_TRY(ncclBroadcast(
       host_send_buffer_, host_recv_buffer_, elt_count, datatype, root, nccl_comm_, rmm_stream_));
-    CUDA_CHECK(cudaStreamSynchronize(rmm_stream_));
+    WM_CUDA_CHECK(cudaStreamSynchronize(rmm_stream_));
     std::memcpy(static_cast<char*>(recvbuff) + datatype_size * offset,
                 host_recv_buffer_,
                 elt_count * datatype_size);
@@ -172,7 +172,7 @@ void nccl_comms::host_reduce(const void* sendbuff,
                              root,
                              nccl_comm_,
                              rmm_stream_));
-    CUDA_CHECK(cudaStreamSynchronize(rmm_stream_));
+    WM_CUDA_CHECK(cudaStreamSynchronize(rmm_stream_));
     if (get_rank() == root) {
       std::memcpy(static_cast<char*>(recvbuff) + datatype_size * offset,
                   host_recv_buffer_,
@@ -204,7 +204,7 @@ void nccl_comms::host_allgather(const void* sendbuff,
                 elt_count * datatype_size);
     RAFT_NCCL_TRY(ncclAllGather(
       host_send_buffer_, host_recv_buffer_, sendcount, datatype, nccl_comm_, rmm_stream_));
-    CUDA_CHECK(cudaStreamSynchronize(rmm_stream_));
+    WM_CUDA_CHECK(cudaStreamSynchronize(rmm_stream_));
     for (int i = 0; i < get_size(); i++) {
       std::memcpy(
         static_cast<char*>(recvbuff) + datatype_size * offset + i * sendcount * datatype_size,
@@ -290,7 +290,7 @@ void nccl_comms::host_gather(
                 static_cast<const char*>(sendbuff) + datatype_size * offset,
                 elt_count * datatype_size);
     gather(host_send_buffer_, host_recv_buffer_, sendcount, datatype, root, rmm_stream_);
-    CUDA_CHECK(cudaStreamSynchronize(rmm_stream_));
+    WM_CUDA_CHECK(cudaStreamSynchronize(rmm_stream_));
     if (rank_ == root) {
       for (int i = 0; i < num_ranks_; i++) {
         std::memcpy(
@@ -379,7 +379,7 @@ void nccl_comms::host_alltoall(const void* sendbuff,
         elt_count * datatype_size);
     }
     alltoall(host_send_buffer_, host_recv_buffer_, sendcount, datatype, rmm_stream_);
-    CUDA_CHECK(cudaStreamSynchronize(rmm_stream_));
+    WM_CUDA_CHECK(cudaStreamSynchronize(rmm_stream_));
     for (int i = 0; i < num_ranks_; i++) {
       std::memcpy(
         static_cast<char*>(recvbuff) + datatype_size * offset + i * sendcount * datatype_size,

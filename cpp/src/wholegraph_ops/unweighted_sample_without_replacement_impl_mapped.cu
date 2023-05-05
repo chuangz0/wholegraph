@@ -50,7 +50,7 @@ wholememory_error_code_t wholegraph_csr_unweighted_sample_without_replacement_ma
                        p_env_fns,
                        stream);
 
-  } catch (const raft::cuda_error& rle) {
+  } catch (const wholememory::cuda_error& rle) {
     // WHOLEMEMORY_FAIL_NOTHROW("%s", rle.what());
     return WHOLEMEMORY_LOGIC_ERROR;
   } catch (const wholememory::logic_error& le) {

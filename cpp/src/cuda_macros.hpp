@@ -12,7 +12,7 @@
 #include <memory>
 #include <mutex>
 
-#include <raft/error.hpp>
+#include <raft/core/error.hpp>
 
 #include "error.hpp"
 

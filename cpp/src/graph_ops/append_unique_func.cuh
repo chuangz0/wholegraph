@@ -1,11 +1,11 @@
 #pragma once
+
 #include "cuda_macros.hpp"
 #include "error.hpp"
 #include "wholememory_ops/output_memory_handle.hpp"
 #include "wholememory_ops/temp_memory_handle.hpp"
 #include "wholememory_ops/thrust_allocator.hpp"
 #include <cooperative_groups.h>
-#include <raft/util/cudart_utils.hpp>
 #include <raft/util/integer_utils.hpp>
 #include <thrust/scan.h>
 #include <wholememory/env_func_ptrs.h>

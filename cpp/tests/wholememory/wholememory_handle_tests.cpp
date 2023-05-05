@@ -44,26 +44,26 @@ TEST_P(WholeMemoryHandleSingleProcessCreateDestroyParameterTests, CreateDestroyT
   EXPECT_EQ(wholememory_finalize(), WHOLEMEMORY_SUCCESS);
 }
 
-#if 0
-INSTANTIATE_TEST_CASE_P(
-    WholeMemoryHandleTests,
-    WholeMemoryHandleSingleProcessCreateDestroyParameterTests,
-    ::testing::Values(
-        /*std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_CONTINUOUS, WHOLEMEMORY_ML_HOST, 128UL),
-        std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_CHUNKED, WHOLEMEMORY_ML_DEVICE, 128UL),
-        std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_CHUNKED, WHOLEMEMORY_ML_HOST, 128UL),*/
-        std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_DISTRIBUTED, WHOLEMEMORY_ML_DEVICE, 128UL)/*,
-        std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_DISTRIBUTED, WHOLEMEMORY_ML_HOST, 128UL),
+INSTANTIATE_TEST_SUITE_P(
+  WholeMemoryHandleTests,
+  WholeMemoryHandleSingleProcessCreateDestroyParameterTests,
+  ::testing::Values(
+    /*std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_CONTINUOUS, WHOLEMEMORY_ML_HOST,
+    128UL), std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_CHUNKED, WHOLEMEMORY_ML_DEVICE,
+    128UL), std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_CHUNKED, WHOLEMEMORY_ML_HOST,
+    128UL),*/
+    std::make_tuple(
+      1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_DISTRIBUTED, WHOLEMEMORY_ML_DEVICE, 128UL) /*,
+std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_DISTRIBUTED, WHOLEMEMORY_ML_HOST, 128UL),
 
-        std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_CONTINUOUS, WHOLEMEMORY_ML_HOST, 63UL),
-        std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_CHUNKED, WHOLEMEMORY_ML_DEVICE, 63UL),
-        std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_CHUNKED, WHOLEMEMORY_ML_HOST, 63UL),
-        std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_DISTRIBUTED, WHOLEMEMORY_ML_DEVICE, 63UL),
-        std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_DISTRIBUTED, WHOLEMEMORY_ML_HOST, 63UL),
+std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_CONTINUOUS, WHOLEMEMORY_ML_HOST, 63UL),
+std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_CHUNKED, WHOLEMEMORY_ML_DEVICE, 63UL),
+std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_CHUNKED, WHOLEMEMORY_ML_HOST, 63UL),
+std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_DISTRIBUTED, WHOLEMEMORY_ML_DEVICE, 63UL),
+std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_DISTRIBUTED, WHOLEMEMORY_ML_HOST, 63UL),
 
-        std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_CONTINUOUS, WHOLEMEMORY_ML_HOST, 128UL)*/
+std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_CONTINUOUS, WHOLEMEMORY_ML_HOST, 128UL)*/
     ));
-#endif
 
 TEST_P(WholeMemoryHandleCreateDestroyParameterTests, CreateDestroyTest)
 {
@@ -104,7 +104,7 @@ TEST_P(WholeMemoryHandleCreateDestroyParameterTests, CreateDestroyTest)
   ClosePipes(&pipes);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
   WholeMemoryHandleTests,
   WholeMemoryHandleCreateDestroyParameterTests,
   ::testing::Values(
@@ -215,7 +215,7 @@ TEST_P(WholeMemoryHandleMultiCreateParameterTests, CreateDestroyTest)
 }
 
 #if 1
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
   WholeMemoryHandleTests,
   WholeMemoryHandleMultiCreateParameterTests,
   ::testing::Values(std::make_tuple(WHOLEMEMORY_MT_CONTINUOUS, WHOLEMEMORY_ML_HOST),

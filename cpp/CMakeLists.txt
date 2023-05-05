@@ -14,7 +14,7 @@
 # limitations under the License.
 #=============================================================================
 
-set(RAPIDS_VERSION "22.12")
+set(RAPIDS_VERSION "23.06")
 set(WHOLEGRAPH_VERSION "${RAPIDS_VERSION}.00")
 
 cmake_minimum_required(VERSION 3.23.1 FATAL_ERROR)
@@ -169,6 +169,7 @@ target_include_directories(wholegraph
     PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/src"
     PUBLIC
+        "$<BUILD_INTERFACE:${NCCL_INCLUDE_DIR}>"
         "$<BUILD_INTERFACE:${WHOLEGRAPH_INCLUDE_DIR}>"
         "$<INSTALL_INTERFACE:include>"
 )

@@ -2,7 +2,7 @@
 
 #include <cstdlib>
 
-#include <raft/error.hpp>
+#include <raft/core/error.hpp>
 
 namespace wholememory {
 

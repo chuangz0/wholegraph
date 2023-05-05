@@ -35,7 +35,7 @@ wholememory_error_code_t spadd_gat_csr_forward_impl(
                       output_score_matrix_desc,
                       stream);
 
-  } catch (const raft::cuda_error& rle) {
+  } catch (const wholememory::cuda_error& rle) {
     // WHOLEMEMORY_FAIL_NOTHROW("%s", rle.what());
     return WHOLEMEMORY_LOGIC_ERROR;
   } catch (const wholememory::logic_error& le) {
@@ -74,7 +74,7 @@ wholememory_error_code_t spadd_gat_csr_backward_impl(
                       edge_weight_right_matrix_desc,
                       stream);
 
-  } catch (const raft::cuda_error& rle) {
+  } catch (const wholememory::cuda_error& rle) {
     // WHOLEMEMORY_FAIL_NOTHROW("%s", rle.what());
     return WHOLEMEMORY_LOGIC_ERROR;
   } catch (const wholememory::logic_error& le) {

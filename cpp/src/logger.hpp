@@ -6,7 +6,7 @@
 #include <string>
 
 #include <cassert>
-#include <raft/error.hpp>
+#include <raft/core/error.hpp>
 
 #include "error.hpp"
 
