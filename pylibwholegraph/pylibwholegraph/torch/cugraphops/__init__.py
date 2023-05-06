@@ -13,8 +13,8 @@ from pylibcugraphops.pytorch import (
 
 
 class CuGraphModule(torch.nn.Module):  # pragma: no cover
-    r"""An abstract base class for implementing cugraph message passing layers.
-    """
+    r"""An abstract base class for implementing cugraph message passing layers."""
+
     def __init__(self):
         super().__init__()
 
@@ -42,8 +42,10 @@ class CuGraphModule(torch.nn.Module):  # pragma: no cover
         row, colptr, num_src_nodes = csc
 
         if not row.is_cuda:
-            raise RuntimeError(f"'{self.__class__.__name__}' requires GPU-"
-                               f"based processing (got CPU tensor)")
+            raise RuntimeError(
+                f"'{self.__class__.__name__}' requires GPU-"
+                f"based processing (got CPU tensor)"
+            )
 
         return SampledCSC(colptr, row, max_num_neighbors, num_src_nodes)
 
@@ -84,20 +86,32 @@ class CuGraphModule(torch.nn.Module):  # pragma: no cover
 
             if LEGACY_MODE:
                 dst_nodes = torch.arange(colptr.numel() - 1, device=row.device)
-                return make_mfg_csr_hg(dst_nodes, colptr, row,
-                                       max_num_neighbors, num_src_nodes,
-                                       n_node_types=0,
-                                       n_edge_types=num_edge_types,
-                                       out_node_types=None, in_node_types=None,
-                                       edge_types=edge_type)
+                return make_mfg_csr_hg(
+                    dst_nodes,
+                    colptr,
+                    row,
+                    max_num_neighbors,
+                    num_src_nodes,
+                    n_node_types=0,
+                    n_edge_types=num_edge_types,
+                    out_node_types=None,
+                    in_node_types=None,
+                    edge_types=edge_type,
+                )
 
-            return SampledHeteroCSC(colptr, row, edge_type, max_num_neighbors,
-                                    num_src_nodes, num_edge_types)
+            return SampledHeteroCSC(
+                colptr, row, edge_type, max_num_neighbors, num_src_nodes, num_edge_types
+            )
 
         if LEGACY_MODE:
-            return make_fg_csr_hg(colptr, row, n_node_types=0,
-                                  n_edge_types=num_edge_types, node_types=None,
-                                  edge_types=edge_type)
+            return make_fg_csr_hg(
+                colptr,
+                row,
+                n_node_types=0,
+                n_edge_types=num_edge_types,
+                node_types=None,
+                edge_types=edge_type,
+            )
 
         return StaticHeteroCSC(colptr, row, edge_type, num_edge_types)
 

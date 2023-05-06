@@ -2066,4 +2066,3 @@ cpdef void gspmm_weighted_backward(
         <wholememory_tensor_t> <int64_t> output_grad_edge_weight_tensor.get_c_handle(),
         <wholememory_tensor_t> <int64_t> output_grad_feature_tensor.get_c_handle(),
         <void*> stream_int))
-

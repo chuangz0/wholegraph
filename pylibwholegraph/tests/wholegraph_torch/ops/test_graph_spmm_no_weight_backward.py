@@ -1,16 +1,23 @@
 import pytest
-import pylibwholegraph.binding.wholememory_binding as wmb
 from pylibwholegraph.torch.initialize import load_wholegraph_op_libraries
 import torch
 from pylibwholegraph.test_utils.test_comm import gen_csr_graph
 import pylibwholegraph.torch.graph_ops as wg_ops
 
 
-def host_general_spmm_backward(csr_row_ptr_tensor, csr_col_ptr_tensor, input_grad_feature_tensor, output_count, aggregator):
+def host_general_spmm_backward(
+    csr_row_ptr_tensor,
+    csr_col_ptr_tensor,
+    input_grad_feature_tensor,
+    output_count,
+    aggregator,
+):
     row_num = csr_row_ptr_tensor.shape[0] - 1
     feature_dim = input_grad_feature_tensor.shape[1]
     assert row_num == input_grad_feature_tensor.shape[0]
-    output_tensor = torch.zeros((output_count, feature_dim), dtype = input_grad_feature_tensor.dtype)
+    output_tensor = torch.zeros(
+        (output_count, feature_dim), dtype=input_grad_feature_tensor.dtype
+    )
 
     for i in range(row_num):
         start = csr_row_ptr_tensor[i]
@@ -32,34 +39,69 @@ def host_general_spmm_backward(csr_row_ptr_tensor, csr_col_ptr_tensor, input_gra
 
 def routine_func(**kwargs):
     load_wholegraph_op_libraries()
-    target_node_count = kwargs['target_node_count']
-    neighbor_node_count = kwargs['neighbor_node_count']
-    edge_num = kwargs['edge_num']
-    feature_dim = kwargs['feature_dim']
-    feature_dtype = kwargs['feature_dtype']
-    aggregator = kwargs['aggregator']
+    target_node_count = kwargs["target_node_count"]
+    neighbor_node_count = kwargs["neighbor_node_count"]
+    edge_num = kwargs["edge_num"]
+    feature_dim = kwargs["feature_dim"]
+    feature_dtype = kwargs["feature_dtype"]
+    aggregator = kwargs["aggregator"]
     assert neighbor_node_count >= target_node_count
-    csr_row_ptr_tensor, csr_col_ptr_tensor, _ = gen_csr_graph(target_node_count, edge_num, neighbor_node_count, csr_row_dtype=torch.int32, csr_col_dtype=torch.int32)
-    input_grad_feature_tensor = torch.rand((target_node_count, feature_dim), dtype = feature_dtype)
+    csr_row_ptr_tensor, csr_col_ptr_tensor, _ = gen_csr_graph(
+        target_node_count,
+        edge_num,
+        neighbor_node_count,
+        csr_row_dtype=torch.int32,
+        csr_col_dtype=torch.int32,
+    )
+    input_grad_feature_tensor = torch.rand(
+        (target_node_count, feature_dim), dtype=feature_dtype
+    )
     csr_row_ptr_tensor_cuda = csr_row_ptr_tensor.cuda()
     csr_col_ptr_tensor_cuda = csr_col_ptr_tensor.cuda()
     input_grad_feature_tensor_cuda = input_grad_feature_tensor.cuda()
-    output_grad_feature_tensor_cuda = wg_ops.spmm_no_weight_backward(csr_row_ptr_tensor=csr_row_ptr_tensor_cuda, csr_col_ptr_tensor=csr_col_ptr_tensor_cuda, input_grad_feature_tensor=input_grad_feature_tensor_cuda, input_cout=neighbor_node_count,aggregator=aggregator)
+    output_grad_feature_tensor_cuda = wg_ops.spmm_no_weight_backward(
+        csr_row_ptr_tensor=csr_row_ptr_tensor_cuda,
+        csr_col_ptr_tensor=csr_col_ptr_tensor_cuda,
+        input_grad_feature_tensor=input_grad_feature_tensor_cuda,
+        input_cout=neighbor_node_count,
+        aggregator=aggregator,
+    )
     output_grad_feature_tensor = output_grad_feature_tensor_cuda.cpu()
 
-    output_grad_feature_tensor_ref = host_general_spmm_backward(csr_row_ptr_tensor, csr_col_ptr_tensor, input_grad_feature_tensor, neighbor_node_count, aggregator)
+    output_grad_feature_tensor_ref = host_general_spmm_backward(
+        csr_row_ptr_tensor,
+        csr_col_ptr_tensor,
+        input_grad_feature_tensor,
+        neighbor_node_count,
+        aggregator,
+    )
 
-    assert torch.allclose(output_grad_feature_tensor, output_grad_feature_tensor_ref, 1e-03)
+    assert torch.allclose(
+        output_grad_feature_tensor, output_grad_feature_tensor_ref, 1e-03
+    )
 
 
-@pytest.mark.parametrize('target_node_count', [101, 113])
-@pytest.mark.parametrize('neighbor_node_count', [189, 1987])
-@pytest.mark.parametrize('edge_num', [1001, 2302])
-@pytest.mark.parametrize('feature_dim', [128])
-@pytest.mark.parametrize('feature_dtype', [torch.float32]) 
-@pytest.mark.parametrize('aggregator', [0, 1, 2]) # 0: sum, 1: mean, 2: gcn_mean
-def test_spmm_no_weight_backward(target_node_count, neighbor_node_count, edge_num, feature_dim, feature_dtype, aggregator):
+@pytest.mark.parametrize("target_node_count", [101, 113])
+@pytest.mark.parametrize("neighbor_node_count", [189, 1987])
+@pytest.mark.parametrize("edge_num", [1001, 2302])
+@pytest.mark.parametrize("feature_dim", [128])
+@pytest.mark.parametrize("feature_dtype", [torch.float32])
+@pytest.mark.parametrize("aggregator", [0, 1, 2])  # 0: sum, 1: mean, 2: gcn_mean
+def test_spmm_no_weight_backward(
+    target_node_count,
+    neighbor_node_count,
+    edge_num,
+    feature_dim,
+    feature_dtype,
+    aggregator,
+):
     gpu_count = torch.cuda.device_count()
     assert gpu_count > 0
-    routine_func(target_node_count=target_node_count, neighbor_node_count=neighbor_node_count, edge_num = edge_num, feature_dim=feature_dim, feature_dtype=feature_dtype, aggregator=aggregator)
-    
+    routine_func(
+        target_node_count=target_node_count,
+        neighbor_node_count=neighbor_node_count,
+        edge_num=edge_num,
+        feature_dim=feature_dim,
+        feature_dtype=feature_dtype,
+        aggregator=aggregator,
+    )

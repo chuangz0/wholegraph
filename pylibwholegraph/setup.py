@@ -16,6 +16,7 @@ import os
 from setuptools import find_packages, Command
 from skbuild import setup
 
+
 class CleanCommand(Command):
     """Custom clean command to tidy up the project root."""
 
@@ -44,9 +45,9 @@ cmdclass = dict()
 cmdclass["clean"] = CleanCommand
 
 setup(
-    name='pylibwholegraph',
+    name="pylibwholegraph",
     description="pylibwholegraph - GPU Graph Storage for GNN feature and graph structure",
-    version='23.06.00',
+    version="23.06.00",
     url="https://github.com/rapidsai/wholegraph",
     author="NVIDIA Corporation",
     classifiers=[
@@ -56,13 +57,16 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9"
         "Programming Language :: Python :: 3.10"
-        "Programming Language :: Python :: 3.11"
+        "Programming Language :: Python :: 3.11",
     ],
-    packages=find_packages(include=[
-        'pylibwholegraph',
-        'pylibwholegraph.*',
-    ]),
+    packages=find_packages(
+        include=[
+            "pylibwholegraph",
+            "pylibwholegraph.*",
+        ]
+    ),
     python_requires=">=3.6",
     license="Apache",
     cmdclass=cmdclass,
-    zip_safe=False)
+    zip_safe=False,
+)

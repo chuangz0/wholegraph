@@ -6,20 +6,42 @@ def add_training_options(parser: OptionParser):
         "-e", "--epochs", type="int", dest="epochs", default=24, help="number of epochs"
     )
     parser.add_option(
-        "-b", "--batchsize", type="int", dest="batchsize", default=1024, help="batch size"
+        "-b",
+        "--batchsize",
+        type="int",
+        dest="batchsize",
+        default=1024,
+        help="batch size",
     )
-    parser.add_option("--lr", type="float", dest="lr", default=0.003, help="learning rate")
-    parser.add_option("--embedding-memory-type",
-                      dest="embedding_memory_type",
-                      default="chunked",
-                      help="Embedding memory type, should be: continuous, chunked or distributed")
-    parser.add_option("--cache-type",
-                      dest="cache_type",
-                      default="none",
-                      help="Embedding cache type, should be: none, local_device, local_node or all_devices")
-    parser.add_option("--cache-ratio", type="float", dest="cache_ratio", default=0.5, help="cache ratio")
-    parser.add_option("--train-embedding", action="store_true", dest='train_embedding', default=False,
-                      help="Whether to train embedding")
+    parser.add_option(
+        "--lr", type="float", dest="lr", default=0.003, help="learning rate"
+    )
+    parser.add_option(
+        "--embedding-memory-type",
+        dest="embedding_memory_type",
+        default="chunked",
+        help="Embedding memory type, should be: continuous, chunked or distributed",
+    )
+    parser.add_option(
+        "--cache-type",
+        dest="cache_type",
+        default="none",
+        help="Embedding cache type, should be: none, local_device, local_node or all_devices",
+    )
+    parser.add_option(
+        "--cache-ratio",
+        type="float",
+        dest="cache_ratio",
+        default=0.5,
+        help="cache ratio",
+    )
+    parser.add_option(
+        "--train-embedding",
+        action="store_true",
+        dest="train_embedding",
+        default=False,
+        help="Whether to train embedding",
+    )
 
 
 def add_common_graph_options(parser: OptionParser):
@@ -35,15 +57,16 @@ def add_common_graph_options(parser: OptionParser):
         action="store_true",
         dest="use_global_embedding",
         default=False,
-        help="Store embedding across all ranks or only in local node."
+        help="Store embedding across all ranks or only in local node.",
     )
     parser.add_option(
         "--feat-dim",
         type="int",
         dest="feat_dim",
         default=100,
-        help="default feature dim"
+        help="default feature dim",
     )
+
 
 def add_common_model_options(parser: OptionParser):
     parser.add_option(
@@ -67,7 +90,9 @@ def add_common_model_options(parser: OptionParser):
         help="framework type, valid values are: dgl, pyg, wg, cugraph",
     )
     parser.add_option("--heads", type="int", dest="heads", default=1, help="num heads")
-    parser.add_option("-d", "--dropout", type="float", dest="dropout", default=0.5, help="dropout")
+    parser.add_option(
+        "-d", "--dropout", type="float", dest="dropout", default=0.5, help="dropout"
+    )
 
 
 def add_common_sampler_options(parser: OptionParser):
@@ -87,10 +112,17 @@ def add_common_sampler_options(parser: OptionParser):
         help="inference sample count, -1 is all",
     )
 
+
 def add_node_classfication_options(parser: OptionParser):
     parser.add_option(
-        "-c", "--classnum", type="int", dest="classnum", default=172, help="class number"
+        "-c",
+        "--classnum",
+        type="int",
+        dest="classnum",
+        default=172,
+        help="class number",
     )
+
 
 def add_dataloader_options(parser: OptionParser):
     parser.add_option(
@@ -120,4 +152,3 @@ def parse_max_neighbors(num_layer, neighbor_str):
             max_neighbors.append(max_neighbors[0])
     # max_neighbors.reverse()
     return max_neighbors
-

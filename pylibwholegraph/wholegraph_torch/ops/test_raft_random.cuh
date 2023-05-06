@@ -11,8 +11,8 @@ struct TestPCGenerator {
    * @param offset unused
    */
   __host__ __device__ __forceinline__ TestPCGenerator(uint64_t seed,
-                                                  uint64_t subsequence,
-                                                  uint64_t offset)
+                                                      uint64_t subsequence,
+                                                      uint64_t offset)
   {
     pcg_state = uint64_t(0);
     inc       = (subsequence << 1u) | 1u;

@@ -10,7 +10,7 @@ framework_name = None
 
 def set_framework(framework: str):
     global framework_name
-    assert framework_name == None
+    assert framework_name is not None
     framework_name = framework
     global SAGEConv, GATConv
     if framework_name == "dgl":
@@ -28,7 +28,9 @@ def set_framework(framework: str):
         from .cugraphops.sage_conv import CuGraphSAGEConv as SAGEConv
 
 
-def create_gnn_layers(in_feat_dim, hidden_feat_dim, class_count, num_layer, num_head, model_type):
+def create_gnn_layers(
+    in_feat_dim, hidden_feat_dim, class_count, num_layer, num_head, model_type
+):
     gnn_layers = torch.nn.ModuleList()
     global framework_name
     for i in range(num_layer):
@@ -92,12 +94,8 @@ def create_gnn_layers(in_feat_dim, hidden_feat_dim, class_count, num_layer, num_
 
 
 def create_sub_graph(
-        target_gid,
-        target_gid_1,
-        edge_data,
-        csr_row_ptr,
-        csr_col_ind,
-        add_self_loop: bool):
+    target_gid, target_gid_1, edge_data, csr_row_ptr, csr_col_ind, add_self_loop: bool
+):
     global framework_name
     if framework_name == "pyg":
         neighboor_dst_unique_ids = csr_col_ind
@@ -146,7 +144,7 @@ def create_sub_graph(
             )
         return block
     elif framework_name == "cugraph":
-        assert add_self_loop == False
+        assert not add_self_loop
         return [csr_row_ptr, csr_col_ind]
     else:
         assert framework_name == "wg"
@@ -168,10 +166,12 @@ def layer_forward(layer, x_feat, x_target_feat, sub_graph, max_num_neighbors):
 
 
 class HomoGNNModel(torch.nn.Module):
-    def __init__(self,
-                 graph_structure: GraphStructure,
-                 node_embedding: WholeMemoryEmbedding,
-                 options):
+    def __init__(
+        self,
+        graph_structure: GraphStructure,
+        node_embedding: WholeMemoryEmbedding,
+        options,
+    ):
         super().__init__()
         hidden_feat_dim = options.hiddensize
         self.graph_structure = graph_structure
@@ -182,7 +182,12 @@ class HomoGNNModel(torch.nn.Module):
         assert hidden_feat_dim % num_head == 0
         in_feat_dim = self.node_embedding.shape[1]
         self.gnn_layers = create_gnn_layers(
-            in_feat_dim, hidden_feat_dim, options.classnum, options.layernum, num_head, options.model
+            in_feat_dim,
+            hidden_feat_dim,
+            options.classnum,
+            options.layernum,
+            num_head,
+            options.model,
         )
         self.mean_output = True if options.model == "gat" else False
         self.add_self_loop = True if options.model == "gat" else False
@@ -198,7 +203,9 @@ class HomoGNNModel(torch.nn.Module):
             edge_indice,
             csr_row_ptrs,
             csr_col_inds,
-        ) = self.graph_structure.multilayer_sample_without_replacement(ids, self.max_neighbors)
+        ) = self.graph_structure.multilayer_sample_without_replacement(
+            ids, self.max_neighbors
+        )
         x_feat = self.gather_fn(target_gids[0])
         for i in range(self.num_layer):
             x_target_feat = x_feat[: target_gids[i + 1].numel()]
@@ -210,7 +217,13 @@ class HomoGNNModel(torch.nn.Module):
                 csr_col_inds[i],
                 self.add_self_loop,
             )
-            x_feat = layer_forward(self.gnn_layers[i], x_feat, x_target_feat, sub_graph, self.max_neighbors[i])
+            x_feat = layer_forward(
+                self.gnn_layers[i],
+                x_feat,
+                x_target_feat,
+                sub_graph,
+                self.max_neighbors[i],
+            )
             if i != self.num_layer - 1:
                 if framework_name == "dgl":
                     x_feat = x_feat.flatten(1)

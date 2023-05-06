@@ -1,7 +1,10 @@
 import pylibwholegraph.binding.wholememory_binding as wmb
 import torch
-import os
-from .utils import torch_dtype_to_wholememory_dtype, wholememory_dtype_to_torch_dtype, get_file_size
+from .utils import (
+    torch_dtype_to_wholememory_dtype,
+    wholememory_dtype_to_torch_dtype,
+    get_file_size,
+)
 from .utils import str_to_wmb_wholememory_memory_type, str_to_wmb_wholememory_location
 from .utils import get_part_file_name, get_part_file_list
 from .comm import WholeMemoryCommunicator
@@ -14,8 +17,8 @@ WholeMemoryMemoryLocation = wmb.WholeMemoryMemoryLocation
 
 
 class WholeMemoryTensor(object):
-    r"""WholeMemory Tensor
-    """
+    r"""WholeMemory Tensor"""
+
     def __init__(self, wmb_tensor: wmb.PyWholeMemoryTensor):
         self.wmb_tensor = wmb_tensor
 
@@ -37,40 +40,48 @@ class WholeMemoryTensor(object):
         return self.wmb_tensor.storage_offset()
 
     def get_comm(self):
-        return WholeMemoryCommunicator(self.wmb_tensor.get_wholememory_handle().get_communicator())
+        return WholeMemoryCommunicator(
+            self.wmb_tensor.get_wholememory_handle().get_communicator()
+        )
 
     def get_sub_tensor(self, starts, ends):
         return WholeMemoryTensor(self.wmb_tensor.get_sub_tensor(starts, ends))
 
     def get_local_tensor(self, host_view: bool = False):
         if host_view:
-            return self.wmb_tensor.get_local_tensor(torch_import_from_dlpack,
-                                                    WholeMemoryMemoryLocation.MlHost,
-                                                    -1)
+            return self.wmb_tensor.get_local_tensor(
+                torch_import_from_dlpack, WholeMemoryMemoryLocation.MlHost, -1
+            )
         else:
-            return self.wmb_tensor.get_local_tensor(torch_import_from_dlpack,
-                                                    WholeMemoryMemoryLocation.MlDevice,
-                                                    torch.cuda.current_device())
+            return self.wmb_tensor.get_local_tensor(
+                torch_import_from_dlpack,
+                WholeMemoryMemoryLocation.MlDevice,
+                torch.cuda.current_device(),
+            )
 
     def get_global_tensor(self, host_view: bool = False):
         if host_view:
-            return self.wmb_tensor.get_global_tensor(torch_import_from_dlpack,
-                                                     WholeMemoryMemoryLocation.MlHost,
-                                                     -1)
+            return self.wmb_tensor.get_global_tensor(
+                torch_import_from_dlpack, WholeMemoryMemoryLocation.MlHost, -1
+            )
         else:
-            return self.wmb_tensor.get_global_tensor(torch_import_from_dlpack,
-                                                     WholeMemoryMemoryLocation.MlDevice,
-                                                     torch.cuda.current_device())
+            return self.wmb_tensor.get_global_tensor(
+                torch_import_from_dlpack,
+                WholeMemoryMemoryLocation.MlDevice,
+                torch.cuda.current_device(),
+            )
 
     def get_all_chunked_tensor(self, host_view: bool = False):
         if host_view:
-            return self.wmb_tensor.get_global_tensorget_all_chunked_tensor(torch_import_from_dlpack,
-                                                                           WholeMemoryMemoryLocation.MlHost,
-                                                                           -1)
+            return self.wmb_tensor.get_global_tensorget_all_chunked_tensor(
+                torch_import_from_dlpack, WholeMemoryMemoryLocation.MlHost, -1
+            )
         else:
-            return self.wmb_tensor.get_global_tensorget_all_chunked_tensor(torch_import_from_dlpack,
-                                                                           WholeMemoryMemoryLocation.MlDevice,
-                                                                           torch.cuda.current_device())
+            return self.wmb_tensor.get_global_tensorget_all_chunked_tensor(
+                torch_import_from_dlpack,
+                WholeMemoryMemoryLocation.MlDevice,
+                torch.cuda.current_device(),
+            )
 
     def from_filelist(self, filelist: Union[List[str], str]):
         if isinstance(filelist, str):
@@ -88,16 +99,20 @@ class WholeMemoryTensor(object):
 
     def to_file_prefix(self, file_prefix: str):
         wm_comm = self.get_comm()
-        filename = get_part_file_name(file_prefix, wm_comm.get_rank(), wm_comm.get_size())
+        filename = get_part_file_name(
+            file_prefix, wm_comm.get_rank(), wm_comm.get_size()
+        )
         self.local_to_file(filename)
 
 
-def create_wholememory_tensor(comm: WholeMemoryCommunicator,
-                              memory_type: str,
-                              memory_location: str,
-                              sizes: List[int],
-                              dtype: torch.dtype,
-                              strides: List[int]):
+def create_wholememory_tensor(
+    comm: WholeMemoryCommunicator,
+    memory_type: str,
+    memory_location: str,
+    sizes: List[int],
+    dtype: torch.dtype,
+    strides: List[int],
+):
     r"""
     Create empty WholeMemory Tensor. Now only support dim = 1 or 2
     :param comm: WholeMemoryCommunicator
@@ -110,7 +125,7 @@ def create_wholememory_tensor(comm: WholeMemoryCommunicator,
     """
     dim = len(sizes)
     if dim < 1 or dim > 2:
-        raise Value('Only dim 1 or 2 is supported now.')
+        raise ValueError("Only dim 1 or 2 is supported now.")
     if strides is None:
         strides = [1] * dim
         strides[0] = sizes[1] if dim == 2 else 1
@@ -127,16 +142,20 @@ def create_wholememory_tensor(comm: WholeMemoryCommunicator,
     wm_memory_type = str_to_wmb_wholememory_memory_type(memory_type)
     wm_location = str_to_wmb_wholememory_location(memory_location)
 
-    return WholeMemoryTensor(wmb.create_wholememory_tensor(td, comm.wmb_comm, wm_memory_type, wm_location))
+    return WholeMemoryTensor(
+        wmb.create_wholememory_tensor(td, comm.wmb_comm, wm_memory_type, wm_location)
+    )
 
 
-def create_wholememory_tensor_from_filelist(comm: WholeMemoryCommunicator,
-                                            memory_type: str,
-                                            memory_location: str,
-                                            filelist: Union[List[str], str],
-                                            dtype: torch.dtype,
-                                            last_dim_size: int = 0,
-                                            last_dim_strides: int = -1):
+def create_wholememory_tensor_from_filelist(
+    comm: WholeMemoryCommunicator,
+    memory_type: str,
+    memory_location: str,
+    filelist: Union[List[str], str],
+    dtype: torch.dtype,
+    last_dim_size: int = 0,
+    last_dim_strides: int = -1,
+):
     r"""
     Create WholeMemory Tensor from list of binary files.
     :param comm: WholeMemoryCommunicator
@@ -153,12 +172,17 @@ def create_wholememory_tensor_from_filelist(comm: WholeMemoryCommunicator,
     element_size = torch.tensor([], dtype=dtype).element_size()
     if last_dim_strides == -1:
         last_dim_strides = last_dim_size if last_dim_size > 0 else 1
-    file_entry_size = element_size * last_dim_size if last_dim_size > 0 else element_size
+    file_entry_size = (
+        element_size * last_dim_size if last_dim_size > 0 else element_size
+    )
     total_file_size = 0
     for filename in filelist:
         file_size = get_file_size(filename)
         if file_size % file_entry_size != 0:
-            raise ValueError('File %s size is %d not mutlple of %d' % (filename, file_size, file_entry_size))
+            raise ValueError(
+                "File %s size is %d not mutlple of %d"
+                % (filename, file_size, file_entry_size)
+            )
         total_file_size += file_size
     total_entry_count = total_file_size // file_entry_size
     if last_dim_size == 0:
@@ -167,7 +191,9 @@ def create_wholememory_tensor_from_filelist(comm: WholeMemoryCommunicator,
     else:
         sizes = [total_entry_count, last_dim_size]
         strides = [last_dim_strides, 1]
-    wm_tensor = create_wholememory_tensor(comm, memory_type, memory_location, sizes, dtype, strides)
+    wm_tensor = create_wholememory_tensor(
+        comm, memory_type, memory_location, sizes, dtype, strides
+    )
     wm_tensor.from_filelist(filelist)
     return wm_tensor
 

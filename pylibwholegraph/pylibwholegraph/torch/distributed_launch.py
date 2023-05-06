@@ -1,5 +1,4 @@
 import os
-import torch.distributed as dist
 from optparse import OptionParser
 
 
@@ -309,12 +308,16 @@ def distributed_launch(options, main_func):
     elif options.launch_agent == "pytorch":
         # use pytorch DDP to launch multiprocess
         # when using pytorch DDP, assume two nodes with 8 GPU each, command is like:
-        # on node1: python -m torch.distributed.run --nproc_per_node=8 --nnodes=2 --node_rank=0 --master_addr=node1 --master_port=12335 [train_script.py] --launch_agent=pytorch
-        # on node2: python -m torch.distributed.run --nproc_per_node=8 --nnodes=2 --node_rank=1 --master_addr=node1 --master_port=12335 [train_script.py] --launch_agent=pytorch
+        # on node1: python -m torch.distributed.run --nproc_per_node=8 --nnodes=2 --node_rank=0 --master_addr=node1
+        #           --master_port=12335 [train_script.py] --launch_agent=pytorch
+        # on node2: python -m torch.distributed.run --nproc_per_node=8 --nnodes=2 --node_rank=1 --master_addr=node1
+        #           --master_port=12335 [train_script.py] --launch_agent=pytorch
         distributed_launch_pytorch(options, main_func)
     else:
         # cluster scheduler
         # when using spawn to create multiprocess for each node, assume two nodes with 8 GPU each, command is like:
-        # on node1: python [train_script.py] --launch_agent=spawn --master_addr=node1 --master_port=12335 --local_size=8 --rank=0 --world_size=2
-        # on node2: python [train_script.py] --launch_agent=spawn --master_addr=node1 --master_port=12335 --local_size=8 --rank=1 --world_size=2
+        # on node1: python [train_script.py] --launch_agent=spawn --master_addr=node1 --master_port=12335
+        #           --local_size=8 --rank=0 --world_size=2
+        # on node2: python [train_script.py] --launch_agent=spawn --master_addr=node1 --master_port=12335
+        #           --local_size=8 --rank=1 --world_size=2
         distributed_launch_spawn(options, main_func)

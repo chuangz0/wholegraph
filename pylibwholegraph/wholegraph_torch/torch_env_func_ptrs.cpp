@@ -6,39 +6,33 @@
 
 namespace wholegraph_torch {
 
-void *torch_malloc_func(wholememory_tensor_description_t *tensor_description,
+void* torch_malloc_func(wholememory_tensor_description_t* tensor_description,
                         wholememory_memory_allocation_type_t memory_allocation_type,
-                        void *memory_context,
-                        void * /*global_context*/)
+                        void* memory_context,
+                        void* /*global_context*/)
 {
-  bool gpu_memory = memory_allocation_type == WHOLEMEMORY_MA_DEVICE;
+  bool gpu_memory    = memory_allocation_type == WHOLEMEMORY_MA_DEVICE;
   bool pinned_memory = memory_allocation_type == WHOLEMEMORY_MA_PINNED;
   return torch_common_malloc_func(tensor_description, memory_context, gpu_memory, pinned_memory);
 }
 
 static wholememory_env_func_t pytorch_env_func = {
-    .temporary_fns =
-        {
-            .create_memory_context_fn  = create_torch_memory_context_func,
-            .destroy_memory_context_fn = destroy_torch_memory_context_func,
-            .malloc_fn                 = torch_malloc_func,
-            .free_fn                   = torch_common_free_func,
-            .global_context            = nullptr,
-        },
-    .output_fns =
-        {
-            .malloc_fn                 = torch_malloc_func,
-            .free_fn                   = torch_common_free_func,
-            .global_context            = nullptr,
-        }
-};
+  .temporary_fns =
+    {
+      .create_memory_context_fn  = create_torch_memory_context_func,
+      .destroy_memory_context_fn = destroy_torch_memory_context_func,
+      .malloc_fn                 = torch_malloc_func,
+      .free_fn                   = torch_common_free_func,
+      .global_context            = nullptr,
+    },
+  .output_fns = {
+    .malloc_fn      = torch_malloc_func,
+    .free_fn        = torch_common_free_func,
+    .global_context = nullptr,
+  }};
 
-wholememory_env_func_t* get_pytorch_env_func() {
-  return &pytorch_env_func;
-}
+wholememory_env_func_t* get_pytorch_env_func() { return &pytorch_env_func; }
 
-cudaStream_t get_current_stream() {
-  return at::cuda::getCurrentCUDAStream();
-}
+cudaStream_t get_current_stream() { return at::cuda::getCurrentCUDAStream(); }
 
 }  // namespace wholegraph_torch

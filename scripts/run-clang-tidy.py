@@ -408,12 +408,12 @@ def get_dependencies(clang_cmd, f_path, cwd):
 class LockContext(object):
     def __init__(self, lock=None) -> None:
         self._lock = lock
-    
+
     def __enter__(self):
         if self._lock:
             self._lock.acquire()
         return self
-    
+
     def __exit__(self, _, __, ___):
         if self._lock:
             self._lock.release()

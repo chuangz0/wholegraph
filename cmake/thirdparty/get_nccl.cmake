@@ -32,7 +32,3 @@ function(find_and_configure_nccl)
 endfunction()
 
 find_and_configure_nccl()
-
-
-
-

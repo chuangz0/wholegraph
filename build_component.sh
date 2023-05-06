@@ -197,4 +197,3 @@ if hasArg pylibwholegraph; then
             ${EXTRA_CMAKE_ARGS}
     fi
 fi
-

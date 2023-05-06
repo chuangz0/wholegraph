@@ -56,4 +56,3 @@ for file in "${INSTALLED_TEST_PATH}"/*; do
 done
 
 exit 0
-

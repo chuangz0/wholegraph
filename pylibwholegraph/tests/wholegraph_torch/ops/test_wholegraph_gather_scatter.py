@@ -1,4 +1,3 @@
-import pytest
 import pylibwholegraph.binding.wholememory_binding as wmb
 from pylibwholegraph.utils.multiprocess import multiprocess_run
 from pylibwholegraph.torch.initialize import init_torch_env_and_create_wm_comm
@@ -12,33 +11,56 @@ import pylibwholegraph.torch.wholememory_ops as wm_ops
 
 def gen_int_embedding(indice_tensor, embedding_dim, output_type):
     indice_count = indice_tensor.shape[0]
-    indice_part = indice_tensor.type(torch.int).reshape(indice_count, 1).repeat(1, embedding_dim)
-    embedding_part = torch.arange(0, embedding_dim, 1, dtype=torch.int).reshape(1, embedding_dim).repeat(indice_count,
-                                                                                                         1)
+    indice_part = (
+        indice_tensor.type(torch.int).reshape(indice_count, 1).repeat(1, embedding_dim)
+    )
+    embedding_part = (
+        torch.arange(0, embedding_dim, 1, dtype=torch.int)
+        .reshape(1, embedding_dim)
+        .repeat(indice_count, 1)
+    )
     output = indice_part + embedding_part
     return output.type(output_type)
 
 
-def scatter_gather_test_cast(wm_comm, dt, mt, ml, embedding_count, embedding_dim, indice_count, use_python_binding=True):
+def scatter_gather_test_cast(
+    wm_comm,
+    dt,
+    mt,
+    ml,
+    embedding_count,
+    embedding_dim,
+    indice_count,
+    use_python_binding=True,
+):
     world_rank = wm_comm.get_rank()
     world_size = wm_comm.get_size()
     print(
-        'Rank=%d testing scatter gather with embedding_count=%d, embedding_dim=%d, indice_count=%d, dt=%s, mt=%s, ml=%s'
-        % (world_rank, embedding_count, embedding_dim, indice_count, dt, mt, ml))
-    wm_embedding = wmb.create_wholememory_matrix(dt, embedding_count, embedding_dim, -1, wm_comm, mt, ml)
+        "Rank=%d testing scatter gather with embedding_count=%d, embedding_dim=%d, indice_count=%d, dt=%s, mt=%s, ml=%s"
+        % (world_rank, embedding_count, embedding_dim, indice_count, dt, mt, ml)
+    )
+    wm_embedding = wmb.create_wholememory_matrix(
+        dt, embedding_count, embedding_dim, -1, wm_comm, mt, ml
+    )
 
-    scatter_indice = torch.arange(world_rank, embedding_count, world_size, dtype=torch.int64)
+    scatter_indice = torch.arange(
+        world_rank, embedding_count, world_size, dtype=torch.int64
+    )
 
     embedding_to_scatter = gen_int_embedding(scatter_indice, embedding_dim, torch.float)
-    #print('\nscatter_indice=%s\nembedding_to_scatter=%s' % (scatter_indice, embedding_to_scatter))
+    # print('\nscatter_indice=%s\nembedding_to_scatter=%s' % (scatter_indice, embedding_to_scatter))
 
     scatter_indice_cuda = scatter_indice.cuda()
     embedding_to_scatter_cuda = embedding_to_scatter.cuda()
 
     if use_python_binding:
-        wm_ops.wholememory_scatter_functor(embedding_to_scatter_cuda, scatter_indice_cuda, wm_embedding)
+        wm_ops.wholememory_scatter_functor(
+            embedding_to_scatter_cuda, scatter_indice_cuda, wm_embedding
+        )
     else:
-        torch.ops.wholegraph.scatter(embedding_to_scatter_cuda, scatter_indice_cuda, wm_embedding.get_c_handle())
+        torch.ops.wholegraph.scatter(
+            embedding_to_scatter_cuda, scatter_indice_cuda, wm_embedding.get_c_handle()
+        )
 
     wm_comm.barrier()
 
@@ -47,11 +69,18 @@ def scatter_gather_test_cast(wm_comm, dt, mt, ml, embedding_count, embedding_dim
     del embedding_to_scatter
     del embedding_to_scatter_cuda
 
-    local_tensor_cuda, local_start = wm_embedding.get_local_tensor(torch_import_from_dlpack,
-                                                                   wmb.WholeMemoryMemoryLocation.MlDevice, world_rank)
+    local_tensor_cuda, local_start = wm_embedding.get_local_tensor(
+        torch_import_from_dlpack, wmb.WholeMemoryMemoryLocation.MlDevice, world_rank
+    )
 
-    local_ref_start = min(wmb.determine_partition_plan(embedding_count, world_size) * world_rank, embedding_count)
-    local_ref_end = min(wmb.determine_partition_plan(embedding_count, world_size) * (world_rank + 1), embedding_count)
+    local_ref_start = min(
+        wmb.determine_partition_plan(embedding_count, world_size) * world_rank,
+        embedding_count,
+    )
+    local_ref_end = min(
+        wmb.determine_partition_plan(embedding_count, world_size) * (world_rank + 1),
+        embedding_count,
+    )
     local_ref_count = local_ref_end - local_ref_start
     assert local_start == local_ref_start
     assert local_tensor_cuda.dim() == 2
@@ -61,20 +90,23 @@ def scatter_gather_test_cast(wm_comm, dt, mt, ml, embedding_count, embedding_dim
     local_tensor = local_tensor_cuda.cpu()
     local_indices = torch.arange(local_ref_start, local_ref_end, dtype=torch.int64)
     local_tensor_ref = gen_int_embedding(local_indices, embedding_dim, torch.float)
-    #print('\nlocal_tensor %s =%s\nlocal_tensor_ref %s =%s' % (
+    # print('\nlocal_tensor %s =%s\nlocal_tensor_ref %s =%s' % (
     #    local_tensor.shape, local_tensor, local_tensor_ref.shape, local_tensor_ref))
     assert torch.allclose(local_tensor, local_tensor_ref)
 
     gather_indice = torch.randint(0, embedding_count, (indice_count,), dtype=torch.int)
     gather_indice_cuda = gather_indice.cuda()
     if use_python_binding:
-        embedding_after_gather_cuda = wm_ops.wholememory_gather_forward_functor(wm_embedding, gather_indice_cuda)
+        embedding_after_gather_cuda = wm_ops.wholememory_gather_forward_functor(
+            wm_embedding, gather_indice_cuda
+        )
     else:
-        embedding_after_gather_cuda = torch.ops.wholegraph.gather(wm_embedding.get_c_handle(), gather_indice_cuda, None,
-                                                                  None)
+        embedding_after_gather_cuda = torch.ops.wholegraph.gather(
+            wm_embedding.get_c_handle(), gather_indice_cuda, None, None
+        )
     embedding_after_gather = embedding_after_gather_cuda.cpu()
     ref_embedding_gather = gen_int_embedding(gather_indice, embedding_dim, torch.float)
-    #print('\ngather_indice=%s\nembedding_after_gather=%s\nref_embedding_gather=%s' % (
+    # print('\ngather_indice=%s\nembedding_after_gather=%s\nref_embedding_gather=%s' % (
     #    gather_indice, embedding_after_gather, ref_embedding_gather))
     assert torch.allclose(embedding_after_gather, ref_embedding_gather)
 
@@ -88,7 +120,9 @@ def scatter_gather_test_cast(wm_comm, dt, mt, ml, embedding_count, embedding_dim
 
 
 def routine_func(world_rank: int, world_size: int):
-    wm_comm, _ = init_torch_env_and_create_wm_comm(world_rank, world_size, world_rank, world_size)
+    wm_comm, _ = init_torch_env_and_create_wm_comm(
+        world_rank, world_size, world_rank, world_size
+    )
     wm_comm = wm_comm.wmb_comm
 
     embedding_count = 1024 * 256 * world_size + 3
@@ -96,13 +130,21 @@ def routine_func(world_rank: int, world_size: int):
     indice_count = 100001
     dt = wmb.WholeMemoryDataType.DtFloat
 
-    print('')
+    print("")
 
-    for mt in [wmb.WholeMemoryMemoryType.MtContinuous, wmb.WholeMemoryMemoryType.MtChunked,
-               wmb.WholeMemoryMemoryType.MtDistributed]:
-        for ml in [wmb.WholeMemoryMemoryLocation.MlHost, wmb.WholeMemoryMemoryLocation.MlDevice]:
-            scatter_gather_test_cast(wm_comm, dt, mt, ml, embedding_count, embedding_dim, indice_count, True)
-            #scatter_gather_test_cast(wm_comm, dt, mt, ml, embedding_count, embedding_dim, indice_count, False)
+    for mt in [
+        wmb.WholeMemoryMemoryType.MtContinuous,
+        wmb.WholeMemoryMemoryType.MtChunked,
+        wmb.WholeMemoryMemoryType.MtDistributed,
+    ]:
+        for ml in [
+            wmb.WholeMemoryMemoryLocation.MlHost,
+            wmb.WholeMemoryMemoryLocation.MlDevice,
+        ]:
+            scatter_gather_test_cast(
+                wm_comm, dt, mt, ml, embedding_count, embedding_dim, indice_count, True
+            )
+            # scatter_gather_test_cast(wm_comm, dt, mt, ml, embedding_count, embedding_dim, indice_count, False)
 
 
 def test_wholegraph_gather_scatter():

@@ -5,9 +5,7 @@ from optparse import OptionParser
 
 import apex
 import torch
-import torch.nn.functional as F
 from apex.parallel import DistributedDataParallel as DDP
-from torch.utils.data import DataLoader
 
 import pylibwholegraph.torch as wgth
 
@@ -61,8 +59,11 @@ def train(train_data, valid_data, model, optimizer, wm_optimizer, global_comm):
     if wgth.get_rank() == 0:
         print("start training...")
     train_dataloader = wgth.get_train_dataloader(
-        train_data, options.batchsize, replica_id=wgth.get_rank(), num_replicas=wgth.get_world_size(),
-        num_workers=options.dataloaderworkers
+        train_data,
+        options.batchsize,
+        replica_id=wgth.get_rank(),
+        num_replicas=wgth.get_world_size(),
+        num_workers=options.dataloaderworkers,
     )
     valid_dataloader = wgth.get_valid_test_dataloader(valid_data, options.batchsize)
     valid(valid_dataloader, model)
@@ -109,56 +110,89 @@ def train(train_data, valid_data, model, optimizer, wm_optimizer, global_comm):
 
 
 def main_func():
-    print(f'Rank={wgth.get_rank()}, local_rank={wgth.get_local_rank()}')
-    global_comm, local_comm = wgth.init_torch_env_and_create_wm_comm(wgth.get_rank(),
-                                                                     wgth.get_world_size(),
-                                                                     wgth.get_local_rank(),
-                                                                     wgth.get_local_size())
+    print(f"Rank={wgth.get_rank()}, local_rank={wgth.get_local_rank()}")
+    global_comm, local_comm = wgth.init_torch_env_and_create_wm_comm(
+        wgth.get_rank(),
+        wgth.get_world_size(),
+        wgth.get_local_rank(),
+        wgth.get_local_size(),
+    )
 
-    train_ds, valid_ds, test_ds = wgth.create_node_claffication_datasets(options.pickle_data_path)
+    train_ds, valid_ds, test_ds = wgth.create_node_claffication_datasets(
+        options.pickle_data_path
+    )
 
     graph_structure = wgth.GraphStructure()
-    graph_structure_wholememory_type = 'chunked'
-    graph_structure_wholememory_location = 'cuda'
+    graph_structure_wholememory_type = "chunked"
+    graph_structure_wholememory_location = "cuda"
     csr_row_ptr_wm_tensor = wgth.create_wholememory_tensor_from_filelist(
-        local_comm, graph_structure_wholememory_type, graph_structure_wholememory_location,
-        os.path.join(options.root_dir, 'homograph_csr_row_ptr'), torch.int64)
+        local_comm,
+        graph_structure_wholememory_type,
+        graph_structure_wholememory_location,
+        os.path.join(options.root_dir, "homograph_csr_row_ptr"),
+        torch.int64,
+    )
     csr_col_ind_wm_tensor = wgth.create_wholememory_tensor_from_filelist(
-        local_comm, graph_structure_wholememory_type, graph_structure_wholememory_location,
-        os.path.join(options.root_dir, 'homograph_csr_col_idx'), torch.int)
+        local_comm,
+        graph_structure_wholememory_type,
+        graph_structure_wholememory_location,
+        os.path.join(options.root_dir, "homograph_csr_col_idx"),
+        torch.int,
+    )
     graph_structure.set_csr_graph(csr_row_ptr_wm_tensor, csr_col_ind_wm_tensor)
 
     feature_comm = global_comm if options.use_global_embedding else local_comm
 
     embedding_wholememory_type = options.embedding_memory_type
-    embedding_wholememory_location = 'cpu' if options.cache_type != 'none' or options.cache_ratio == 0.0 else 'cuda'
+    embedding_wholememory_location = (
+        "cpu" if options.cache_type != "none" or options.cache_ratio == 0.0 else "cuda"
+    )
     if options.cache_ratio == 0.0:
-        options.cache_type = 'none'
-    access_type = 'readonly' if options.train_embedding is False else 'readwrite'
+        options.cache_type = "none"
+    access_type = "readonly" if options.train_embedding is False else "readwrite"
     if wgth.get_rank() == 0:
-        print(f'graph_structure: type={graph_structure_wholememory_type}, '
-              f'location={graph_structure_wholememory_location}\n'
-              f'embedding: type={embedding_wholememory_type}, location={embedding_wholememory_location}, '
-              f'cache_type={options.cache_type}, cache_ratio={options.cache_ratio}, '
-              f'trainable={options.train_embedding}')
-    cache_policy = wgth.create_builtin_cache_policy(options.cache_type,
-                                                    embedding_wholememory_type,
-                                                    embedding_wholememory_location,
-                                                    access_type,
-                                                    options.cache_ratio)
+        print(
+            f"graph_structure: type={graph_structure_wholememory_type}, "
+            f"location={graph_structure_wholememory_location}\n"
+            f"embedding: type={embedding_wholememory_type}, location={embedding_wholememory_location}, "
+            f"cache_type={options.cache_type}, cache_ratio={options.cache_ratio}, "
+            f"trainable={options.train_embedding}"
+        )
+    cache_policy = wgth.create_builtin_cache_policy(
+        options.cache_type,
+        embedding_wholememory_type,
+        embedding_wholememory_location,
+        access_type,
+        options.cache_ratio,
+    )
 
-    wm_optimizer = None if options.train_embedding is False else wgth.create_wholememory_optimizer('adam', {})
+    wm_optimizer = (
+        None
+        if options.train_embedding is False
+        else wgth.create_wholememory_optimizer("adam", {})
+    )
 
     if wm_optimizer is None:
         node_feat_wm_embedding = wgth.create_embedding_from_filelist(
-            feature_comm, embedding_wholememory_type, embedding_wholememory_location,
-            os.path.join(options.root_dir, 'node_feat.bin'), torch.float,
-            options.feat_dim, optimizer = wm_optimizer, cache_policy = cache_policy)
+            feature_comm,
+            embedding_wholememory_type,
+            embedding_wholememory_location,
+            os.path.join(options.root_dir, "node_feat.bin"),
+            torch.float,
+            options.feat_dim,
+            optimizer=wm_optimizer,
+            cache_policy=cache_policy,
+        )
     else:
         node_feat_wm_embedding = wgth.create_embedding(
-            feature_comm, embedding_wholememory_type, embedding_wholememory_location,
-            torch.float, [graph_structure.node_count, options.feat_dim],
-            optimizer=wm_optimizer, cache_policy=cache_policy, random_init=True
+            feature_comm,
+            embedding_wholememory_type,
+            embedding_wholememory_location,
+            torch.float,
+            [graph_structure.node_count, options.feat_dim],
+            optimizer=wm_optimizer,
+            cache_policy=cache_policy,
+            random_init=True,
         )
     wgth.set_framework(options.framework)
     model = wgth.HomoGNNModel(graph_structure, node_feat_wm_embedding, options)
@@ -174,4 +208,3 @@ def main_func():
 
 if __name__ == "__main__":
     wgth.distributed_launch(options, main_func)
-

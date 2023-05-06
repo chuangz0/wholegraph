@@ -146,7 +146,7 @@
 #   modernize-deprecated-ios-base-aliases
 #   modernize-replace-disallow-copy-and-assign-macro
 #   performance-inefficient-algorithm
-# 
+#
 # Because we add whole check groups, future clang versions may use more
 # checks. For now, only supported clang version is 11, however, it's likely
 # that more recent versions work fine.

@@ -22,18 +22,21 @@ void create_torch_memory_context_func(void** memory_context, void* /*global_cont
 
 void destroy_torch_memory_context_func(void* memory_context, void* /*global_context*/);
 
-void *torch_common_malloc_func(wholememory_tensor_description_t *tensor_description,
-                               void *memory_context,
+void* torch_common_malloc_func(wholememory_tensor_description_t* tensor_description,
+                               void* memory_context,
                                bool gpu_memory = true,
-                               bool pinned = false);
+                               bool pinned     = false);
 
 void torch_common_free_func(void* memory_context, void* /*global_context*/);
 
-void get_tensor_desc_from_torch_tensor(wholememory_tensor_description_t* tensor_desc, const torch::Tensor& t);
+void get_tensor_desc_from_torch_tensor(wholememory_tensor_description_t* tensor_desc,
+                                       const torch::Tensor& t);
 
-void get_array_desc_from_torch_tensor(wholememory_array_description_t* array_desc, const torch::Tensor& t);
+void get_array_desc_from_torch_tensor(wholememory_array_description_t* array_desc,
+                                      const torch::Tensor& t);
 
-void get_matrix_desc_from_torch_tensor(wholememory_matrix_description_t* matrix_desc, const torch::Tensor& t);
+void get_matrix_desc_from_torch_tensor(wholememory_matrix_description_t* matrix_desc,
+                                       const torch::Tensor& t);
 
 class wrapped_torch_tensor {
  public:
@@ -42,13 +45,18 @@ class wrapped_torch_tensor {
   wholememory_tensor_t get_wholememory_tensor() const;
   void unsqueeze(int dim = -1);
   void squeeze(int dim = -1);
+
  private:
   wholememory_tensor_t wholememory_tensor_ = nullptr;
 };
 
-void torch_tensor_check_dim_in_range(const torch::Tensor& t, int min_dim, int max_dim, const char* info);
+void torch_tensor_check_dim_in_range(const torch::Tensor& t,
+                                     int min_dim,
+                                     int max_dim,
+                                     const char* info);
 
-inline void torch_tensor_check_dim(const torch::Tensor& t, int dim, const char* info) {
+inline void torch_tensor_check_dim(const torch::Tensor& t, int dim, const char* info)
+{
   return torch_tensor_check_dim_in_range(t, dim, dim, info);
 }
 

@@ -53,4 +53,3 @@ target_include_directories(wholegraph_torch_precxx11abi
 target_link_libraries(wholegraph_torch_precxx11abi "${TORCH_LIBRARIES}" "${WHOLEGRAPH_CPP_TARGET}")
 
 set_property(TARGET torch PROPERTY INTERFACE_COMPILE_OPTIONS ${TORCH_CXX_FLAGS})
-

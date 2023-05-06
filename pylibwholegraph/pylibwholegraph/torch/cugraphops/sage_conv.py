@@ -1,5 +1,3 @@
-from typing import Optional, Tuple
-
 import torch
 import torch.nn.functional as F
 from torch import Tensor
@@ -16,11 +14,12 @@ class CuGraphSAGEConv(torch.nn.Module):  # pragma: no cover
     package that fuses message passing computation for accelerated execution
     and lower memory footprint.
     """
+
     def __init__(
         self,
         in_channels: int,
         out_channels: int,
-        aggr: str = 'mean',
+        aggr: str = "mean",
         normalize: bool = False,
         root_weight: bool = True,
         project: bool = False,
@@ -28,9 +27,11 @@ class CuGraphSAGEConv(torch.nn.Module):  # pragma: no cover
     ):
         super().__init__()
 
-        if aggr not in ['mean', 'sum', 'min', 'max']:
-            raise ValueError(f"Aggregation function must be either 'mean', "
-                             f"'sum', 'min' or 'max' (got '{aggr}')")
+        if aggr not in ["mean", "sum", "min", "max"]:
+            raise ValueError(
+                f"Aggregation function must be either 'mean', "
+                f"'sum', 'min' or 'max' (got '{aggr}')"
+            )
 
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -71,14 +72,15 @@ class CuGraphSAGEConv(torch.nn.Module):  # pragma: no cover
         if self.root_weight:
             out = self.lin(out)
         else:
-            out = self.lin(out[:, :self.in_channels])
+            out = self.lin(out[:, : self.in_channels])
 
         if self.normalize:
-            out = F.normalize(out, p=2., dim=-1)
+            out = F.normalize(out, p=2.0, dim=-1)
 
         return out
 
     def __repr__(self) -> str:
-        return (f'{self.__class__.__name__}({self.in_channels}, '
-                f'{self.out_channels}, aggr={self.aggr})')
-
+        return (
+            f"{self.__class__.__name__}({self.in_channels}, "
+            f"{self.out_channels}, aggr={self.aggr})"
+        )

@@ -1,9 +1,7 @@
-import os
 import torch
 import torch.distributed as dist
 import torch.utils.dlpack
 import pylibwholegraph.binding.wholememory_binding as wmb
-from . import utils
 
 
 global_communicator = None
@@ -25,8 +23,8 @@ def set_world_info(world_rank: int, world_size: int, local_rank: int, local_size
 
 
 class WholeMemoryCommunicator(object):
-    r"""WholeMemory Communicator
-    """
+    r"""WholeMemory Communicator"""
+
     def __init__(self, wmb_comm: wmb.PyWholeMemoryComm):
         super().__init__()
         self.wmb_comm = wmb_comm

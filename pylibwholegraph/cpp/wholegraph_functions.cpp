@@ -23,25 +23,21 @@ namespace nb = nanobind;
 
 namespace wholegraph::binding {
 
-void init_binding(unsigned int flag) {
-  wholememory_init(flag);
-}
+void init_binding(unsigned int flag) { wholememory_init(flag); }
 
-void finalize_binding() {
-  wholememory_finalize();
-}
+void finalize_binding() { wholememory_finalize(); }
 
 }  // namespace wholegraph::binding
 
-void init_wholegraph_functions(nb::module_ &m) {
+void init_wholegraph_functions(nb::module_& m)
+{
   nb::class_<wholememory_unique_id_t>(m, "WholeMemoryUniqueID")
-      .def(nb::init<>()).def("numpy_array", [](wholememory_unique_id_t *unique_id) {
-    size_t shape[1] = {sizeof(wholememory_unique_id_t::internal)};
-    return nb::tensor<char, nb::shape<sizeof(wholememory_unique_id_t::internal)>>(&unique_id->internal[0],
-                                                                                             1,
-                                                                                             shape);
-  });
+    .def(nb::init<>())
+    .def("numpy_array", [](wholememory_unique_id_t* unique_id) {
+      size_t shape[1] = {sizeof(wholememory_unique_id_t::internal)};
+      return nb::tensor<char, nb::shape<sizeof(wholememory_unique_id_t::internal)>>(
+        &unique_id->internal[0], 1, shape);
+    });
   m.def("wholememory_init", &wholegraph::binding::init_binding, nb::arg("flag"), nb::raw_doc(""));
   m.def("wholememory_finalize", &wholegraph::binding::finalize_binding, nb::raw_doc(""));
-
 }

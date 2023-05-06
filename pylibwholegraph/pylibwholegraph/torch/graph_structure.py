@@ -1,9 +1,6 @@
-import pylibwholegraph.binding.wholememory_binding as wmb
 import torch
-from .utils import torch_dtype_to_wholememory_dtype, get_file_size
 from typing import Union, List
 from .tensor import WholeMemoryTensor
-from .tensor import create_wholememory_tensor, create_wholememory_tensor_from_filelist
 from . import graph_ops
 from . import wholegraph_ops
 
@@ -12,6 +9,7 @@ class GraphStructure(object):
     r"""Graph structure storage
     Actually, it is the graph structure of one relation, represented in CSR format.
     """
+
     def __init__(self):
         super().__init__()
         self.node_count = 0
@@ -21,9 +19,9 @@ class GraphStructure(object):
         self.node_attributes = {}
         self.edge_attributes = {}
 
-    def set_csr_graph(self,
-                      csr_row_ptr : WholeMemoryTensor,
-                      csr_col_ind : WholeMemoryTensor):
+    def set_csr_graph(
+        self, csr_row_ptr: WholeMemoryTensor, csr_col_ind: WholeMemoryTensor
+    ):
         assert csr_row_ptr.dim() == 1
         assert csr_row_ptr.dtype == torch.int64
         assert csr_row_ptr.shape[0] > 1
@@ -39,18 +37,20 @@ class GraphStructure(object):
         assert attr_tensor.shape[0] == self.node_count
         self.node_attributes[attr_name] = attr_tensor
 
-    def set_edge_attribute(self,  attr_name: str, attr_tensor: WholeMemoryTensor):
+    def set_edge_attribute(self, attr_name: str, attr_tensor: WholeMemoryTensor):
         assert attr_name not in self.edge_attributes
         assert attr_tensor.shape[0] == self.edge_count
         self.edge_attributes[attr_name] = attr_tensor
 
-    def unweighted_sample_without_replacement_one_hop(self,
-                                                      centor_nodes_tensor: torch.Tensor,
-                                                      max_sample_count: int,
-                                                      *,
-                                                      random_seed: Union[int, None] = None,
-                                                      need_center_local_output: bool = False,
-                                                      need_edge_output: bool = False):
+    def unweighted_sample_without_replacement_one_hop(
+        self,
+        centor_nodes_tensor: torch.Tensor,
+        max_sample_count: int,
+        *,
+        random_seed: Union[int, None] = None,
+        need_center_local_output: bool = False,
+        need_edge_output: bool = False
+    ):
         return wholegraph_ops.unweighted_sample_without_replacement(
             self.csr_row_ptr.wmb_tensor,
             self.csr_col_ind.wmb_tensor,
@@ -58,17 +58,19 @@ class GraphStructure(object):
             max_sample_count,
             random_seed,
             need_center_local_output,
-            need_edge_output
+            need_edge_output,
         )
 
-    def weighted_sample_without_replacement_one_hop(self,
-                                                    weight_name: str,
-                                                    center_nodes_tensor: torch.Tensor,
-                                                    max_sample_count: int,
-                                                    *,
-                                                    random_seed: Union[int, None] = None,
-                                                    need_center_local_output: bool = False,
-                                                    need_edge_output: bool = False):
+    def weighted_sample_without_replacement_one_hop(
+        self,
+        weight_name: str,
+        center_nodes_tensor: torch.Tensor,
+        max_sample_count: int,
+        *,
+        random_seed: Union[int, None] = None,
+        need_center_local_output: bool = False,
+        need_edge_output: bool = False
+    ):
         assert weight_name in self.edge_attributes
         weight_tensor = self.edge_attributes[weight_name]
         return wholegraph_ops.weighted_sample_without_replacement(
@@ -79,13 +81,15 @@ class GraphStructure(object):
             max_sample_count,
             random_seed,
             need_center_local_output,
-            need_edge_output
+            need_edge_output,
         )
 
-    def multilayer_sample_without_replacement(self,
-                                              node_ids: torch.Tensor,
-                                              max_neighbors: List[int],
-                                              weight_name: Union[str, None] = None):
+    def multilayer_sample_without_replacement(
+        self,
+        node_ids: torch.Tensor,
+        max_neighbors: List[int],
+        weight_name: Union[str, None] = None,
+    ):
         hops = len(max_neighbors)
         edge_indice = [None] * hops
         csr_row_ptr = [None] * hops
@@ -101,7 +105,7 @@ class GraphStructure(object):
                 ) = self.unweighted_sample_without_replacement_one_hop(
                     target_gids[i + 1],
                     max_neighbors[hops - i - 1],
-                    need_center_local_output = True
+                    need_center_local_output=True,
                 )
             else:
                 (
@@ -112,13 +116,12 @@ class GraphStructure(object):
                     weight_name,
                     target_gids[i + 1],
                     max_neighbors[hops - i - 1],
-                    need_center_local_output = True
+                    need_center_local_output=True,
                 )
-            (
-                unique_gids,
-                neighbor_raw_to_unique_mapping,
-            ) = graph_ops.append_unique(
-                target_gids[i + 1], neighbor_gids_vdata, need_neighbor_raw_to_unique=True
+            (unique_gids, neighbor_raw_to_unique_mapping,) = graph_ops.append_unique(
+                target_gids[i + 1],
+                neighbor_gids_vdata,
+                need_neighbor_raw_to_unique=True,
             )
             csr_row_ptr[i] = neighbor_gids_offset
             csr_col_ind[i] = neighbor_raw_to_unique_mapping
@@ -131,5 +134,3 @@ class GraphStructure(object):
             )
             target_gids[i] = unique_gids
         return target_gids, edge_indice, csr_row_ptr, csr_col_ind
-
-
