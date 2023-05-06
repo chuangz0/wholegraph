@@ -7,11 +7,11 @@
 
 #include <experimental/random>
 
-#include <raft/util/integer_utils.hpp>
 #include <wholememory_ops/register.hpp>
 #include <wholememory_ops/temp_memory_handle.hpp>
 
-namespace wholememory_ops::testing {
+namespace wholememory_ops {
+namespace testing {
 
 template <typename DataTypeT>
 class type_convertor {
@@ -85,8 +85,7 @@ void matrix_test_cast(void* dst,
   int threads_per_block = std::max<int>(col_count, 256);
   int rows_per_block    = threads_per_block / col_count;
   threads_per_block     = rows_per_block * col_count;
-  int block_count =
-    static_cast<int>(raft::div_rounding_up_unsafe<int64_t>(row_count, rows_per_block));
+  int block_count       = static_cast<int>((row_count + rows_per_block - 1) / rows_per_block);
   matrix_type_cast_kernel<SrcTypeT, DstTypeT>
     <<<block_count, threads_per_block, 0, stream>>>(static_cast<DstTypeT*>(dst),
                                                     static_cast<const SrcTypeT*>(src),
@@ -514,4 +513,5 @@ void host_random_init_float(float* data, int64_t len, float max_value, float min
   }
 }
 
-}  // namespace wholememory_ops::testing
+}  // namespace testing
+}  // namespace wholememory_ops

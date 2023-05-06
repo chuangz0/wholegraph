@@ -1,6 +1,4 @@
 #include <cuda_runtime_api.h>
-#include <raft/util/cudart_utils.hpp>
-#include <raft/util/integer_utils.hpp>
 
 #include "spmm_csr_no_weight_func.cuh"
 #include <wholememory/env_func_ptrs.h>
@@ -39,7 +37,7 @@ wholememory_error_code_t spmm_csr_no_weight_forward_mapped(
                       output_desc,
                       stream);
 
-  } catch (const raft::cuda_error& rle) {
+  } catch (const wholememory::cuda_error& wce) {
     // WHOLEMEMORY_FAIL_NOTHROW("%s", rle.what());
     return WHOLEMEMORY_LOGIC_ERROR;
   } catch (const wholememory::logic_error& le) {
@@ -76,7 +74,7 @@ wholememory_error_code_t spmm_csr_no_weight_backward_mapped(
                       output_grad_feature_tensor_desc,
                       stream);
 
-  } catch (const raft::cuda_error& rle) {
+  } catch (const wholememory::cuda_error& wce) {
     // WHOLEMEMORY_FAIL_NOTHROW("%s", rle.what());
     return WHOLEMEMORY_LOGIC_ERROR;
   } catch (const wholememory::logic_error& le) {

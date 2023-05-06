@@ -1,7 +1,8 @@
 #include "spadd_gat_csr_utils.hpp"
 #include <gtest/gtest.h>
 
-namespace graph_ops::testing {
+namespace graph_ops {
+namespace testing {
 
 template <typename WeightType>
 void host_get_spadd_gat_csr_forward(int* host_csr_row_ptr,
@@ -139,4 +140,5 @@ void host_spadd_gat_csr_backward(
   }
 }
 
-}  // namespace graph_ops::testing
+}  // namespace testing
+}  // namespace graph_ops

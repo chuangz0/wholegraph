@@ -6,7 +6,8 @@
 #include <wholememory/graph_op.h>
 #include <wholememory_ops/register.hpp>
 
-namespace graph_ops::testing {
+namespace graph_ops {
+namespace testing {
 
 template <typename RowPtrType, typename ColIdType>
 void host_get_local_csr_graph(int row_num,
@@ -369,4 +370,5 @@ void host_spmm_csr_no_weight_backward(void* host_csr_row_ptr,
   }
 }
 
-}  // namespace graph_ops::testing
+}  // namespace testing
+}  // namespace graph_ops

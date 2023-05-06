@@ -1,7 +1,8 @@
 #pragma once
 #include <wholememory/tensor_description.h>
 
-namespace graph_ops::testing {
+namespace graph_ops {
+namespace testing {
 void gen_local_csr_graph(
   int row_num,
   int col_num,
@@ -43,4 +44,5 @@ void host_spmm_csr_no_weight_backward(void* host_csr_row_ptr,
                                       int aggregator,
                                       void* host_ref_output_grad_feature,
                                       wholememory_matrix_description_t output_feature_desc);
-}  // namespace graph_ops::testing
+}  // namespace testing
+}  // namespace graph_ops

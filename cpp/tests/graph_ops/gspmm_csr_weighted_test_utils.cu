@@ -1,7 +1,8 @@
 #include "gspmm_csr_weighted_test_utils.hpp"
 #include <gtest/gtest.h>
 
-namespace graph_ops::testing {
+namespace graph_ops {
+namespace testing {
 
 template <typename WeightType>
 void host_get_gpsmm_csr_weighted_forward(
@@ -199,4 +200,5 @@ void host_gspmm_csr_weighted_backward(
                                                 output_grad_feature_tensor_desc);
   }
 }
-}  // namespace graph_ops::testing
+}  // namespace testing
+}  // namespace graph_ops

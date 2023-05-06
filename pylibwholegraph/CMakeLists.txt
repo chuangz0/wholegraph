@@ -69,7 +69,7 @@ if (NOT DEFINED BUILD_PYTHON_EXE)
     elseif(DEFINED Python_ROOT_DIR)
         set(BUILD_PYTHON_EXE "${Python_ROOT_DIR}/bin/python3")
     else()
-        execute_process(COMMAND "which python3"
+        execute_process(COMMAND "which" "python3"
                 OUTPUT_VARIABLE BUILD_PYTHON_EXE OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
     endif()
 endif()

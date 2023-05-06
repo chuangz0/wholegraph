@@ -133,8 +133,8 @@ def parse_args():
         }
 
     if args.v:
-        print("Using {} version {} ({} processes)".format(
-            args.compiler, version, args.j))
+        print("Using {} ({} processes)".format(
+            args.compiler, args.j))
         print("Using git modified files only: {}".format(
             args.git_modified_only))
         print("ROOT dir: {}\nLauncher: {}".format(args.root, args.launcher))
@@ -224,10 +224,12 @@ def remove_items_plus_one(arr, item_options):
 def add_cuda_path(command, nvcc):
     # Check if we are using conda compilers. If yes, we need to use cuda-gdb
     # path as nvcc path refer to the fake nvcc shell script in the conda env
-    if "_build_env" in nvcc:
-        nvcc_path = shutil.which("cuda-gdb")
-    else:
-        nvcc_path = shutil.which(nvcc)
+    # Modified in WholeGraph: always use cuda-gdb path.
+    # if "_build_env" in nvcc:
+    #     nvcc_path = shutil.which("cuda-gdb")
+    # else:
+    #     nvcc_path = shutil.which(nvcc)
+    nvcc_path = shutil.which("cuda-gdb")
     if not nvcc_path:
         raise Exception("Command %s has invalid compiler %s" % (command, nvcc))
     cuda_root = os.path.dirname(os.path.dirname(nvcc_path))
@@ -460,12 +462,13 @@ def run_clang_tidy(lock, modified_files, args, build_dir, db_cmd):
     sub_dirs = "|".join(clangutils.HEADER_SUB_DIRS)
     sep = re.escape(os.sep)
     sub_dirs = sep + "[^/]+" + sep + "(" + sub_dirs + ")" + sep + ".*" + sep
+    cpp_modernize = "--extra-arg=-std=c++17"
     header_filter = "--header-filter='.*%s[^%s]+[.](cuh|h|hpp)$'" % (
         os.path.basename(args.root) + sub_dirs, sep
     )
     filter_headers = [{"name": h} for h in args.headers]
     line_filter = "--line-filter='%s'" % json.dumps(filter_headers)
-    tidy_cmd = [args.exe, header_filter, line_filter, f_path, "--"]
+    tidy_cmd = [args.exe, cpp_modernize, header_filter, line_filter, f_path, "--"]
     tidy_cmd.extend(cmd)
     status = True
     out = ""

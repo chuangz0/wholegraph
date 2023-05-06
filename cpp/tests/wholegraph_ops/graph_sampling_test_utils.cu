@@ -1,5 +1,6 @@
 #include "graph_sampling_test_utils.hpp"
 
+#include <algorithm>
 #include <experimental/random>
 #include <gtest/gtest.h>
 #include <iterator>
@@ -10,7 +11,8 @@
 #include "wholememory_ops/raft_random.cuh"
 #include <wholememory_ops/register.hpp>
 
-namespace wholegraph_ops::testing {
+namespace wholegraph_ops {
+namespace testing {
 
 template <typename DataType>
 void host_get_csr_graph(int64_t graph_node_count,
@@ -808,4 +810,5 @@ void segment_sort_output(void* host_output_sample_offset,
   }
 }
 
-}  // namespace wholegraph_ops::testing
+}  // namespace testing
+}  // namespace wholegraph_ops

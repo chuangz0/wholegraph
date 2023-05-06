@@ -6,7 +6,8 @@
 #include <vector>
 #include <wholememory/tensor_description.h>
 
-namespace graph_ops::testing {
+namespace graph_ops {
+namespace testing {
 template <typename DataType>
 void host_get_random_node_ids(void* nodes, int64_t node_count, int64_t range, bool unique)
 {
@@ -28,16 +29,16 @@ void host_get_random_node_ids(void* nodes, int64_t node_count, int64_t range, bo
   }
 }
 
-void gen_node_ids(void* nodes,
+void gen_node_ids(void* host_target_nodes_ptr,
                   wholememory_array_description_t node_desc,
                   int64_t range,
                   bool unique)
 {
   int64_t node_count = node_desc.size;
   if (node_desc.dtype == WHOLEMEMORY_DT_INT) {
-    host_get_random_node_ids<int>(nodes, node_count, range, unique);
+    host_get_random_node_ids<int>(host_target_nodes_ptr, node_count, range, unique);
   } else if (node_desc.dtype == WHOLEMEMORY_DT_INT64) {
-    host_get_random_node_ids<int64_t>(nodes, node_count, range, unique);
+    host_get_random_node_ids<int64_t>(host_target_nodes_ptr, node_count, range, unique);
   }
 }
 
@@ -140,4 +141,5 @@ void host_append_unique(void* target_nodes_ptr,
   }
 }
 
-}  // namespace graph_ops::testing
+}  // namespace testing
+}  // namespace graph_ops

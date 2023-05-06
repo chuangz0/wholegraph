@@ -1,6 +1,7 @@
 #pragma once
 #include "cuda_macros.hpp"
 #include "error.hpp"
+#include <assert.h>
 #include <wholememory/env_func_ptrs.h>
 #include <wholememory/tensor_description.h>
 

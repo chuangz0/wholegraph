@@ -4,7 +4,8 @@
 #include <wholememory/tensor_description.h>
 #include <wholememory/wholememory.h>
 
-namespace wholegraph_ops::testing {
+namespace wholegraph_ops {
+namespace testing {
 
 void host_random_init_array(void* array,
                             wholememory_array_description_t array_desc,
@@ -73,4 +74,5 @@ void segment_sort_output(void* host_output_sample_offset,
                          void* host_output_global_edge_id,
                          wholememory_array_description_t output_global_edge_id_desc);
 
-}  // namespace wholegraph_ops::testing
+}  // namespace testing
+}  // namespace wholegraph_ops

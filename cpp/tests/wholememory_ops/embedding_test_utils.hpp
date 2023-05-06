@@ -4,7 +4,8 @@
 #include <wholememory/tensor_description.h>
 #include <wholememory/wholememory.h>
 
-namespace wholememory_ops::testing {
+namespace wholememory_ops {
+namespace testing {
 
 void device_matrix_type_cast(void* dst,
                              wholememory_matrix_description_t dst_desc,
@@ -47,4 +48,5 @@ void host_check_embedding_same(void* host_embedding,
 
 void host_random_init_float(float* data, int64_t len, float max_value, float min_value);
 
-}  // namespace wholememory_ops::testing
+}  // namespace testing
+}  // namespace wholememory_ops

@@ -594,7 +594,7 @@ TEST_P(WholeMemoryEmbeddingBackwardParameterTests, EmbeddingGatherGradientApplyT
                                           embedding_copy_size,
                                           cudaMemcpyHostToDevice));
       }
-      EXPECT_EQ(cudaDeviceSynchronize(), cudaSuccess);
+      EXPECT_EQ(cudaStreamSynchronize(nullptr), cudaSuccess);
       EXPECT_EQ(wholememory_communicator_barrier(wm_comm), WHOLEMEMORY_SUCCESS);
 
       for (int run = 0; run <= params.run_count; run++) {
@@ -627,7 +627,7 @@ TEST_P(WholeMemoryEmbeddingBackwardParameterTests, EmbeddingGatherGradientApplyT
                              indice_count * grad_stride * sizeof(float),
                              cudaMemcpyHostToDevice),
                   cudaSuccess);
-        EXPECT_EQ(cudaDeviceSynchronize(), cudaSuccess);
+        EXPECT_EQ(cudaStreamSynchronize(nullptr), cudaSuccess);
         wholememory_embedding_gather_gradient_apply(wm_embedding,
                                                     indices_tensor,
                                                     grad_tensor,
@@ -653,7 +653,7 @@ TEST_P(WholeMemoryEmbeddingBackwardParameterTests, EmbeddingGatherGradientApplyT
                              cudaMemcpyDeviceToHost),
                   cudaSuccess);
       }
-      EXPECT_EQ(cudaDeviceSynchronize(), cudaSuccess);
+      EXPECT_EQ(cudaStreamSynchronize(nullptr), cudaSuccess);
       for (int64_t i = 0; i < rank_entry_count; i++) {
         if (::testing::Test::HasFailure()) break;
         host_expect_all_close(local_end_embedding[i].data(),

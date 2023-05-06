@@ -225,10 +225,10 @@ WarningsAsErrors: ''
 HeaderFilterRegex: ''
 AnalyzeTemporaryDtors: false
 FormatStyle:     none
-User:            cugraph-ops
+User:            wholegraph
 CheckOptions:
   - key:             cppcoreguidelines-macro-usage.AllowedRegexp
-    value:           CUGRAPH_OPS*|ASSERT|SET_ERROR_MSG|THROW|RAFT_*
+    value:           WHOLEMEMORY*|WHOLEGRAPH*|ASSERT|SET_ERROR_MSG|THROW|RAFT_*
   - key:             cppcoreguidelines-special-member-functions.AllowMissingMoveFunctions
     value:           true
   - key:             cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor

@@ -2,7 +2,8 @@
 #include <wholememory/tensor_description.h>
 #include <wholememory/wholememory_tensor.h>
 
-namespace graph_ops::testing {
+namespace graph_ops {
+namespace testing {
 void host_gspmm_csr_weighted_forward(void* host_csr_row_ptr,
                                      wholememory_array_description_t csr_row_ptr_array_desc,
                                      void* host_csr_col_ptr,
@@ -29,4 +30,5 @@ void host_gspmm_csr_weighted_backward(
   void* host_ref_output_grad_feature_ptr,
   wholememory_tensor_description_t output_grad_feature_tensor_desc);
 
-}  // namespace graph_ops::testing
+}  // namespace testing
+}  // namespace graph_ops

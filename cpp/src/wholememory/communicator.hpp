@@ -218,7 +218,8 @@ inline bool wm_comm_check_all_same(wholememory_comm_t comm, const std::string& s
   if (!wm_comm_check_all_same(comm, str_len)) return false;
   std::string cat_str;
   cat_str.resize(str_len * comm->world_size, '\0');
-  comm->host_allgather(str.data(), cat_str.data(), str_len, WHOLEMEMORY_DT_INT8);
+  comm->host_allgather(
+    str.data(), const_cast<char*>(cat_str.c_str()), str_len, WHOLEMEMORY_DT_INT8);
   for (int r = 0; r < comm->world_size; r++) {
     if (std::strncmp(str.data(), cat_str.data() + r * str_len, str_len) != 0) return false;
   }

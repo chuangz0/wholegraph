@@ -1,7 +1,8 @@
 #include "csr_add_self_loop_utils.hpp"
 #include <gtest/gtest.h>
 
-namespace graph_ops::testing {
+namespace graph_ops {
+namespace testing {
 void host_get_csr_add_self_loop(int* host_csr_row_ptr,
                                 wholememory_array_description_t csr_row_ptr_array_desc,
                                 int* host_csr_col_ptr,
@@ -51,4 +52,5 @@ void host_csr_add_self_loop(void* host_csr_row_ptr,
                              output_csr_col_ptr_array_desc);
 }
 
-}  // namespace graph_ops::testing
+}  // namespace testing
+}  // namespace graph_ops

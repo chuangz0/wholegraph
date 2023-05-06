@@ -1,7 +1,8 @@
 #include "edge_weight_softmax_test_utils.hpp"
 #include <gtest/gtest.h>
 
-namespace graph_ops::testing {
+namespace graph_ops {
+namespace testing {
 
 template <typename WeightType>
 void host_get_edge_weight_softmax_forward(
@@ -134,4 +135,5 @@ void host_edge_weight_softmax_backward(
   }
 }
 
-}  // namespace graph_ops::testing
+}  // namespace testing
+}  // namespace graph_ops
