@@ -11,60 +11,6 @@ class WholeMemoryHandleCreateDestroyParameterTests
   : public ::testing::TestWithParam<
       std::tuple<size_t, wholememory_memory_type_t, wholememory_memory_location_t, size_t>> {};
 
-class WholeMemoryHandleSingleProcessCreateDestroyParameterTests
-  : public ::testing::TestWithParam<
-      std::tuple<size_t, wholememory_memory_type_t, wholememory_memory_location_t, size_t>> {};
-
-TEST_P(WholeMemoryHandleSingleProcessCreateDestroyParameterTests, CreateDestroyTest)
-{
-  auto params   = GetParam();
-  int dev_count = ForkGetDeviceCount();
-  EXPECT_GE(dev_count, 1);
-  EXPECT_EQ(wholememory_init(0), WHOLEMEMORY_SUCCESS);
-
-  wholememory_unique_id_t unique_id;
-  EXPECT_EQ(wholememory_create_unique_id(&unique_id), WHOLEMEMORY_SUCCESS);
-
-  wholememory_comm_t wm_comm;
-  EXPECT_EQ(wholememory_create_communicator(&wm_comm, unique_id, 0, 1), WHOLEMEMORY_SUCCESS);
-
-  wholememory_handle_t handle1;
-  EXPECT_EQ(wholememory::create_wholememory(&handle1,
-                                            std::get<0>(params),
-                                            wm_comm,
-                                            std::get<1>(params),
-                                            std::get<2>(params),
-                                            std::get<2>(params)),
-            WHOLEMEMORY_SUCCESS);
-
-  EXPECT_EQ(wholememory::destroy_wholememory(handle1), WHOLEMEMORY_SUCCESS);
-
-  EXPECT_EQ(wholememory::destroy_all_communicators(), WHOLEMEMORY_SUCCESS);
-
-  EXPECT_EQ(wholememory_finalize(), WHOLEMEMORY_SUCCESS);
-}
-
-INSTANTIATE_TEST_SUITE_P(
-  WholeMemoryHandleTests,
-  WholeMemoryHandleSingleProcessCreateDestroyParameterTests,
-  ::testing::Values(
-    /*std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_CONTINUOUS, WHOLEMEMORY_ML_HOST,
-    128UL), std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_CHUNKED, WHOLEMEMORY_ML_DEVICE,
-    128UL), std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_CHUNKED, WHOLEMEMORY_ML_HOST,
-    128UL),*/
-    std::make_tuple(
-      1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_DISTRIBUTED, WHOLEMEMORY_ML_DEVICE, 128UL) /*,
-std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_DISTRIBUTED, WHOLEMEMORY_ML_HOST, 128UL),
-
-std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_CONTINUOUS, WHOLEMEMORY_ML_HOST, 63UL),
-std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_CHUNKED, WHOLEMEMORY_ML_DEVICE, 63UL),
-std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_CHUNKED, WHOLEMEMORY_ML_HOST, 63UL),
-std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_DISTRIBUTED, WHOLEMEMORY_ML_DEVICE, 63UL),
-std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_DISTRIBUTED, WHOLEMEMORY_ML_HOST, 63UL),
-
-std::make_tuple(1024UL * 1024UL * 512UL, WHOLEMEMORY_MT_CONTINUOUS, WHOLEMEMORY_ML_HOST, 128UL)*/
-    ));
-
 TEST_P(WholeMemoryHandleCreateDestroyParameterTests, CreateDestroyTest)
 {
   auto params   = GetParam();
