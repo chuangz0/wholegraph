@@ -22,7 +22,7 @@ int GetProcessorCount();
 
 /**
  * Run f with size processes
- * @note when using gtest with MultiProcessRun, ::testing::Test::HasFailure()
+ * @note when using gtest with MultiProcessRun, testing::Test::HasFailure()
  * need to be called before f return and modify exit code according to if has
  * gtest failures. See parallel_utils_tests.cpp for reference.
  * @param size : process count

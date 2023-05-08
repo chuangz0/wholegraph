@@ -79,6 +79,7 @@ class embedding_optimizer_impl_base : public wholememory_embedding_optimizer_ {
    * @param indices : bucketed indices that belongs to current rank.
    * @param grads : bucketed gradients that belongs to current rank.
    * @param local_embedding : local embedding of current rank.
+   * @param optimizer_state : pointer to optimizer state.
    * @param lr : learning rate
    * @param stream : cudaStream_t to use
    * @return : wholememory_error_code_t

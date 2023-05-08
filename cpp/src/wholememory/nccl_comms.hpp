@@ -17,12 +17,9 @@ class nccl_comms {
   /**
    * @brief Constructor for collective + point-to-point operation.
    * @param nccl_comm initialized nccl comm
-   * @param ucp_worker initialized ucp_worker instance
-   * @param eps shared pointer to array of ucp endpoints
    * @param num_ranks number of ranks in the cluster
    * @param rank rank of the current worker
    * @param stream cuda stream for synchronizing and ordering collective operations
-   * @param subcomms_ucp use ucp for subcommunicators
    */
   nccl_comms(ncclComm_t nccl_comm, int num_ranks, int rank, cudaStream_t stream);
 
