@@ -133,10 +133,10 @@ fi
 
 # set values based on flags
 if (( ${BUILD_ALL_GPU_ARCH} == 0 )); then
-    CUGRAPH_OPS_CMAKE_CUDA_ARCHITECTURES="${CUGRAPH_OPS_CMAKE_CUDA_ARCHITECTURES:=NATIVE}"
+    WHOLEGRAPH_CMAKE_CUDA_ARCHITECTURES="${WHOLEGRAPH_CMAKE_CUDA_ARCHITECTURES:=NATIVE}"
     echo "Building for the architecture of the GPU in the system..."
 else
-    CUGRAPH_OPS_CMAKE_CUDA_ARCHITECTURES="70-real;75-real;80-real;86-real;90"
+    WHOLEGRAPH_CMAKE_CUDA_ARCHITECTURES="70-real;75-real;80-real;86-real;90"
     echo "Building for *ALL* supported GPU architectures..."
 fi
 if hasArg tests; then
@@ -155,7 +155,7 @@ fi
 if hasArg libwholegraph; then
     cmake -S ${REPODIR}/cpp -B ${LIBWHOLEGRAPH_BUILD_DIR} \
           -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
-          -DCMAKE_CUDA_ARCHITECTURES=${CUGRAPH_OPS_CMAKE_CUDA_ARCHITECTURES} \
+          -DCMAKE_CUDA_ARCHITECTURES=${WHOLEGRAPH_CMAKE_CUDA_ARCHITECTURES} \
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
           -DCMAKE_PREFIX_PATH=${INSTALL_PREFIX} \
           -DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE \
@@ -174,7 +174,7 @@ fi
 # pylibwholegraph
 if hasArg pylibwholegraph; then
     # setup.py and cmake reference an env var LIBWHOLEGRAPH_DIR to find the
-    # libcugraph-ops package (cmake).
+    # libwholegraph package (cmake).
     # If not set by the user, set it to LIBWHOLEGRAPH_BUILD_DIR
     LIBWHOLEGRAPH_DIR=${LIBWHOLEGRAPH_DIR:=${LIBWHOLEGRAPH_BUILD_DIR}}
     if ! hasArg --compile-cmd; then

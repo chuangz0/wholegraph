@@ -18,7 +18,7 @@ import os
 
 import git
 
-DEFAULT_DIRS = ["cpp", "pylibcugraphops", "pylibcugraphops_internal"]
+DEFAULT_DIRS = ["cpp", "pylibwholegraph"]
 HEADER_SUB_DIRS = ["benchmarks", "include", "src", "tests", "cpp"]
 ALWAYS_IGNORED_DIRS = ["build", "_skbuild"]
 HEADER_EXT = ["h", "hpp", "cuh"]

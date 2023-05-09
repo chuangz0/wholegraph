@@ -2,7 +2,7 @@
 
 # Copyright (c) 2019-2022, NVIDIA CORPORATION.
 
-# cugraphops build script
+# wholegraph build script
 
 # This script is used to build the component(s) in this repo from
 # source, and can be called with various options to customize the
