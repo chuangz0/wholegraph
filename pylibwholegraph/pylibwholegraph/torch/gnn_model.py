@@ -10,7 +10,7 @@ framework_name = None
 
 def set_framework(framework: str):
     global framework_name
-    assert framework_name is not None
+    assert framework_name is None
     framework_name = framework
     global SAGEConv, GATConv
     if framework_name == "dgl":
