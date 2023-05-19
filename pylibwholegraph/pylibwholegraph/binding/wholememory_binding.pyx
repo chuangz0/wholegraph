@@ -1790,6 +1790,22 @@ cdef extern from "wholememory/wholegraph_op.h":
             unsigned long long random_seed,
             wholememory_env_func_t * p_env_fns,
             void * stream)
+    
+    cdef wholememory_error_code_t raft_pcg_generator_random_int(
+            int64_t random_seed,
+            int64_t subsequence,
+            wholememory_tensor_t output)
+
+    cdef wholememory_error_code_t raft_pcg_generator_random_float(
+            int64_t random_seed,
+            int64_t subsequence,
+            wholememory_tensor_t output)
+
+    cdef wholememory_error_code_t raft_pcg_generator_random_float_with_bias(
+            int64_t random_seed,
+            int64_t subsequence,
+            wholememory_tensor_t weight,
+            wholememory_tensor_t output)
 
 cpdef void csr_unweighted_sample_without_replacement(
         PyWholeMemoryTensor wm_csr_row_ptr_tensor,
@@ -1844,6 +1860,42 @@ cpdef void csr_weighted_sample_without_replacement(
         random_seed,
         <wholememory_env_func_t *> p_env_fns_int,
         <void *> stream_int))
+
+cpdef void raft_generator_random_int(
+        int64_t random_seed,
+        int64_t subsequence,
+        WrappedLocalTensor output
+):
+    check_wholememory_error_code(raft_pcg_generator_random_int(
+        random_seed,
+        subsequence,
+        <wholememory_tensor_t> <int64_t> output.get_c_handle()
+    ))
+
+
+cpdef void raft_generator_random_float(
+        int64_t random_seed,
+        int64_t subsequence,
+        WrappedLocalTensor output
+):
+    check_wholememory_error_code(raft_pcg_generator_random_float(
+        random_seed,
+        subsequence,
+        <wholememory_tensor_t> <int64_t> output.get_c_handle()
+    ))
+
+cpdef void raft_generator_random_float_with_bias(
+        int64_t random_seed,
+        int64_t subsequence,
+        WrappedLocalTensor weight,
+        WrappedLocalTensor output
+):
+    check_wholememory_error_code(raft_pcg_generator_random_float_with_bias(
+            random_seed,
+            subsequence,
+            <wholememory_tensor_t> <int64_t> weight.get_c_handle(),
+            <wholememory_tensor_t> <int64_t> output.get_c_handle()
+    ))
 
 
 cdef extern from "wholememory/graph_op.h":

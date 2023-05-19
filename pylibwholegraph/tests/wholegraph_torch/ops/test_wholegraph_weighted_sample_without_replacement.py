@@ -90,6 +90,7 @@ def host_weighted_sample_without_replacement_func(
                                 torch.tensor([id], dtype=col_id_dtype),
                             )
                         )
+                '''       
                 generated_random_weight = (
                     torch.ops.wholegraph_test.raft_pcg_generator_random_from_weight(
                         random_seed,
@@ -98,6 +99,11 @@ def host_weighted_sample_without_replacement_func(
                         generated_edge_weight_count,
                     )
                 )
+                '''
+                generated_random_weight = (
+                    wg_ops.random_float_generator_with_bias(random_seed, local_gidx, local_edge_weights, generated_edge_weight_count)
+                )
+            
                 total_neighbor_generated_weights = torch.cat(
                     (total_neighbor_generated_weights, generated_random_weight)
                 )
