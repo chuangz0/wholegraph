@@ -100,8 +100,9 @@ def host_weighted_sample_without_replacement_func(
                     )
                 )
                 '''
+                random_values = wg_ops.random_float_generator(random_seed, local_gidx, generated_edge_weight_count)
                 generated_random_weight = (
-                    wg_ops.random_float_generator_with_bias(random_seed, local_gidx, local_edge_weights, generated_edge_weight_count)
+                    wg_ops.random_float_generator_with_bias(local_edge_weights, random_values, generated_edge_weight_count)
                 )
             
                 total_neighbor_generated_weights = torch.cat(

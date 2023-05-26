@@ -192,10 +192,10 @@ __global__ void unweighted_sample_without_replacement_kernel(
   } shared_data;
 #pragma unroll
   for (int i = 0; i < ITEMS_PER_THREAD; i++) {
-    uint32_t idx = i * BLOCK_DIM + threadIdx.x;
-    uint32_t random_num;
+    int idx = i * BLOCK_DIM + threadIdx.x;
+    int random_num;
     rng.next(random_num);
-    uint32_t r = idx < M ? (random_num % (N - idx)) : N;
+    int r = idx < M ? (random_num % (N - idx)) : N;
     sa_p[i]    = ((uint64_t)r << 32UL) | idx;
   }
   __syncthreads();

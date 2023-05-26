@@ -111,16 +111,14 @@ wholememory_error_code_t raft_pcg_generator_random_float(
 
 /**
  * raft_pcg_generator_random_float_with_bias cpu op
- * @param random_seed : random seed
- * @param subsequence : subsequence for generating random value
  * @param weight : Wholememory Tensor of weight
+ * @param input_random_values : Wholememory Tensor of input random values 
  * @param output : Wholememory Tensor of output 
  * @return : wholememory_error_code_t
  */
 wholememory_error_code_t raft_pcg_generator_random_float_with_bias(
-  int64_t random_seed,
-  int64_t subsequence,
   wholememory_tensor_t weight,
+  wholememory_tensor_t input_random_values,
   wholememory_tensor_t output
 );
 

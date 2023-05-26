@@ -1802,9 +1802,8 @@ cdef extern from "wholememory/wholegraph_op.h":
             wholememory_tensor_t output)
 
     cdef wholememory_error_code_t raft_pcg_generator_random_float_with_bias(
-            int64_t random_seed,
-            int64_t subsequence,
             wholememory_tensor_t weight,
+            wholememory_tensor_t input_random_values,
             wholememory_tensor_t output)
 
 cpdef void csr_unweighted_sample_without_replacement(
@@ -1885,15 +1884,13 @@ cpdef void raft_generator_random_float(
     ))
 
 cpdef void raft_generator_random_float_with_bias(
-        int64_t random_seed,
-        int64_t subsequence,
         WrappedLocalTensor weight,
+        WrappedLocalTensor input_random_values,
         WrappedLocalTensor output
 ):
     check_wholememory_error_code(raft_pcg_generator_random_float_with_bias(
-            random_seed,
-            subsequence,
             <wholememory_tensor_t> <int64_t> weight.get_c_handle(),
+            <wholememory_tensor_t> <int64_t> input_random_values.get_c_handle(),
             <wholememory_tensor_t> <int64_t> output.get_c_handle()
     ))
 

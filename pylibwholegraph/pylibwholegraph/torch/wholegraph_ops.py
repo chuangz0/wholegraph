@@ -160,7 +160,7 @@ def weighted_sample_without_replacement(
 def random_int_generator(random_seed,
                          sub_sequence,
                          output_random_value_count):
-    output = torch.empty((output_random_value_count,), dtype=torch.int64)
+    output = torch.empty((output_random_value_count,), dtype=torch.int)
     wmb.raft_generator_random_int(random_seed, sub_sequence, wrap_torch_tensor(output))
     return output
 
@@ -171,10 +171,10 @@ def random_float_generator(random_seed: int,
     wmb.raft_generator_random_float(random_seed, sub_sequence, wrap_torch_tensor(output))
     return output
 
-def random_float_generator_with_bias(randonm_seed: int,
-                                     sub_sequence: int,
-                                     weight: torch.tensor,
+def random_float_generator_with_bias(weight: torch.tensor,
+                                     input_radom_values: torch.tensor,
                                      output_random_value_count: int):
     output = torch.empty((output_random_value_count,), dtype=weight.dtype)
-    wmb.raft_generator_random_float_with_bias(randonm_seed, sub_sequence, wrap_torch_tensor(weight), wrap_torch_tensor(output))
+    assert weight.dtype == input_radom_values.dtype
+    wmb.raft_generator_random_float_with_bias(wrap_torch_tensor(weight), wrap_torch_tensor(input_radom_values), wrap_torch_tensor(output))
     return output
