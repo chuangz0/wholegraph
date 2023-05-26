@@ -83,6 +83,45 @@ wholememory_error_code_t wholegraph_csr_weighted_sample_without_replacement(
   wholememory_env_func_t* p_env_fns,
   void* stream);
 
+/**
+ * raft_pcg_generator_random_int cpu op
+ * @param random_seed : random seed
+ * @param subsequence : subsequence for generating random value
+ * @param output : Wholememory Tensor of output 
+ * @return : wholememory_error_code_t
+ */
+wholememory_error_code_t raft_pcg_generator_random_int(
+  int64_t random_seed,
+  int64_t subsequence,
+  wholememory_tensor_t output
+);
+
+/**
+ * raft_pcg_generator_random_float cpu op
+ * @param random_seed : random seed
+ * @param subsequence : subsequence for generating random value
+ * @param output : Wholememory Tensor of output 
+ * @return : wholememory_error_code_t
+ */
+wholememory_error_code_t raft_pcg_generator_random_float(
+  int64_t random_seed,
+  int64_t subsequence,
+  wholememory_tensor_t output
+);
+
+/**
+ * raft_pcg_generator_random_float_with_bias cpu op
+ * @param weight : Wholememory Tensor of weight
+ * @param input_random_values : Wholememory Tensor of input random values 
+ * @param output : Wholememory Tensor of output 
+ * @return : wholememory_error_code_t
+ */
+wholememory_error_code_t raft_pcg_generator_random_float_with_bias(
+  wholememory_tensor_t weight,
+  wholememory_tensor_t input_random_values,
+  wholememory_tensor_t output
+);
+
 #ifdef __cplusplus
 }
 #endif
