@@ -157,24 +157,16 @@ def weighted_sample_without_replacement(
         return output_sample_offset_tensor, output_dest_context.get_tensor()
 
 
-def random_int_generator(random_seed,
+def generate_random_positive_int_cpu(random_seed,
                          sub_sequence,
                          output_random_value_count):
     output = torch.empty((output_random_value_count,), dtype=torch.int)
-    wmb.raft_generator_random_int(random_seed, sub_sequence, wrap_torch_tensor(output))
+    wmb.host_generate_random_positive_int(random_seed, sub_sequence, wrap_torch_tensor(output))
     return output
 
-def random_float_generator(random_seed: int,
+def generate_random_negative_float_cpu(random_seed: int,
                            sub_sequence: int,
                            output_random_value_count: int):
     output = torch.empty((output_random_value_count,), dtype = torch.float)
-    wmb.raft_generator_random_float(random_seed, sub_sequence, wrap_torch_tensor(output))
-    return output
-
-def random_float_generator_with_bias(weight: torch.tensor,
-                                     input_radom_values: torch.tensor,
-                                     output_random_value_count: int):
-    output = torch.empty((output_random_value_count,), dtype=weight.dtype)
-    assert weight.dtype == input_radom_values.dtype
-    wmb.raft_generator_random_float_with_bias(wrap_torch_tensor(weight), wrap_torch_tensor(input_radom_values), wrap_torch_tensor(output))
+    wmb.host_generate_random_negative_float(random_seed, sub_sequence, wrap_torch_tensor(output))
     return output

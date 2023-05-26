@@ -90,7 +90,7 @@ wholememory_error_code_t wholegraph_csr_weighted_sample_without_replacement(
  * @param output : Wholememory Tensor of output 
  * @return : wholememory_error_code_t
  */
-wholememory_error_code_t raft_pcg_generator_random_int(
+wholememory_error_code_t generate_random_positive_int_cpu(
   int64_t random_seed,
   int64_t subsequence,
   wholememory_tensor_t output
@@ -103,22 +103,9 @@ wholememory_error_code_t raft_pcg_generator_random_int(
  * @param output : Wholememory Tensor of output 
  * @return : wholememory_error_code_t
  */
-wholememory_error_code_t raft_pcg_generator_random_float(
+wholememory_error_code_t generate_random_negative_float_cpu(
   int64_t random_seed,
   int64_t subsequence,
-  wholememory_tensor_t output
-);
-
-/**
- * raft_pcg_generator_random_float_with_bias cpu op
- * @param weight : Wholememory Tensor of weight
- * @param input_random_values : Wholememory Tensor of input random values 
- * @param output : Wholememory Tensor of output 
- * @return : wholememory_error_code_t
- */
-wholememory_error_code_t raft_pcg_generator_random_float_with_bias(
-  wholememory_tensor_t weight,
-  wholememory_tensor_t input_random_values,
   wholememory_tensor_t output
 );
 

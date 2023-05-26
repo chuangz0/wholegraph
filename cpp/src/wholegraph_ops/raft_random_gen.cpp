@@ -23,7 +23,7 @@
 #include "logger.hpp"
 
 // generate_negative=true: generate uint32 data 
-wholememory_error_code_t raft_pcg_generator_random_int(
+wholememory_error_code_t generate_random_positive_int_cpu(
   int64_t random_seed,
   int64_t subsequence,
   wholememory_tensor_t output
@@ -55,7 +55,7 @@ wholememory_error_code_t raft_pcg_generator_random_int(
   return WHOLEMEMORY_SUCCESS;
 }
 
-wholememory_error_code_t raft_pcg_generator_random_float(
+wholememory_error_code_t generate_random_negative_float_cpu(
   int64_t random_seed,
   int64_t subsequence,
   wholememory_tensor_t output
@@ -65,8 +65,8 @@ wholememory_error_code_t raft_pcg_generator_random_float(
     WHOLEMEMORY_ERROR("output should be 1D tensor.");
     return WHOLEMEMORY_INVALID_INPUT;
   }
-  if (output_tensor_desc.dtype != WHOLEMEMORY_DT_FLOAT && output_tensor_desc.dtype != WHOLEMEMORY_DT_DOUBLE) {
-    WHOLEMEMORY_ERROR("output should be float or double tensor.");
+  if (output_tensor_desc.dtype != WHOLEMEMORY_DT_FLOAT) {
+    WHOLEMEMORY_ERROR("output should be float.");
     return WHOLEMEMORY_INVALID_INPUT;
   }
   auto* output_ptr = wholememory_tensor_get_data_pointer(output);
@@ -90,52 +90,8 @@ wholememory_error_code_t raft_pcg_generator_random_float(
     int one_bit = count_one(random_num2) + seed_count * 64;
     u *= pow(2, -one_bit);
     // float logk = (log1pf(u) / logf(2.0)) * (1.0f / (float)weight);
-    if (output_tensor_desc.dtype == WHOLEMEMORY_DT_FLOAT) {
-      float logk                     = (log1p(u) / log(2.0));
-      static_cast<float*>(output_ptr)[i] = logk;
-    } else if (output_tensor_desc.dtype == WHOLEMEMORY_DT_DOUBLE)  {
-      double logk                     =  (log1p(u) / log(2.0));
-      static_cast<double*>(output_ptr)[i] = logk;
-   }
-  }
-  return WHOLEMEMORY_SUCCESS;
-}
-
-
-wholememory_error_code_t raft_pcg_generator_random_float_with_bias(
-  wholememory_tensor_t weight,
-  wholememory_tensor_t input_random_values,
-  wholememory_tensor_t output
-) {
-  auto output_tensor_desc = *wholememory_tensor_get_tensor_description(output);
-  auto input_random_value_desc = *wholememory_tensor_get_tensor_description(input_random_values);
-  auto weight_tensor_desc      = *wholememory_tensor_get_tensor_description(weight);
-  if (output_tensor_desc.dim != 1) {
-    WHOLEMEMORY_ERROR("output should be 1D tensor.");
-    return WHOLEMEMORY_INVALID_INPUT;
-  }
-  if (output_tensor_desc.dtype != weight_tensor_desc.dtype || output_tensor_desc.dtype != input_random_value_desc.dtype) {
-    WHOLEMEMORY_ERROR("output tensor dtype should be the same with weight tensor and input_random_value tensor.");
-    return WHOLEMEMORY_INVALID_INPUT;
-  }
-  if (weight_tensor_desc.dim != 1 || input_random_value_desc.dim != 1) {
-     WHOLEMEMORY_ERROR("weight and input_random_values should be 1D tensor.");
-    return WHOLEMEMORY_INVALID_INPUT;
-  }
-  auto* input_random_value_ptr = wholememory_tensor_get_data_pointer(input_random_values);
-  auto* output_ptr             = wholememory_tensor_get_data_pointer(output);
-  auto* weight_ptr = wholememory_tensor_get_data_pointer(weight);
-  for (int64_t i = 0; i < output_tensor_desc.sizes[0]; i++) {
-    // float logk = (log1pf(u) / logf(2.0)) * (1.0f / (float)weight);
-    if (weight_tensor_desc.dtype == WHOLEMEMORY_DT_FLOAT) {
-      float weight_value                   = static_cast<float*>(weight_ptr)[i];
-      float logk                     = (1 / weight_value) * static_cast<float*>(input_random_value_ptr)[i];
-      static_cast<float*>(output_ptr)[i] = logk;
-    } else if (weight_tensor_desc.dtype == WHOLEMEMORY_DT_DOUBLE) {
-      double weight_value                   = static_cast<double*>(weight_ptr)[i];
-      double logk                     = (1 / weight_value) * static_cast<double*>(input_random_value_ptr)[i];
-      static_cast<double*>(output_ptr)[i] = logk;
-    }
+    float logk                     = (log1p(u) / log(2.0));
+    static_cast<float*>(output_ptr)[i] = logk;
   }
   return WHOLEMEMORY_SUCCESS;
 }
