@@ -52,7 +52,7 @@ build-job:       # This job runs in the build stage, which runs first.
     - make -j
     - ln -s `pwd`/pylibwholegraph/binding/wholememory_binding.cpython* ../../pylibwholegraph/binding/
     - ls -l ../../pylibwholegraph/binding/
-    - PYTHONPATH=../../:$PYTHONPATH ${WG_PYTHON_BIN} -m pytest -v --forked ../../tests/
+    - PYTHONPATH=../../:$PYTHONPATH ${WG_PYTHON_BIN} -m pytest -v --forked ../../pylibwholegraph/tests/
     - cd ..
     - echo "Building for Python 3.7m"
     - mkdir build_cp37m
@@ -61,7 +61,7 @@ build-job:       # This job runs in the build stage, which runs first.
     - cmake -DBUILD_PYTHON_EXE=${WG_PYTHON_BIN}  ../../
     - make -j
     - ln -s `pwd`/pylibwholegraph/binding/wholememory_binding.cpython* ../../pylibwholegraph/binding/
-    - PYTHONPATH=../../:$PYTHONPATH ${WG_PYTHON_BIN} -m pytest -v --forked ../../tests/
+    - PYTHONPATH=../../:$PYTHONPATH ${WG_PYTHON_BIN} -m pytest -v --forked ../../pylibwholegraph/tests/
     - cd ..
     - echo "Building for Python 3.8"
     - mkdir build_cp38
@@ -70,7 +70,7 @@ build-job:       # This job runs in the build stage, which runs first.
     - cmake -DBUILD_PYTHON_EXE=${WG_PYTHON_BIN}  ../../
     - make -j
     - ln -s `pwd`/pylibwholegraph/binding/wholememory_binding.cpython* ../../pylibwholegraph/binding/
-    - PYTHONPATH=../../:$PYTHONPATH ${WG_PYTHON_BIN} -m pytest -v --forked ../../tests/
+    - PYTHONPATH=../../:$PYTHONPATH ${WG_PYTHON_BIN} -m pytest -v --forked ../../pylibwholegraph/tests/
     - cd ..
     - echo "Building for Python 3.9"
     - mkdir build_cp39
@@ -79,7 +79,7 @@ build-job:       # This job runs in the build stage, which runs first.
     - cmake -DBUILD_PYTHON_EXE=${WG_PYTHON_BIN}  ../../
     - make -j
     - ln -s `pwd`/pylibwholegraph/binding/wholememory_binding.cpython* ../../pylibwholegraph/binding/
-    - PYTHONPATH=../../:$PYTHONPATH ${WG_PYTHON_BIN} -m pytest -v --forked ../../tests/
+    - PYTHONPATH=../../:$PYTHONPATH ${WG_PYTHON_BIN} -m pytest -v --forked ../../pylibwholegraph/tests/
     - cd ..
     - echo "Building for Python 3.10"
     - mkdir build_cp310
@@ -88,7 +88,7 @@ build-job:       # This job runs in the build stage, which runs first.
     - cmake -DBUILD_PYTHON_EXE=${WG_PYTHON_BIN}  ../../
     - make -j
     - ln -s `pwd`/pylibwholegraph/binding/wholememory_binding.cpython* ../../pylibwholegraph/binding/
-    - PYTHONPATH=../../:$PYTHONPATH ${WG_PYTHON_BIN} -m pytest -v --forked ../../tests/
+    - PYTHONPATH=../../:$PYTHONPATH ${WG_PYTHON_BIN} -m pytest -v --forked ../../pylibwholegraph/tests/
     - cd ..
     - echo "Building for Python 3.11"
     - mkdir build_cp311
@@ -97,7 +97,7 @@ build-job:       # This job runs in the build stage, which runs first.
     - cmake -DBUILD_PYTHON_EXE=${WG_PYTHON_BIN}  ../../
     - make -j
     - ln -s `pwd`/pylibwholegraph/binding/wholememory_binding.cpython* ../../pylibwholegraph/binding/
-    - PYTHONPATH=../../:$PYTHONPATH ${WG_PYTHON_BIN} -m pytest -v --forked ../../tests/
+    - PYTHONPATH=../../:$PYTHONPATH ${WG_PYTHON_BIN} -m pytest -v --forked ../../pylibwholegraph/tests/
     - cd ..
     - echo "Done build for all Python version"
     - cd ../..
