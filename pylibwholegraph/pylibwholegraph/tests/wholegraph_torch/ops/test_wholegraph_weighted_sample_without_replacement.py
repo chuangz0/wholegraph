@@ -90,7 +90,7 @@ def host_weighted_sample_without_replacement_func(
                                 torch.tensor([id], dtype=col_id_dtype),
                             )
                         )     
-                random_values = wg_ops.generate_random_negative_float_cpu(random_seed, local_gidx, generated_edge_weight_count)
+                random_values = wg_ops.generate_exponential_distribution_negative_float_cpu(random_seed, local_gidx, generated_edge_weight_count)
                 generated_random_weight = torch.tensor([(1.0/local_edge_weights[i]) * random_values[i] for i in range(generated_edge_weight_count)])
         
                 total_neighbor_generated_weights = torch.cat(

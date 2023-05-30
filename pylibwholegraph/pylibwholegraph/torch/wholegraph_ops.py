@@ -164,9 +164,9 @@ def generate_random_positive_int_cpu(random_seed,
     wmb.host_generate_random_positive_int(random_seed, sub_sequence, wrap_torch_tensor(output))
     return output
 
-def generate_random_negative_float_cpu(random_seed: int,
+def generate_exponential_distribution_negative_float_cpu(random_seed: int,
                            sub_sequence: int,
                            output_random_value_count: int):
     output = torch.empty((output_random_value_count,), dtype = torch.float)
-    wmb.host_generate_random_negative_float(random_seed, sub_sequence, wrap_torch_tensor(output))
+    wmb.host_generate_exponential_distribution_negative_float(random_seed, sub_sequence, wrap_torch_tensor(output))
     return output

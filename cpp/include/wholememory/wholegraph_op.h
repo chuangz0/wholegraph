@@ -103,11 +103,10 @@ wholememory_error_code_t generate_random_positive_int_cpu(
  * @param output : Wholememory Tensor of output 
  * @return : wholememory_error_code_t
  */
-wholememory_error_code_t generate_random_negative_float_cpu(
-  int64_t random_seed,
-  int64_t subsequence,
-  wholememory_tensor_t output
-);
+wholememory_error_code_t generate_exponential_distribution_negative_float_cpu(
+  int64_t random_seed, 
+  int64_t subsequence, 
+  wholememory_tensor_t output);
 
 #ifdef __cplusplus
 }

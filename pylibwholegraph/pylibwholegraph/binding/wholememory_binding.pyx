@@ -1796,7 +1796,7 @@ cdef extern from "wholememory/wholegraph_op.h":
             int64_t subsequence,
             wholememory_tensor_t output)
 
-    cdef wholememory_error_code_t generate_random_negative_float_cpu(
+    cdef wholememory_error_code_t generate_exponential_distribution_negative_float_cpu(
             int64_t random_seed,
             int64_t subsequence,
             wholememory_tensor_t output)
@@ -1867,12 +1867,12 @@ cpdef void host_generate_random_positive_int(
     ))
 
 
-cpdef void host_generate_random_negative_float(
+cpdef void host_generate_exponential_distribution_negative_float(
         int64_t random_seed,
         int64_t subsequence,
         WrappedLocalTensor output
 ):
-    check_wholememory_error_code(generate_random_negative_float_cpu(
+    check_wholememory_error_code(generate_exponential_distribution_negative_float_cpu(
         random_seed,
         subsequence,
         <wholememory_tensor_t> <int64_t> output.get_c_handle()

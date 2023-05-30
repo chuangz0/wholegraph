@@ -55,7 +55,7 @@ wholememory_error_code_t generate_random_positive_int_cpu(
   return WHOLEMEMORY_SUCCESS;
 }
 
-wholememory_error_code_t generate_random_negative_float_cpu(
+wholememory_error_code_t generate_exponential_distribution_negative_float_cpu(
   int64_t random_seed,
   int64_t subsequence,
   wholememory_tensor_t output
@@ -73,7 +73,7 @@ wholememory_error_code_t generate_random_negative_float_cpu(
   PCGenerator rng((unsigned long long)random_seed, subsequence, 0);
   for (int64_t i = 0; i < output_tensor_desc.sizes[0]; i++) {
     float u             = -rng.next_float(1.0f, 0.5f);
-    int64_t random_num2 = 0;
+    uint64_t random_num2 = 0;
     int seed_count      = -1;
     do {
       rng.next(random_num2);
