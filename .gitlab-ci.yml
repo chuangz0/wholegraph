@@ -41,7 +41,7 @@ build-job:       # This job runs in the build stage, which runs first.
     - cd ../..
     - echo "Start building Python and PyTorch..."
     - export LIBWHOLEGRAPH_DIR=`pwd`/cpp/build/install
-    - cd pylibwholegraph
+    - cd python/pylibwholegraph
     - mkdir all_build
     - cd all_build
     - echo "Building for Python 3.6m"
