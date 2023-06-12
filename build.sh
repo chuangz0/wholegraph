@@ -29,6 +29,7 @@ VALIDARGS="
     -v
     -g
     -n
+    --allgpuarch
     --native
     --cmake-args
     --compile-cmd
