@@ -111,6 +111,7 @@ def routine_func(world_rank: int, world_size: int):
             wmb.WholeMemoryMemoryLocation.MlDevice,
         ]:
             single_test_case(wm_comm, mt, ml, malloc_size, granularity)
+    wmb.finalize()
 
 
 def test_dlpack():

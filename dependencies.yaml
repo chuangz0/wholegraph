@@ -238,6 +238,7 @@ dependencies:
           - pydata-sphinx-theme
           - recommonmark
           - sphinx<6
+          - breathe
           - sphinx-copybutton
           - sphinx-markdown-tables
           - sphinxcontrib-websupport

@@ -354,6 +354,8 @@ def routine_func(world_rank: int, world_size: int, **kwargs):
 
     wmb.destroy_wholememory_tensor(wm_csr_row_ptr)
     wmb.destroy_wholememory_tensor(wm_csr_col_ptr)
+    wmb.destroy_wholememory_tensor(wm_csr_weight_ptr)
+    wmb.finalize()
 
 
 @pytest.mark.parametrize("graph_node_count", [113])
