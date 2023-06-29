@@ -22,7 +22,7 @@ stages:          # List of stages for jobs, and their order of execution
 build-job:       # This job runs in the build stage, which runs first.
   tags:
     - dongxuy
-  image: nvcr.io/nvidian/sae/manylinux2014_manytorch:cuda11.5
+  image: nvcr.io/nvidian/sae/manylinux2014_manytorch:cuda11.5-20230625
   stage: build
   script:
     - echo "Compiling cpp code..."
