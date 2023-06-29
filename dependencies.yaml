@@ -224,11 +224,18 @@ dependencies:
               - pytorch=2.0.0
               - pytorch-cuda=11.8
           - matrix:
+              arch: aarch64
+              cuda: "11.8"
+            packages:
+              - pytorch=2.0.0
+              - pytorch-cuda=11.8
+          - matrix:
             packages:
   docs:
     common:
       - output_types: [conda, requirements]
         packages:
+          - breathe
           - doxygen=1.8.20
           - graphviz
           - ipython
@@ -238,7 +245,6 @@ dependencies:
           - pydata-sphinx-theme
           - recommonmark
           - sphinx<6
-          - breathe
           - sphinx-copybutton
           - sphinx-markdown-tables
           - sphinxcontrib-websupport
