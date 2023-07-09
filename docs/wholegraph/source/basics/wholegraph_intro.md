@@ -85,12 +85,12 @@ There are some operations that can be performed on WholeMemory. They are based o
 #### Local Operation
 As all WholeMemory supports mapping of local memory, so operation on local memory is supported. The operation can be
 either read or write. Just use it as GPU memory of current device is OK.
-#### Load / Store
+#### Load and Store
 To facilitate file operation, Load / Store WholeMemory from file or to file is supported. WholeMemory use raw binary
 file format for disk operation. For Load, the input file can be single file or a list of files, if it is a list, they
 will be logically concatenated together and then loaded. For store, each GPU stores its local memory to file, producing
 a list of files.
-#### Gather / Scatter
+#### Gather and Scatter
 WholeMemory also supports Gather / Scatter operation, usually they operations on
 [WholeMemory Tensor](#wholememory-tensor).
 
@@ -135,4 +135,4 @@ Now supported optimizers include SGD, Adam, RMSProp and AdaGrad.
 Graph structure in WholeGraph is also based on WholeMemory.
 In WholeGraph, graph is stored in [CSR format](https://en.wikipedia.org/wiki/Sparse_matrix#Compressed_sparse_row_(CSR,_CRS_or_Yale_format)).
 Both ROW_INDEX (noted as `csr_row_ptr`) and COL_INDEX (notated as `csr_col_ind`) are stored in
-WholeMemory Tensor. So loading Graph Structure can use [WholeMemory Tensor Loading mechanism](#load--store).
+WholeMemory Tensor. So loading Graph Structure can use [WholeMemory Tensor Loading mechanism](#load-and-store).
