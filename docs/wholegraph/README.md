@@ -1,13 +1,13 @@
 # Building Documentation
 
-All prerequisite for building docs are in the wholegraph development conda environment.
-[See build instructions](../../SOURCEBUILD.md) on how to create the development conda environment
+All prerequisite for building docs are in the WholeGraph development conda environment.
+[See build instructions](source/installation/source_build.md) on how to create the development conda environment
 
 ## Steps to follow:
 
-In order to build the docs, we need the conda dev environment from wholegraph and we need to build wholegraph from source.  
+In order to build the docs, we need the conda dev environment and we need to build wholegraph from source.  
 
-1. Create a conda env and build wholegraph from source.
+1. Create a conda env and build wholegraph from source. The dependencies to build from source are installed in that conda environment, and then wholegraph is built and installed into the same environment.
 
 2. Once wholegraph is built from source, navigate to `../docs/wholegraph/`. If you have your documentation written and want to turn it into HTML, run makefile:
 

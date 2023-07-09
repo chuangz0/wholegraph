@@ -23,7 +23,7 @@ rapids-logger "Downloading artifacts from previous jobs"
 
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
-VERSION_NUMBER="23.06"
+VERSION_NUMBER="23.08"
 export RAPIDS_VERSION_NUMBER=${VERSION_NUMBER}
 export RAPIDS_DOCS_DIR="$(mktemp -d)"
 
@@ -56,6 +56,6 @@ rapids-logger "Output temp dir: ${RAPIDS_DOCS_DIR}"
 #if [[ "${RAPIDS_BUILD_TYPE}" == "branch" ]]; then
 #  rapids-logger "Upload Docs to S3"
 #  aws s3 sync --no-progress --delete cpp/html "s3://rapidsai-docs/libwholegraph/${VERSION_NUMBER}/html"
-#  aws s3 sync --no-progress --delete docs/wholegraph/html "s3://rapidsai-docs/pylibwholegraph/${VERSION_NUMBER}/html"
-#  aws s3 sync --no-progress --delete docs/wholegraph/text "s3://rapidsai-docs/pylibwholegraph/${VERSION_NUMBER}/txt"
+#  aws s3 sync --no-progress --delete docs/wholegraph/html "s3://rapidsai-docs/wholegraph/${VERSION_NUMBER}/html"
+#  aws s3 sync --no-progress --delete docs/wholegraph/text "s3://rapidsai-docs/wholegraph/${VERSION_NUMBER}/txt"
 #fi

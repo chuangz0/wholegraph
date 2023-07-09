@@ -1,34 +1,93 @@
-# Build from Source
+# Building from Source
 
-WholeGraph has two packages, one is C library `libwholegraph`, the other is Python library `pylibwholegraph`.
-If you want to build these WholeGraph, you need to build these two packages.
+The following instructions are for users wishing to build wholegraph from source code. These instructions are tested on supported distributions of Linux,CUDA,
+and Python - See [RAPIDS Getting Started](https://rapids.ai/start.html) for list of supported environments.
+Other operating systems _might be_ compatible, but are not currently tested.
 
-Before build, you may first set up the environment.
-```text
-CUDA Toolkit>=11.5
-cmake>=3.26.4
-ninja
-nccl
-cython
-setuputils3
-scikit-learn
-scikit-build
-nanobind>=0.2.0
+The wholegraph package include both a C/C++ CUDA portion and a python portion. Both libraries need to be installed in order for cuGraph to operate correctly.
+The C/C++ CUDA library is `libwholegraph` and the python library is `pylibwholegraph`.
+
+## Prerequisites
+
+__Compiler__:
+* `gcc`         version 11.0+
+* `nvcc`        version 11.0+
+* `cmake`       version 3.26.4+
+
+__CUDA__:
+* CUDA 11.8+
+* NVIDIA driver 450.80.02+
+* Pascal architecture or better
+
+You can obtain CUDA from [https://developer.nvidia.com/cuda-downloads](https://developer.nvidia.com/cuda-downloads).
+
+__Other Packages__:
+* ninja
+* nccl
+* cython
+* setuputils3
+* scikit-learn
+* scikit-build
+* nanobind>=0.2.0
+
+## Building wholegraph
+To install wholegraph from source, ensure the dependencies are met.
+
+### Clone Repo and Configure Conda Environment
+__GIT clone a version of the repository__
+
+  ```bash
+  # Set the localtion to wholegraph in an environment variable WHOLEGRAPH_HOME
+  export WHOLEGRAPH_HOME=$(pwd)/wholegraph
+
+  # Download the wholegraph repo - if you have a folked version, use that path here instead
+  git clone https://github.com/rapidsai/wholegraph.git $WHOLEGRAPH_HOME
+
+  cd $WHOLEGRAPH_HOME
+  ```
+
+__Create the conda development environment__
+
+```bash
+# create the conda environment (assuming in base `wholegraph` directory)
+
+# for CUDA 11.x
+conda env create --name wholegraph_dev --file conda/environments/all_cuda-118_arch-x86_64.yaml
+
+# activate the environment
+conda activate wholegraph_dev
+
+# to deactivate an environment
+conda deactivate
 ```
 
-To build these two packages, you can simply run the following script from root of WholeGraph repository:
-```shell
-./build.sh
+  - The environment can be updated as development includes/changes the dependencies. To do so, run:
+
+
+```bash
+
+# Where XXX is the CUDA 11 version
+conda env update --name wholegraph_dev --file conda/environments/all_cuda-118_arch-x86_64.yaml
+
+conda activate wholegraph_dev
 ```
-Then the script will build both `libwholegraph` and `pylibwholegraph`.
-And if `-n` flag is not used, it will also install `libwholegraph` and `pylibwholegraph`.
-More details of the `build.sh` script can be found by running
-```shell
-./build.sh --help
+
+
+### Build and Install Using the `build.sh` Script
+Using the `build.sh` script make compiling and installing wholegraph a
+breeze. To build and install, simply do:
+
+```bash
+$ cd $WHOLEGRAPH_HOME
+$ ./build.sh clean
+$ ./build.sh libwholegraph
+$ ./build.sh pylibwholegraph
 ```
-Which may output:
-```text
-./build.sh [<target> ...] [<flag> ...]
+
+There are several other options available on the build script for advanced users.
+`build.sh` options:
+```bash
+build.sh [<target> ...] [<flag> ...]
  where <target> is:
    clean                    - remove all existing build artifacts and configuration (start over).
    uninstall                - uninstall libwholegraph and pylibwholegraph from a prior build/install (see also -n)
@@ -42,47 +101,87 @@ Which may output:
    -g                          - build for debug
    -n                          - no install step
    --allgpuarch               - build for all supported GPU architectures
-   --cmake-args=\"<args>\" - add arbitrary CMake arguments to any cmake call
+   --cmake-args=\\\"<args>\\\" - add arbitrary CMake arguments to any cmake call
    --compile-cmd               - only output compile commands (invoke CMake without build)
    --clean                    - clean an individual target (note: to do a complete rebuild, use the clean target described above)
    -h | --h[elp]               - print this text
 
- default action (no args) is to build and install 'libwholegraph' and then 'pylibwholegraph'
+ default action (no args) is to build and install 'libwholegraph' then 'pylibwholegraph' targets
 
- libwholegraph build dir is:
+examples:
+$ ./build.sh clean                        # remove prior build artifacts (start over)
+$ ./build.sh
 
- Set env var LIBWHOLEGRAPH_BUILD_DIR to override libwholegraph build dir.
+# make parallelism options can also be defined: Example build jobs using 4 threads (make -j4)
+$ PARALLEL_LEVEL=4 ./build.sh libwholegraph
+
+Note that the libraries will be installed to the location set in `$PREFIX` if set (i.e. `export PREFIX=/install/path`), otherwise to `$CONDA_PREFIX`.
 ```
 
-## Manually build libwholegraph from source
-If you don't want to use the `build.sh` script, but want to manually build `libwholegraph`. You can follow these steps:
-```shell
-cd cpp
-mkdir build
-cd build
-cmake -DCMAKE_INSTALL_PREFIX=`pwd`/install ../
-make -j
-make install
-```
-Then the built library `libwholegraph` will be installed to `cpp/build/install`. If you want to install it to other
-location, you may need to specify that path in `-DCMAKE_INSTALL_PREFIX`.
 
-## Manually build pylibwholegraph from source
-`pylibwholegraph` is a python package, most part of this package is python code that don't need build phase.
-However, in `python/pylibwholegraph/pylibwholegraph/binding` directory, there is Cython binding for python.
-This part need to be compiled to so files to be called from Python code.
-To build `pylibwholegraph`, you can follow these steps:
-```shell
-export LIBWHOLEGRAPH_DIR=`pwd`/cpp/build/install
-cd python/pylibwholegraph
-mkdir build
-cd build
-cmake ../
-make -j
+## Building each section independently
+### Build and Install the C++/CUDA `libwholegraph` Library
+CMake depends on the `nvcc` executable being on your path or defined in `$CUDACXX`.
+
+This project uses cmake for building the C/C++ library. To configure cmake, run:
+
+  ```bash
+  # Set the localtion to wholegraph in an environment variable WHOLEGRAPH_HOME
+  export WHOLEGRAPH_HOME=$(pwd)/wholegraph
+
+  cd $WHOLEGRAPH_HOME
+  cd cpp                                        # enter cpp directory
+  mkdir build                                   # create build directory
+  cd build                                      # enter the build directory
+  cmake .. -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX
+
+  # now build the code
+  make -j                                       # "-j" starts multiple threads
+  make install                                  # install the libraries
+  ```
+The default installation locations are `$CMAKE_INSTALL_PREFIX/lib` and `$CMAKE_INSTALL_PREFIX/include/wholegraph` respectively.
+
+### Building and installing the Python package
+
+Build and Install the Python packages to your Python path:
+
+```bash
+cd $WHOLEGRAPH_HOME
+cd python
+cd pylibwholegraph
+python setup.py build_ext --inplace
+python setup.py install    # install pylibwholegraph
 ```
-Then `python/pylibwholegraph/build/pylibwholegraph/binding/wholememory_binding.cpython*` will be generated.
-If you want to run the code locally, this Cython file may be linked into the Python source directory.
-From `python/pylibwholegraph/build` directory:
-```shell
-ln -s `pwd`/pylibwholegraph/binding/wholememory_binding.cpython* ../pylibwholegraph/binding/
-```
+
+## Run tests
+
+Run either the C++ or the Python tests with datasets
+
+  - **Python tests with datasets**
+
+    ```bash
+    cd $WHOLEGRAPH_HOME
+    cd python
+    pytest
+    ```
+
+  - **C++ stand alone tests**
+
+    From the build directory :
+
+    ```bash
+    # Run the tests
+    cd $WHOLEGRAPH_HOME
+    cd cpp/build
+    gtests/PARALLEL_UTILS_TESTS		# this is an executable file
+    ```
+
+
+Note: This conda installation only applies to Linux and Python versions 3.8/3.10.
+
+## Creating documentation
+
+Python API documentation can be generated from _./docs/wholegraph directory_. Or through using "./build.sh docs"
+
+## Attribution
+Portions adopted from https://github.com/pytorch/pytorch/blob/master/CONTRIBUTING.md
