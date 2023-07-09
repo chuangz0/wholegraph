@@ -133,4 +133,6 @@ Now supported optimizers include SGD, Adam, RMSProp and AdaGrad.
 
 ## Graph Structure
 Graph structure in WholeGraph is also based on WholeMemory.
-In WholeGraph, graph is stored in CSR format.
+In WholeGraph, graph is stored in [CSR format](https://en.wikipedia.org/wiki/Sparse_matrix#Compressed_sparse_row_(CSR,_CRS_or_Yale_format)).
+Both ROW_INDEX (noted as `csr_row_ptr`) and COL_INDEX (notated as `csr_col_ind`) are stored in
+WholeMemory Tensor. So loading Graph Structure can use [WholeMemory Tensor Loading mechanism](#load--store).
