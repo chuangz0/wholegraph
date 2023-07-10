@@ -245,15 +245,17 @@ __global__ void get_embedding_data_kernel(DataTypeT* embedding_ptr,
                                           int64_t local_entry_start,
                                           int64_t local_entry_count)
 {
+
   int64_t local_embedding_idx = blockIdx.x;
-  if (local_embedding_idx >= local_entry_count) return;
-  int thread_x = threadIdx.x;
-  embedding_ptr += storage_offset;
-  int64_t embedding_idx = local_entry_start + local_embedding_idx;
-  embedding_ptr += embedding_stride * local_embedding_idx;
-  for (; thread_x < embedding_dim; thread_x += blockDim.x) {
-    auto data = device_get_embedding_data<DataTypeT>(embedding_idx, embedding_dim, thread_x);
-    embedding_ptr[thread_x] = data;
+  for (; local_embedding_idx < local_entry_count; local_embedding_idx += static_cast<int64_t>(gridDim.x)) {
+    int thread_x = threadIdx.x;
+    DataTypeT* embedding_ptr_local = embedding_ptr + storage_offset;
+    int64_t embedding_idx = local_entry_start + local_embedding_idx;
+    embedding_ptr_local += embedding_stride * local_embedding_idx;
+    for (; thread_x < embedding_dim; thread_x += blockDim.x) {
+      auto data = device_get_embedding_data<DataTypeT>(embedding_idx, embedding_dim, thread_x);
+      embedding_ptr_local[thread_x] = data;
+    }
   }
 }
 
@@ -269,7 +271,7 @@ void get_embedding_data(void* embedding_ptr,
   int embedding_stride   = embedding_desc.stride;
   int block_size         = embedding_dim;
   block_size             = std::min(block_size, 256);
-  int block_count        = local_entry_count;
+  int block_count = local_entry_count >= INT_MAX ? INT_MAX / 4 : static_cast<int>(local_entry_count);
   get_embedding_data_kernel<DataTypeT>
     <<<block_count, block_size, 0, stream>>>(static_cast<DataTypeT*>(embedding_ptr),
                                              storage_offset,
