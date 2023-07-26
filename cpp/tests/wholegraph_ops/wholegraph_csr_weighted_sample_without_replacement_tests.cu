@@ -369,7 +369,13 @@ TEST_P(WholeGraphCSRWeightedSampleWithoutReplacementParameterTests, WeightedSamp
         random_seed);
 
       EXPECT_EQ(total_sample_count, host_total_sample_count);
-
+      wholegraph_ops::testing::segment_sort_output(
+        host_ref_output_sample_offset,
+        output_sample_offset_desc,
+        host_ref_output_dest_nodes,
+        wholememory_create_array_desc(host_total_sample_count, 0, csr_col_ptr_desc.dtype),
+        host_ref_output_global_edge_id,
+        wholememory_create_array_desc(host_total_sample_count, 0, WHOLEMEMORY_DT_INT64));
       wholegraph_ops::testing::host_check_two_array_same(host_output_sample_offset,
                                                          output_sample_offset_desc,
                                                          host_ref_output_sample_offset,

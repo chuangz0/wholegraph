@@ -500,7 +500,7 @@ void wholegraph_csr_unweighted_sample_without_replacement_cpu(
 template <typename DataType>
 void check_value_same(void* value, void* ref, int64_t size)
 {
-  int64_t diff_count;
+  int64_t diff_count = 0;
 
   DataType* value_ptr = static_cast<DataType*>(value);
   DataType* ref_ptr   = static_cast<DataType*>(ref);
@@ -637,27 +637,51 @@ void host_weighted_sample_without_replacement(
       };
       std::priority_queue<std::pair<int, WeightType>, std::vector<std::pair<int, WeightType>>, cmp>
         small_heap;
+
+      auto consume_fun = [&](int id, PCGenerator& rng) {
+        WeightType edge_weight = csr_weight_ptr[start + id];
+        WeightType weight      = host_gen_key_from_weight(edge_weight, rng);
+        process_count++;
+        if (process_count <= max_sample_count) {
+          small_heap.push(std::make_pair(id, weight));
+        } else {
+          std::pair<int, WeightType> small_heap_top_ele = small_heap.top();
+          if (small_heap_top_ele.second < weight) {
+            small_heap.pop();
+            small_heap.push(std::make_pair(id, weight));
+          }
+        }
+      };
+#if 1
       for (int j = 0; j < block_size; j++) {
         int local_gidx = gidx + j;
         PCGenerator rng(random_seed, (uint64_t)local_gidx, (uint64_t)0);
+
         for (int k = 0; k < items_per_thread; k++) {
           int id = k * block_size + j;
-          if (id < neighbor_count) {
-            WeightType edge_weight = csr_weight_ptr[start + id];
-            WeightType weight      = host_gen_key_from_weight(edge_weight, rng);
-            process_count++;
-            if (process_count < max_sample_count) {
-              small_heap.push(std::make_pair(id, weight));
-            } else {
-              std::pair<int, WeightType> small_heap_top_ele = small_heap.top();
-              if (small_heap_top_ele.second < weight) {
-                small_heap.pop();
-                small_heap.push(std::make_pair(id, weight));
-              }
-            }
+          if (id < neighbor_count) { consume_fun(id, rng); }
+        }
+        //  when  neighbor_count > items_per_thread*block_size
+        const int stride = block_size * items_per_thread - max_sample_count;
+        for (int idx_offset = block_size * items_per_thread; idx_offset < neighbor_count;
+             idx_offset += stride) {
+          for (int k = 0; k < items_per_thread; k++) {
+            int local_idx  = block_size * k + j - max_sample_count;
+            int target_idx = idx_offset + local_idx;
+            if (local_idx >= 0 && target_idx < neighbor_count) { consume_fun(target_idx, rng); }
           }
         }
       }
+#else
+
+      for (int j = 0; j < block_size; j++) {
+        int local_gidx = gidx + j;
+        PCGenerator rng(random_seed, (uint64_t)local_gidx, (uint64_t)0);
+        for (int id = j; id < neighbor_count; id += block_size) {
+          if (id < neighbor_count) { consume_fun(id, rng); }
+        }
+      }
+#endif
 
       for (int sample_id = 0; sample_id < max_sample_count; sample_id++) {
         output_dest_nodes_ptr[output_id + sample_id] = csr_col_ptr[start + small_heap.top().first];
