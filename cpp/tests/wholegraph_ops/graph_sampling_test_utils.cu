@@ -608,7 +608,9 @@ void host_weighted_sample_without_replacement(
 
   int block_size       = block_sizes[func_idx];
   int items_per_thread = items_per_threads[func_idx];
-
+  // FIXME:
+  if(max_sample_count>256)
+  {block_size=256;}
   for (int64_t i = 0; i < center_nodes_count; i++) {
     int output_id          = output_sample_offset_ptr[i];
     int output_local_id    = 0;
@@ -652,7 +654,7 @@ void host_weighted_sample_without_replacement(
           }
         }
       };
-#if 1
+#if 0
       for (int j = 0; j < block_size; j++) {
         int local_gidx = gidx + j;
         PCGenerator rng(random_seed, (uint64_t)local_gidx, (uint64_t)0);
