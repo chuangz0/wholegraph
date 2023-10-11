@@ -21,6 +21,7 @@ import torch
 from apex.parallel import DistributedDataParallel as DDP
 
 import pylibwholegraph.torch as wgth
+# import pylibwholegraph.binding.wholememory_binding as wmb
 
 parser = OptionParser()
 
@@ -187,6 +188,8 @@ def main_func():
         if options.train_embedding is False
         else wgth.create_wholememory_optimizer("adam", {})
     )
+    if(embedding_wholememory_type=="nvshmem"):
+        wgth.init_nvshmem_with_comm(feature_comm)
 
     if wm_optimizer is None:
         node_feat_wm_embedding = wgth.create_embedding_from_filelist(
@@ -218,7 +221,8 @@ def main_func():
 
     train(train_ds, valid_ds, model, optimizer, wm_optimizer, global_comm)
     test(test_ds, model)
-
+    if(embedding_wholememory_type=="nvshmem"):
+        wgth.finalize_nvshmem_with_comm(feature_comm)
     wgth.finalize()
 
 
