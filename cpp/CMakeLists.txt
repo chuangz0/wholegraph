@@ -57,7 +57,7 @@ option(BUILD_TESTS "Configure CMake to build tests" ON)
 option(CUDA_STATIC_RUNTIME "Statically link the CUDA toolkit runtime and libraries" OFF)
 option(BUILD_WITH_NVSHMEM "Enable nvshmem integration" OFF)
 option(WHOLEGRAPH_EXCLUDE_NVSHMEM_FROM_ALL "Exclude nvshmem targets from wholeGraph's 'all' target" ON)
-option(DOWNLOAD_NVSHMEM "Download nvshmem src for building wholegraph" ON)
+option(DOWNLOAD_NVSHMEM "Download nvshmem src for building wholegraph" OFF)
 option(BUILD_BENCHMARKS "Configure CMake to build benchmark" ON)
 
 if (DEFINED ENV{NVSHMEM_HOME})
@@ -225,8 +225,8 @@ if(BUILD_WITH_NVSHMEM)
         )
   target_compile_definitions(wholegraph PRIVATE WITH_NVSHMEM_SUPPORT)
   target_link_libraries(wholegraph PRIVATE nvshmem_host nvshmem_device)
-  target_include_directories(wholegraph PRIVATE ${nvshmem_INCLUDE_DIR})
-  target_link_directories(wholegraph PRIVATE ${nvshmem_INCLUDE_DIR}/../lib)
+  target_include_directories(wholegraph PRIVATE ${NVSHMEM_INCLUDE_DIR_PARENT})
+  target_link_directories(wholegraph PRIVATE ${NVSHMEM_INCLUDE_DIR_PARENT}/../lib)
 endif()
 
 
@@ -247,7 +247,7 @@ if(BUILD_WITH_NVSHMEM)
                              PRIVATE
                              ${CMAKE_CURRENT_SOURCE_DIR}/src
                              ${NVSHMEM_BOOTSTRAP_PLUGIN_DIR}
-                             ${nvshmem_INCLUDE_DIR}
+                             ${NVSHMEM_INCLUDE_DIR_PARENT}
                             )
 endif()
 
@@ -315,7 +315,6 @@ set(WHOLEGRAPH_INSTALL_LIBS wholegraph)
 if(BUILD_WITH_NVSHMEM)
         list(APPEND WHOLEGRAPH_INSTALL_LIBS nvshmem_wholememory_bootstrap)
         if(${CPM_NVSHMEM_USED})
-        message("append nvshmem_host to install*********")
                 list(APPEND WHOLEGRAPH_INSTALL_LIBS nvshmem_host)
         endif()
 endif()

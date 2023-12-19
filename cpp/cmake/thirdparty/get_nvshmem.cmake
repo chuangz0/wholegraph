@@ -19,6 +19,7 @@ set(USE_NVSHMEM_VERSION 2.10.1)
 set(USE_NVSHMEM_VERSION_BRANCH 3)
 set(NVSHMEM_BOOTSTRAP_PLUGIN_DIR "" )
 set(CPM_NVSHMEM_USED OFF)
+set(NVSHMEM_INCLUDE_DIR_PARENT "")
 function(find_and_configure_nvshmem)
 
 
@@ -36,7 +37,7 @@ function(find_and_configure_nvshmem)
         )
         rapids_find_package(nvshmem ${PKG_VERSION})
         set(NVSHMEM_BOOTSTRAP_PLUGIN_DIR ${nvshmem_INCLUDE_DIR}/../share/nvshmem/src/bootstrap-plugins PARENT_SCOPE)
-
+        set(NVSHMEM_INCLUDE_DIR_PARENT ${nvshmem_INCLUDE_DIR} PARENT_SCOPE)
     endif()
 
     if( (NOT DEFINED NVSHMEM_FOUND) OR (NOT  ${NVSHMEM_FOUND}))
@@ -59,6 +60,8 @@ function(find_and_configure_nvshmem)
         endif()
         set(NVSHMEM_BOOTSTRAP_PLUGIN_DIR ${nvshmem_BINARY_DIR}/src/include/modules/bootstrap  ${nvshmem_BINARY_DIR}/src/include/modules/common PARENT_SCOPE)
         set(CPM_NVSHMEM_USED ON PARENT_SCOPE)
+        set(NVSHMEM_INCLUDE_DIR_PARENT ${nvshmem_BINARY_DIR}/src/include PARENT_SCOPE)
+
     endif()
 
 
