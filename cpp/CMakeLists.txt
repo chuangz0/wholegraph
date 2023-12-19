@@ -57,7 +57,17 @@ option(BUILD_TESTS "Configure CMake to build tests" ON)
 option(CUDA_STATIC_RUNTIME "Statically link the CUDA toolkit runtime and libraries" OFF)
 option(BUILD_WITH_NVSHMEM "Enable nvshmem integration" OFF)
 option(WHOLEGRAPH_EXCLUDE_NVSHMEM_FROM_ALL "Exclude nvshmem targets from wholeGraph's 'all' target" ON)
+option(DOWNLOAD_NVSHMEM "Download nvshmem src for building wholegraph" ON)
 option(BUILD_BENCHMARKS "Configure CMake to build benchmark" ON)
+
+if (DEFINED ENV{NVSHMEM_HOME})
+  set(NVSHMEM_HOME_DEFAULT $ENV{NVSHMEM_HOME})
+else()
+  set(NVSHMEM_HOME_DEFAULT "/usr/local/nvshmem")
+endif()
+
+set(NVSHMEM_HOME ${NVSHMEM_HOME_DEFAULT} CACHE PATH "path to NVSHMEM installation")
+
 
 ##############################################################################
 # - Set options based on user defined one  -----------------------------------
@@ -209,8 +219,14 @@ if(BUILD_WITH_NVSHMEM)
         PROPERTIES
         COMPILE_FLAGS "-rdc=true"
         )
+
+        set_target_properties(wholegraph
+        PROPERTIES CUDA_SEPARABLE_COMPILATION ON
+        )
   target_compile_definitions(wholegraph PRIVATE WITH_NVSHMEM_SUPPORT)
-  target_link_libraries(wholegraph PRIVATE nvshmem::nvshmem_host nvshmem::nvshmem_device)
+  target_link_libraries(wholegraph PRIVATE nvshmem_host nvshmem_device)
+  target_include_directories(wholegraph PRIVATE ${nvshmem_INCLUDE_DIR})
+  target_link_directories(wholegraph PRIVATE ${nvshmem_INCLUDE_DIR}/../lib)
 endif()
 
 
@@ -223,18 +239,16 @@ if(BUILD_TESTS AND CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 endif()
 
 if(BUILD_WITH_NVSHMEM)
-        get_target_property(NVSHMEM_BINARY_DIR nvshmem BINARY_DIR)
         add_library(nvshmem_wholememory_bootstrap SHARED)
         target_sources(nvshmem_wholememory_bootstrap PRIVATE src/nvshmem_plugins/nvshmem_wholememory_bootstrap.cpp)
-        target_link_libraries(nvshmem_wholememory_bootstrap PRIVATE wholegraph nvshmem::nvshmem_host )
+        target_link_libraries(nvshmem_wholememory_bootstrap PRIVATE wholegraph nvshmem_host )
+        message("nvshmem_bootstrap_plugin :${NVSHMEM_BOOTSTRAP_PLUGIN_DIR}")
         target_include_directories(nvshmem_wholememory_bootstrap
                              PRIVATE
                              ${CMAKE_CURRENT_SOURCE_DIR}/src
-                             ${NVSHMEM_BINARY_DIR}/include/modules/common
-                             ${NVSHMEM_BINARY_DIR}/include/modules/bootstrap
+                             ${NVSHMEM_BOOTSTRAP_PLUGIN_DIR}
+                             ${nvshmem_INCLUDE_DIR}
                             )
-
-
 endif()
 
 
@@ -299,7 +313,11 @@ set(PROGRAM_PERMISSIONS_DEFAULT
 
 set(WHOLEGRAPH_INSTALL_LIBS wholegraph)
 if(BUILD_WITH_NVSHMEM)
-        list(APPEND WHOLEGRAPH_INSTALL_LIBS nvshmem_wholememory_bootstrap  nvshmem_host)
+        list(APPEND WHOLEGRAPH_INSTALL_LIBS nvshmem_wholememory_bootstrap)
+        if(${CPM_NVSHMEM_USED})
+        message("append nvshmem_host to install*********")
+                list(APPEND WHOLEGRAPH_INSTALL_LIBS nvshmem_host)
+        endif()
 endif()
 
 install(
