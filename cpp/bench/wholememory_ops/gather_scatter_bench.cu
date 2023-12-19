@@ -66,6 +66,8 @@ typedef struct GatherScatterBenchParam {
   wholememory_memory_type_t get_memory_type() const { return memory_type; }
 
   wholememory_memory_location_t get_memory_location() const { return memory_location; }
+
+  wholememory_distributed_backend_t get_distributed_backend() const { return distributed_backend; };
   int get_loop_count() const { return loop_count; }
   std::string get_test_type() const { return test_type; }
 
@@ -152,6 +154,12 @@ typedef struct GatherScatterBenchParam {
     num_gpu = new_num_gpu;
     return *this;
   }
+  GatherScatterBenchParam& set_distributed_backend(
+    wholememory_distributed_backend_t new_distributed_backend)
+  {
+    distributed_backend = new_distributed_backend;
+    return *this;
+  }
 
  private:
   int64_t get_embedding_entry_count() const
@@ -189,6 +197,7 @@ typedef struct GatherScatterBenchParam {
     output_type = new_output_type;
     return *this;
   }
+
   wholememory_memory_type_t memory_type         = WHOLEMEMORY_MT_CHUNKED;
   wholememory_memory_location_t memory_location = WHOLEMEMORY_ML_DEVICE;
   int64_t embedding_table_size                  = 1024000LL;
@@ -203,14 +212,15 @@ typedef struct GatherScatterBenchParam {
   int node_size           = 1;
   int num_gpu             = 0;
 
-  int64_t embedding_stride           = 32;
-  int64_t output_stride              = 32;
-  wholememory_dtype_t embedding_type = WHOLEMEMORY_DT_FLOAT;
-  wholememory_dtype_t indices_type   = WHOLEMEMORY_DT_INT64;
-  wholememory_dtype_t output_type    = WHOLEMEMORY_DT_FLOAT;
-  int64_t embedding_storage_offset   = 0;
-  int64_t indices_storage_offset     = 0;
-  int64_t output_storage_offset      = 0;
+  int64_t embedding_stride                              = 32;
+  int64_t output_stride                                 = 32;
+  wholememory_dtype_t embedding_type                    = WHOLEMEMORY_DT_FLOAT;
+  wholememory_dtype_t indices_type                      = WHOLEMEMORY_DT_INT64;
+  wholememory_dtype_t output_type                       = WHOLEMEMORY_DT_FLOAT;
+  wholememory_distributed_backend_t distributed_backend = WHOLEMEMORY_DB_NCCL;
+  int64_t embedding_storage_offset                      = 0;
+  int64_t indices_storage_offset                        = 0;
+  int64_t output_storage_offset                         = 0;
 } GatherScatterBenchParam;
 
 std::string get_memory_type_string(wholememory_memory_type_t memory_type)
@@ -238,6 +248,17 @@ std::string get_memory_location_string(wholememory_memory_location_t memory_loca
   return str;
 }
 
+std::string get_distributed_backend_string(wholememory_distributed_backend_t distributed_backend)
+{
+  std::string str;
+  switch (distributed_backend) {
+    case WHOLEMEMORY_DB_NONE: str = "WHOLEMEMORY_DB_NONE"; break;
+    case WHOLEMEMORY_DB_NCCL: str = "WHOLEMEMORY_DB_NCCL"; break;
+    case WHOLEMEMORY_DB_NVSHMEM: str = "WHOLEMEMORY_DB_NVSHMEM"; break;
+    default: break;
+  }
+  return str;
+}
 void gather_scatter_benchmark(GatherScatterBenchParam& params)
 {
   int g_dev_count = ForkGetDeviceCount();
@@ -256,6 +277,8 @@ void gather_scatter_benchmark(GatherScatterBenchParam& params)
 
       wholememory_comm_t wm_comm =
         create_communicator_by_socket(side_band_communicator, world_rank, world_size);
+
+      wholememory_communicator_set_distributed_backend(wm_comm, params.get_distributed_backend());
 
       ShutDownSidebandCommunicator(side_band_communicator);
 
@@ -318,12 +341,14 @@ void gather_scatter_benchmark(GatherScatterBenchParam& params)
       double gather_size_mb = (double)params.get_gather_size() / 1024.0 / 1024.0;
       if (local_rank == 0) {
         printf(
-          "%s, world_size=%d, memoryType=%s, memoryLocation=%s, elt_size=%ld, embeddingDim=%ld, "
+          "%s, world_size=%d, memoryType=%s, memoryLocation=%s, distributed_backend = %s, "
+          "elt_size=%ld, embeddingDim=%ld, "
           "embeddingTableSize=%.2lf MB, gatherSize=%.2lf MB\n",
           test_type.c_str(),
           world_size,
           get_memory_type_string(params.get_memory_type()).c_str(),
           get_memory_location_string(params.get_memory_location()).c_str(),
+          get_distributed_backend_string(params.get_distributed_backend()).c_str(),
           wholememory_dtype_get_element_size(params.get_embedding_type()),
           params.get_embedding_dim(),
           emb_size_mb,
@@ -388,7 +413,7 @@ void gather_scatter_benchmark(GatherScatterBenchParam& params)
 int main(int argc, char** argv)
 {
   wholegraph::bench::gather_scatter::GatherScatterBenchParam params;
-  const char* optstr   = "ht:l:e:g:d:c:f:a:p:r:s:n:";
+  const char* optstr   = "ht:l:e:g:d:c:f:a:p:r:s:n:b:";
   struct option opts[] = {
     {"help", no_argument, NULL, 'h'},
     {"memory_type",
@@ -405,7 +430,11 @@ int main(int argc, char** argv)
     {"node_size", required_argument, NULL, 's'},    // node_size
     {"num_gpu", required_argument, NULL, 'n'},      // num gpu per node
     {"server_addr", required_argument, NULL, 'a'},  // server_addr
-    {"server_port", required_argument, NULL, 'p'}   // server_port
+    {"server_port", required_argument, NULL, 'p'},  // server_port
+    {"distributed_backend",
+     required_argument,
+     NULL,
+     'b'}  // distributed_backend_type, 0:None, 1:NCCL, 2:NVSHMEM
   };
 
   const char* usage =
@@ -424,7 +453,8 @@ int main(int argc, char** argv)
     "  -s, --node_size    node_size or process count\n"
     "  -n, --num_gpu   num_gpu per process\n"
     "  -a, --server_addr    specify sideband server address\n"
-    "  -p, --server_port    specify sideband server port\n";
+    "  -p, --server_port    specify sideband server port\n"
+    "  -b, --distributed_backend  specify distributed_backend_type, 0:None,1:NCCL,2:NVSHMEM \n ";
 
   int c;
   bool has_option = false;
@@ -535,6 +565,15 @@ int main(int argc, char** argv)
           exit(EXIT_FAILURE);
         }
         params.set_num_gpu(val);
+        break;
+      case 'b':
+        val = strtol(optarg, &endptr, 10);
+        if (*endptr != '\0' || val < 0 || val > 2) {
+          printf("Invalid argument for option -l\n");
+          printf(usage, argv[0]);
+          exit(EXIT_FAILURE);
+        }
+        params.set_distributed_backend(static_cast<wholememory_distributed_backend_t>(val));
         break;
       default:
         printf("Invalid or unrecognized option\n");
