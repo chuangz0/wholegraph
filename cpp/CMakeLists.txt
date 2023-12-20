@@ -219,10 +219,13 @@ if(BUILD_WITH_NVSHMEM)
         PROPERTIES
         COMPILE_FLAGS "-rdc=true"
         )
-
-        set_target_properties(wholegraph
-        PROPERTIES CUDA_SEPARABLE_COMPILATION ON
-        )
+        if(NOT ${CPM_NVSHMEM_USED})
+                set_target_properties(wholegraph
+                        PROPERTIES CUDA_SEPARABLE_COMPILATION ON
+                        BUILD_RPATH "\$ORIGIN;${NVSHMEM_INCLUDE_DIR_PARENT}/../lib"
+                        INSTALL_RPATH "\$ORIGIN;${NVSHMEM_INCLUDE_DIR_PARENT}/../lib"
+                        )
+        endif()
   target_compile_definitions(wholegraph PRIVATE WITH_NVSHMEM_SUPPORT)
   target_link_libraries(wholegraph PRIVATE nvshmem_host nvshmem_device)
   target_include_directories(wholegraph PRIVATE ${NVSHMEM_INCLUDE_DIR_PARENT})
