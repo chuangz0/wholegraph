@@ -36,11 +36,15 @@ function(find_and_configure_nvshmem)
             PATHS ${NVSHMEM_HOME}/lib PATH_SUFFIXES .a .so
         )
         rapids_find_package(nvshmem ${PKG_VERSION})
+        if(NOT ${nvshmem_FOUND})
+            message(WARNING "No installed nvshmem was found, the downloaded nvshmem source code will be used as a dependency.")
+        endif()
         set(NVSHMEM_BOOTSTRAP_PLUGIN_DIR ${nvshmem_INCLUDE_DIR}/../share/nvshmem/src/bootstrap-plugins PARENT_SCOPE)
         set(NVSHMEM_INCLUDE_DIR_PARENT ${nvshmem_INCLUDE_DIR} PARENT_SCOPE)
+        
     endif()
 
-    if( (NOT DEFINED NVSHMEM_FOUND) OR (NOT  ${NVSHMEM_FOUND}))
+    if( (NOT DEFINED nvshmem_FOUND) OR (NOT  ${nvshmem_FOUND}))
         rapids_cpm_find(nvshmem ${PKG_VERSION}
                     GLOBAL_TARGETS nvshmem::nvshmem nvshmem::nvshmem_device nvshmem::nvshmem_host
                     CPM_ARGS

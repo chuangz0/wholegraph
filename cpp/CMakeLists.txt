@@ -242,7 +242,7 @@ if(BUILD_WITH_NVSHMEM)
         add_library(nvshmem_wholememory_bootstrap SHARED)
         target_sources(nvshmem_wholememory_bootstrap PRIVATE src/nvshmem_plugins/nvshmem_wholememory_bootstrap.cpp)
         target_link_libraries(nvshmem_wholememory_bootstrap PRIVATE wholegraph nvshmem_host )
-        message("nvshmem_bootstrap_plugin :${NVSHMEM_BOOTSTRAP_PLUGIN_DIR}")
+        target_link_directories(nvshmem_wholememory_bootstrap PRIVATE ${NVSHMEM_INCLUDE_DIR_PARENT}/../lib)
         target_include_directories(nvshmem_wholememory_bootstrap
                              PRIVATE
                              ${CMAKE_CURRENT_SOURCE_DIR}/src
