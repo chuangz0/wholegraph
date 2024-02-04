@@ -215,7 +215,7 @@ endif()
 
 
 # optionally build tests
-if(BUILD_TESTS AND CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+if( (BUILD_TESTS OR BUILD_BENCHMARKS)  AND CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     include(./cmake/thirdparty/get_gtest.cmake)
     include(CTest) # calls enable_testing()
 

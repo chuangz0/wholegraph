@@ -34,6 +34,7 @@ function(ConfigureBench)
             raft::raft
             rmm::rmm
             pthread
+            GTest::gmock GTest::gtest GTest::gmock_main GTest::gtest_main
     )
 
     set_target_properties(
@@ -66,5 +67,10 @@ if(BUILD_BENCHMARKS)
             PATH wholememory_ops/gather_scatter_bench.cu
             common/wholegraph_benchmark.cpp
     )
+    ConfigureBench(
+        NAME SM_COUNT_GATHER
+        PATH wholememory_ops/block_count_gather.cu
+        common/wholegraph_benchmark.cpp
+        ../tests/wholememory_ops/embedding_test_utils.cu )
 
 endif()
