@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #include <algorithm>
+#include <cstdint>
 #include <getopt.h>
 #include <random>
 #include <sys/time.h>
@@ -48,7 +49,7 @@ enum class GatherMode {
 };
 
 struct SmGatherParam {
-  int64_t embedding_table_size = 1024L * 1024L * 1024L * 20;  // 40M * 128*bytes
+  int64_t embedding_table_size = 1024L * 1024L * 1024L * 40;  // 40M * 128*bytes
   int64_t embedding_dim        = 128;
   int64_t embedding_stride     = 128;
   int64_t output_stride        = 128;
@@ -56,7 +57,7 @@ struct SmGatherParam {
   int64_t block_min      = 4;
   int64_t block_step     = 4;
   int64_t block_max      = 1024;
-  int64_t gather_size    = 1024L * 1024L * 1024 * 4;  // 0.5G*2
+  int64_t gather_size    = 1024L * 1024L * 1024 * 4;  // 4G
   int loop_count         = 10;
   GatherMode gather_mode = GatherMode::kAllReadAll;
 
@@ -325,11 +326,28 @@ void host_get_random_integer_indices(void* indices,
   std::vector<IndexT> possible_indices =
     get_possible_indices<IndexT>(max_indices, comm->world_rank, comm->world_size, params);
   IndexT* indices_ptr = static_cast<IndexT*>(indices);
-  std::sample(possible_indices.begin(),
-              possible_indices.end(),
-              indices_ptr,
-              indices_desc.size,
-              std::mt19937{std::random_device{}()});
+  if (possible_indices.size() >= indices_desc.size) {
+    std::sample(possible_indices.begin(),
+                possible_indices.end(),
+                indices_ptr,
+                indices_desc.size,
+                std::mt19937{std::random_device{}()});
+  } else {
+    int64_t remaing      = indices_desc.size;
+    IndexT* indice_alter = indices_ptr;
+    while (remaing > 0) {
+      int64_t sample_count =
+        (possible_indices.size() > remaing) ? remaing : possible_indices.size();
+
+      std::sample(possible_indices.begin(),
+                  possible_indices.end(),
+                  indice_alter,
+                  sample_count,
+                  std::mt19937{std::random_device{}()});
+      indice_alter += sample_count;
+      remaing -= sample_count;
+    }
+  }
   std::shuffle(indices_ptr, indices_ptr + indices_desc.size, std::mt19937(std::random_device{}()));
 }
 
@@ -480,9 +498,11 @@ void sm_count_gather_benchmark(SmGatherParam& params)
 {
   int g_dev_count = ForkGetDeviceCount();
   WHOLEMEMORY_CHECK_NOTHROW(g_dev_count >= 1);
-  if (params.get_num_gpu() == 0) { params.set_num_gpu(g_dev_count); }
+  if (params.get_num_gpu() == 0 || params.get_num_gpu() > g_dev_count) {
+    params.set_num_gpu(g_dev_count);
+  }
   MultiProcessRun(
-    g_dev_count,
+    params.get_num_gpu(),
     [&params](int local_rank, int local_size) {
       WHOLEMEMORY_CHECK_NOTHROW(wholememory_init(0) == WHOLEMEMORY_SUCCESS);
       WM_CUDA_CHECK_NO_THROW(cudaSetDevice(local_rank));
@@ -629,7 +649,7 @@ void sm_count_gather_benchmark(SmGatherParam& params)
             double bw = params.get_gather_size() / (1e9) / (single_run_time_us / 1e6);
             printf(
               " rank: %d  , gather_mode= %d, old_gather = %d , embedding_table_size = %lf GB, "
-              "gather_size= %lf GB, block_counnt=%ld "
+              "gather_size= %lf GB, block_count=%ld "
               ", "
               "bw = %.2lf GB/s \n",
               wm_comm->world_rank,
