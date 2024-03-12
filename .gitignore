@@ -88,3 +88,7 @@ cpp/cmake-build-debug/
 pylibwholegraph/.idea/
 pylibwholegraph/cmake-build-debug/
 compile_commands.json
+
+.cache
+cpp/.ccache
+.ccache/

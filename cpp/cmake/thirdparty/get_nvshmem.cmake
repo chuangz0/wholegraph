@@ -15,8 +15,8 @@
 #=============================================================================
 
 
-set(USE_NVSHMEM_VERSION 2.10.1)
-set(USE_NVSHMEM_VERSION_BRANCH 3)
+set(USE_NVSHMEM_VERSION 2.11.0)
+set(USE_NVSHMEM_VERSION_BRANCH 5)
 function(find_and_configure_nvshmem)
 
 

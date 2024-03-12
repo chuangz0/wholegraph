@@ -788,22 +788,34 @@ wholememory_error_code_t init_nvshmem_with_comm(wholememory_comm_t comm) noexcep
     WHOLEMEMORY_EXPECTS(nvshmem_has_initalized == false,
                         "A wholememory_comm_t has been used to init nvshmem. To init nvshmem with "
                         "other wholememory_coomm_t, call finalize_nvshmem first.");
+    int nvshmem_major_version, nvshmem_minor_version, nvshmem_patch_version;
+    nvshmemx_vendor_get_version_info(
+      &nvshmem_major_version, &nvshmem_minor_version, &nvshmem_patch_version);
+    if (nvshmem_major_version < 2 || (nvshmem_major_version == 2 && nvshmem_minor_version < 11)) {
+      auto set_env_if_not_exist = [](std::string_view env_name, std::string_view value) {
+        if (getenv(env_name.data()) == nullptr || strcmp(getenv(env_name.data()), "") == 0) {
+          setenv(env_name.data(), value.data(), 1);
+        }
+        if (strcmp(getenv(env_name.data()), value.data()) != 0) {
+          WHOLEMEMORY_WARN("When using wholegraph, the environment variable %s is best set to %s",
+                           env_name.data(),
+                           value.data());
+        }
+      };
+      set_env_if_not_exist("NVSHMEM_BOOTSTRAP", "mpi");
+      set_env_if_not_exist("NVSHMEM_BOOTSTRAP_MPI_PLUGIN", "libnvshmem_wholememory_bootstrap.so");
+      nvshmemx_init_attr_t attr;
+      attr.mpi_comm = &comm;
+      nvshmemx_init_attr(NVSHMEMX_INIT_WITH_MPI_COMM, &attr);
+    } else {
+      nvshmemx_init_attr_t attr;
+      nvshmemx_uniqueid_t id;
+      if (comm->world_rank == 0) { nvshmemx_get_uniqueid(&id); }
+      comm->host_bcast(&id, sizeof(nvshmemx_uniqueid_t), WHOLEMEMORY_DT_INT8, 0);
+      nvshmemx_set_attr_uniqueid_args(comm->world_rank, comm->world_size, &id, &attr);
+      nvshmemx_init_attr(NVSHMEMX_INIT_WITH_UNIQUEID, &attr);
+    }
 
-    auto set_env_if_not_exist = [](std::string_view env_name, std::string_view value) {
-      if (getenv(env_name.data()) == nullptr || strcmp(getenv(env_name.data()), "") == 0) {
-        setenv(env_name.data(), value.data(), 1);
-      }
-      if (strcmp(getenv(env_name.data()), value.data()) != 0) {
-        WHOLEMEMORY_WARN("When using wholegraph, the environment variable %s is best set to %s",
-                         env_name.data(),
-                         value.data());
-      }
-    };
-    set_env_if_not_exist("NVSHMEM_BOOTSTRAP", "mpi");
-    set_env_if_not_exist("NVSHMEM_BOOTSTRAP_MPI_PLUGIN", "libnvshmem_wholememory_bootstrap.so");
-    nvshmemx_init_attr_t attr;
-    attr.mpi_comm = &comm;
-    nvshmemx_init_attr(NVSHMEMX_INIT_WITH_MPI_COMM, &attr);
     WHOLEMEMORY_CHECK(nvshmem_my_pe() == comm->world_rank);
     WHOLEMEMORY_CHECK(nvshmem_n_pes() == comm->world_size);
     nvshmem_has_initalized = true;
