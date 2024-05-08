@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2023, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2024, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@
 #include "wholememory/communicator.hpp"
 #include "wholememory/global_reference.h"
 #include "wholememory/wholememory.h"
+#include <numa.h>
 
 #include "system_info.hpp"
 #ifdef WITH_NVSHMEM_SUPPORT
@@ -1433,6 +1434,37 @@ class continuous_mnnvl_wholememory_impl : public continuous_device_wholememory_i
                      alloc_strategy_.total_alloc_size,
                      &madesc,
                      1));
+    if (location_ == WHOLEMEMORY_ML_HOST) {
+      // allow host to access map address.
+      if (numa_available() == -1) {
+        int numa_id;
+        WM_CU_CHECK_NO_THROW(
+          cuDeviceGetAttribute(&numa_id, CU_DEVICE_ATTRIBUTE_HOST_NUMA_ID, comm_->dev_id));
+        CUmemAccessDesc madesc;
+        madesc.location.type = CU_MEM_LOCATION_TYPE_HOST_NUMA;
+        madesc.location.id   = numa_id;
+        madesc.flags         = CU_MEM_ACCESS_FLAGS_PROT_READWRITE;
+        WM_CU_CHECK_NO_THROW(
+          cuMemSetAccess(reinterpret_cast<CUdeviceptr>(cu_alloc_handle_.mapped_whole_memory),
+                         alloc_strategy_.total_alloc_size,
+                         &madesc,
+                         1));
+
+        return;
+      }
+      int numa_nums = numa_max_node() + 1;
+      std::vector<CUmemAccessDesc> madesc_vec(numa_nums);
+      for (int i = 0; i < numa_nums; i++) {
+        madesc_vec[i].location.type = CU_MEM_LOCATION_TYPE_HOST_NUMA;
+        madesc_vec[i].location.id   = i;
+        madesc_vec[i].flags         = CU_MEM_ACCESS_FLAGS_PROT_READWRITE;
+      }
+      WM_CU_CHECK_NO_THROW(
+        cuMemSetAccess(reinterpret_cast<CUdeviceptr>(cu_alloc_handle_.mapped_whole_memory),
+                       alloc_strategy_.total_alloc_size,
+                       madesc_vec.data(),
+                       numa_nums));
+    }
   }
   void create_and_map_driver_memory()
   {

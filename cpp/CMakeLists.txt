@@ -197,6 +197,7 @@ PUBLIC
     raft::raft
 PRIVATE
     NCCL::NCCL
+    numa
 )
 
 if(BUILD_WITH_NVSHMEM)
